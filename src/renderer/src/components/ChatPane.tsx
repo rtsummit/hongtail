@@ -61,6 +61,8 @@ interface Props {
   onActivate: (mode: 'resume-full' | 'resume-summary') => void
   onTurnStart: (sessionId: string) => void
   onSetPermissionMode: (sessionId: string, mode: string) => void
+  onSetModel: (sessionId: string, model: string) => void
+  onInterrupt: (sessionId: string) => void
 }
 
 function isLiveMode(mode: SessionMode): boolean {
@@ -91,7 +93,9 @@ function ChatPane({
   onPrependBlocks,
   onActivate,
   onTurnStart,
-  onSetPermissionMode
+  onSetPermissionMode,
+  onSetModel,
+  onInterrupt
 }: Props): React.JSX.Element {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -505,6 +509,9 @@ function ChatPane({
                   ? (mode) => onSetPermissionMode(selected.sessionId, mode)
                   : undefined
               }
+              onSetModel={
+                selected ? (model) => onSetModel(selected.sessionId, model) : undefined
+              }
             />
             <QuoteChips quotes={quotes} onRemove={handleRemoveQuote} />
             {slashCtx && matchedCommands.length > 0 && (
@@ -539,15 +546,27 @@ function ChatPane({
                 placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, Ctrl+V: 이미지)"
                 rows={3}
               />
-              <button
-                type="button"
-                className="send-btn"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => void handleSend()}
-                disabled={(!input.trim() && quotes.length === 0) || sending}
-              >
-                {sending ? '…' : '전송'}
-              </button>
+              {status?.thinking ? (
+                <button
+                  type="button"
+                  className="send-btn interrupt"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => selected && onInterrupt(selected.sessionId)}
+                  title="진행 중 turn 중단 (세션은 유지)"
+                >
+                  ◼
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="send-btn"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => void handleSend()}
+                  disabled={(!input.trim() && quotes.length === 0) || sending}
+                >
+                  {sending ? '…' : '전송'}
+                </button>
+              )}
             </div>
           </div>
         </>

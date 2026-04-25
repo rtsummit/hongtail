@@ -6,6 +6,20 @@ import type { UsageData } from '../../../preload/index.d'
 interface Props {
   status?: SessionStatus
   onSetPermissionMode?: (mode: string) => void
+  onSetModel?: (model: string) => void
+}
+
+const MODEL_OPTIONS: { value: string; label: string; hint: string }[] = [
+  { value: 'default', label: 'default', hint: '기본 (대화 시작 시 모델)' },
+  { value: 'opus', label: 'Opus', hint: '최고 성능 — 비싸고 느림' },
+  { value: 'sonnet', label: 'Sonnet', hint: '균형 — 일상 작업' },
+  { value: 'haiku', label: 'Haiku', hint: '빠르고 저렴 — 단순 작업' }
+]
+
+function modelFamily(model: string | undefined): string | null {
+  if (!model) return null
+  const m = model.match(/^claude-(opus|sonnet|haiku)-/i)
+  return m ? m[1].toLowerCase() : null
 }
 
 const MODE_LABEL: Record<string, string> = {
@@ -65,26 +79,33 @@ function ContextBar({ percent }: { percent: number }): React.JSX.Element {
   )
 }
 
-function UsageBar({ status, onSetPermissionMode }: Props): React.JSX.Element | null {
+function UsageBar({
+  status,
+  onSetPermissionMode,
+  onSetModel
+}: Props): React.JSX.Element | null {
   const [usage, setUsage] = useState<UsageData | null>(null)
   const [, setTick] = useState(0)
   const [modeOpen, setModeOpen] = useState(false)
+  const [modelOpen, setModelOpen] = useState(false)
   const lastSigRef = useRef<string>('')
 
-  // close mode dropdown on outside click
+  // close dropdowns on outside click
   useEffect(() => {
-    if (!modeOpen) return
+    if (!modeOpen && !modelOpen) return
     const onDown = (e: MouseEvent): void => {
       const t = e.target as HTMLElement
-      if (t.closest?.('.usage-mode-wrap')) return
+      if (modeOpen && t.closest?.('.usage-mode-wrap')) return
+      if (modelOpen && t.closest?.('.usage-model-wrap')) return
       setModeOpen(false)
+      setModelOpen(false)
     }
     const id = setTimeout(() => document.addEventListener('mousedown', onDown), 0)
     return () => {
       clearTimeout(id)
       document.removeEventListener('mousedown', onDown)
     }
-  }, [modeOpen])
+  }, [modeOpen, modelOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -115,6 +136,8 @@ function UsageBar({ status, onSetPermissionMode }: Props): React.JSX.Element | n
   }, [])
 
   const modelDisplay = status?.model ? formatModelDisplay(status.model) : null
+  const currentFamily = modelFamily(status?.model)
+  const showModel = !!modelDisplay && !!onSetModel
   const ctxPercent =
     status?.contextUsedTokens != null && status?.contextWindow
       ? Math.min(100, Math.round((status.contextUsedTokens / status.contextWindow) * 100))
@@ -129,7 +152,43 @@ function UsageBar({ status, onSetPermissionMode }: Props): React.JSX.Element | n
   const now = Date.now()
   return (
     <div className={`usage-bar ${usage?.stale ? 'stale' : ''}`}>
-      {modelDisplay && <span className="usage-model">[{modelDisplay}]</span>}
+      {modelDisplay && !showModel && <span className="usage-model">[{modelDisplay}]</span>}
+      {showModel && (
+        <span className="usage-model-wrap">
+          <button
+            type="button"
+            className="usage-model"
+            onClick={() => setModelOpen((o) => !o)}
+            title="모델 변경"
+          >
+            [{modelDisplay}] ▾
+          </button>
+          {modelOpen && (
+            <div className="usage-mode-menu">
+              {MODEL_OPTIONS.map((opt) => {
+                const active =
+                  opt.value === 'default'
+                    ? currentFamily == null || !MODEL_OPTIONS.some((o) => o.value === currentFamily)
+                    : opt.value === currentFamily
+                return (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    className={`usage-mode-option ${active ? 'active' : ''}`}
+                    onClick={() => {
+                      setModelOpen(false)
+                      if (!active) onSetModel?.(opt.value)
+                    }}
+                  >
+                    <span className="usage-mode-label">{opt.label}</span>
+                    <span className="usage-mode-hint">{opt.hint}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </span>
+      )}
 
       {ctxPercent != null && (
         <span className="usage-window">

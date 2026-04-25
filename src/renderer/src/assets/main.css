@@ -1427,6 +1427,27 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   font-weight: 600;
 }
 
+.usage-model-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.usage-model-wrap > .usage-model {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--fg);
+}
+
+.usage-model-wrap > .usage-model:hover {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .ctx-bar {
   letter-spacing: -1px;
   margin-right: 2px;
@@ -1814,6 +1835,18 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.send-btn.interrupt {
+  background: transparent;
+  color: #f59e0b;
+  border-color: #f59e0b;
+  font-size: 16px;
+  padding: 0 16px;
+}
+
+.send-btn.interrupt:hover {
+  background: rgba(245, 158, 11, 0.15);
 }
 
 .chat-input-readonly {

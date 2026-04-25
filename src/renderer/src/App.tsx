@@ -46,9 +46,7 @@ function App(): React.JSX.Element {
   }, [])
   const subscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const waitersRef = useRef<Map<string, RpcWaiterEntry>>(new Map())
-  const pendingControlRef = useRef<
-    Map<string, { sessionId: string; prevMode: string | undefined }>
-  >(new Map())
+  const pendingControlRef = useRef<Map<string, { rollback?: () => void }>>(new Map())
 
   const handleSplitterPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -221,14 +219,7 @@ function App(): React.JSX.Element {
               `control request ${ctlResp.requestId} failed:`,
               ctlResp.error
             )
-            setStatusBySession((prev) => ({
-              ...prev,
-              [pending.sessionId]: {
-                ...prev[pending.sessionId],
-                thinking: prev[pending.sessionId]?.thinking ?? false,
-                permissionMode: pending.prevMode
-              }
-            }))
+            pending.rollback?.()
           }
         }
       }
@@ -440,14 +431,7 @@ function App(): React.JSX.Element {
         }
       }
     })
-    try {
-      const requestId = await window.api.claude.controlRequest(sessionId, {
-        subtype: 'set_permission_mode',
-        mode
-      })
-      pendingControlRef.current.set(requestId, { sessionId, prevMode })
-    } catch (err) {
-      console.error('set_permission_mode send failed:', err)
+    const rollback = (): void =>
       setStatusBySession((prev) => ({
         ...prev,
         [sessionId]: {
@@ -456,6 +440,63 @@ function App(): React.JSX.Element {
           permissionMode: prevMode
         }
       }))
+    try {
+      const requestId = await window.api.claude.controlRequest(sessionId, {
+        subtype: 'set_permission_mode',
+        mode
+      })
+      pendingControlRef.current.set(requestId, { rollback })
+    } catch (err) {
+      console.error('set_permission_mode send failed:', err)
+      rollback()
+    }
+  }, [])
+
+  const handleSetModel = useCallback(async (sessionId: string, model: string) => {
+    let prevModel: string | undefined
+    setStatusBySession((prev) => {
+      prevModel = prev[sessionId]?.model
+      return {
+        ...prev,
+        [sessionId]: {
+          ...prev[sessionId],
+          thinking: prev[sessionId]?.thinking ?? false,
+          model
+        }
+      }
+    })
+    const rollback = (): void =>
+      setStatusBySession((prev) => ({
+        ...prev,
+        [sessionId]: {
+          ...prev[sessionId],
+          thinking: prev[sessionId]?.thinking ?? false,
+          model: prevModel
+        }
+      }))
+    try {
+      const requestId = await window.api.claude.controlRequest(sessionId, {
+        subtype: 'set_model',
+        model
+      })
+      pendingControlRef.current.set(requestId, { rollback })
+    } catch (err) {
+      console.error('set_model send failed:', err)
+      rollback()
+    }
+  }, [])
+
+  const handleInterrupt = useCallback(async (sessionId: string) => {
+    try {
+      const requestId = await window.api.claude.controlRequest(sessionId, {
+        subtype: 'interrupt'
+      })
+      // Mark this request so the response handler doesn't log it as a failure.
+      // Status updates (thinking → false) come from the upcoming `result` event
+      // that claude emits when a turn ends — so we don't mutate state here.
+      pendingControlRef.current.set(requestId, {})
+    } catch (err) {
+      console.error('interrupt send failed:', err)
     }
   }, [])
 
@@ -731,6 +772,8 @@ function App(): React.JSX.Element {
             onActivate={activate}
             onTurnStart={handleTurnStart}
             onSetPermissionMode={handleSetPermissionMode}
+            onSetModel={handleSetModel}
+            onInterrupt={handleInterrupt}
           />
         )}
         {isStartingTerminal && (
