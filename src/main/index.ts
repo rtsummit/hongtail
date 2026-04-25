@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerWorkspaceHandlers } from './workspaces'
 import { registerClaudeHandlers } from './claude'
+import { registerSessionHandlers, killAllSessions } from './session'
 
 function createWindow(): void {
   // Create the browser window.
@@ -58,6 +59,7 @@ app.whenReady().then(() => {
 
   registerWorkspaceHandlers()
   registerClaudeHandlers()
+  registerSessionHandlers()
 
   createWindow()
 
@@ -72,9 +74,14 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  killAllSessions()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  killAllSessions()
 })
 
 // In this file you can include the rest of your app's specific main process

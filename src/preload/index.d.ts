@@ -15,6 +15,15 @@ export interface ExposedApi {
   claude: {
     listSessions: (cwd: string) => Promise<ClaudeSessionMeta[]>
     deleteSession: (cwd: string, sessionId: string) => Promise<void>
+    startSession: (
+      workspacePath: string,
+      sessionId: string | null,
+      mode: 'new' | 'resume'
+    ) => Promise<{ sessionId: string; alreadyRunning: boolean }>
+    sendInput: (sessionId: string, text: string) => Promise<void>
+    stopSession: (sessionId: string) => Promise<void>
+    listRunning: () => Promise<string[]>
+    onEvent: (sessionId: string, callback: (event: unknown) => void) => () => void
   }
 }
 

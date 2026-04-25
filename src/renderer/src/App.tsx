@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import ChatPane from './components/ChatPane'
-import type { SelectedSession } from './types'
+import type { Block, SelectedSession } from './types'
 
 function App(): React.JSX.Element {
   const [workspaces, setWorkspaces] = useState<string[]>([])
   const [selected, setSelected] = useState<SelectedSession | null>(null)
+  const [messagesBySession, setMessagesBySession] = useState<Record<string, Block[]>>({})
 
   useEffect(() => {
     void window.api.workspaces.load().then(setWorkspaces)
@@ -23,10 +24,25 @@ function App(): React.JSX.Element {
     await persist([picked, ...workspaces])
   }, [workspaces, persist])
 
-  const startClaudeIn = useCallback(async (cwd: string) => {
-    // Wired in Step 3
-    console.log('[startClaudeIn]', cwd)
+  const startClaudeIn = useCallback((cwd: string) => {
+    const sessionId = crypto.randomUUID()
+    setSelected({
+      workspacePath: cwd,
+      sessionId,
+      title: 'New session',
+      isNew: true
+    })
   }, [])
+
+  const appendBlocks = useCallback((sessionId: string, blocks: Block[]) => {
+    if (blocks.length === 0) return
+    setMessagesBySession((prev) => ({
+      ...prev,
+      [sessionId]: [...(prev[sessionId] ?? []), ...blocks]
+    }))
+  }, [])
+
+  const messages = selected ? (messagesBySession[selected.sessionId] ?? []) : []
 
   return (
     <div className="app">
@@ -37,7 +53,7 @@ function App(): React.JSX.Element {
         onSelect={setSelected}
         onStartClaude={startClaudeIn}
       />
-      <ChatPane selected={selected} />
+      <ChatPane selected={selected} messages={messages} onAppendBlocks={appendBlocks} />
     </div>
   )
 }
