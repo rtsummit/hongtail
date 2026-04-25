@@ -147,9 +147,13 @@ function App(): React.JSX.Element {
   )
 
   const handleTerminalReady = useCallback((sessionId: string) => {
-    setTerminalReady((prev) =>
-      prev[sessionId] ? prev : { ...prev, [sessionId]: true }
-    )
+    // Always wait at least 500ms so the throbber is visible even when claude
+    // resumes nearly instantly (cached context).
+    window.setTimeout(() => {
+      setTerminalReady((prev) =>
+        prev[sessionId] ? prev : { ...prev, [sessionId]: true }
+      )
+    }, 500)
   }, [])
 
   const startClaudeIn = useCallback(
