@@ -90,7 +90,8 @@ function TerminalSession({
       window.removeEventListener('resize', onWindowResize)
       unsub()
       term.dispose()
-      void window.api.pty.kill(sessionId)
+      // PTY 는 일부러 살려둠. React StrictMode 의 double-invoke 에서
+      // 죽이면 자동 claude 명령이 사라짐. 앱 종료 시 killAllPty 가 정리.
     }
   }, [sessionId, workspacePath, initialCommand])
 
