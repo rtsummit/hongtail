@@ -119,36 +119,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-right: 4px;
   min-height: 0;
+  scrollbar-width: none; /* Firefox */
 }
 
 .workspace-list::-webkit-scrollbar,
 .session-list::-webkit-scrollbar {
-  width: 10px;
-}
-
-.workspace-list::-webkit-scrollbar-track,
-.session-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.workspace-list::-webkit-scrollbar-thumb,
-.session-list::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 5px;
-  border: 2px solid var(--panel);
-  transition: background 0.15s ease;
-}
-
-.workspace-list:hover::-webkit-scrollbar-thumb,
-.session-list:hover::-webkit-scrollbar-thumb {
-  background: var(--border);
-}
-
-.workspace-list:hover::-webkit-scrollbar-thumb:hover,
-.session-list:hover::-webkit-scrollbar-thumb:hover {
-  background: var(--fg-dim);
+  display: none;
 }
 
 /* === Workspace card === */
