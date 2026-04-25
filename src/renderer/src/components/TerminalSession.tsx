@@ -27,6 +27,8 @@ function TerminalSession({
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const onExitRef = useRef(onExit)
+  onExitRef.current = onExit
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -59,7 +61,7 @@ function TerminalSession({
       if (event.type === 'data' && typeof event.data === 'string') {
         term.write(event.data)
       } else if (event.type === 'exit') {
-        onExit(event.code ?? null)
+        onExitRef.current(event.code ?? null)
       }
     })
 
@@ -92,7 +94,10 @@ function TerminalSession({
       unsub()
       term.dispose()
     }
-  }, [sessionId, workspacePath, initialCommand, onExit])
+    // onExit intentionally excluded — we access latest via onExitRef.
+    // sessionId/workspacePath/initialCommand are stable per session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, workspacePath, initialCommand])
 
   useEffect(() => {
     if (!visible) return
