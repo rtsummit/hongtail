@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import MessageList from './MessageList'
 import ThinkingIndicator from './ThinkingIndicator'
+import TodoPanel from './TodoPanel'
+import QuoteAffordance from './QuoteAffordance'
+import QuoteChips, { type Quote } from './QuoteChips'
 import { parseClaudeEvent } from '../claudeEvents'
 import { formatTokens } from '../sessionStatus'
+import { extractTodoState } from '../todoState'
 import type { AppSettings } from '../settings'
 import type { Block, SelectedSession, SessionMode, SessionStatus } from '../types'
 
@@ -22,6 +26,20 @@ function isLiveMode(mode: SessionMode): boolean {
   return mode === 'new' || mode === 'resume-full' || mode === 'resume-summary'
 }
 
+function composeMessage(input: string, quotes: Quote[]): string {
+  const trimmedInput = input.trim()
+  if (quotes.length === 0) return trimmedInput
+  const parts = quotes.map((q) => {
+    const quoted = q.text
+      .split('\n')
+      .map((l) => `> ${l}`)
+      .join('\n')
+    return `${quoted}\n\n${q.comment}`
+  })
+  const head = parts.join('\n\n---\n\n')
+  return trimmedInput ? `${head}\n\n---\n\n${trimmedInput}` : head
+}
+
 function ChatPane({
   selected,
   messages,
@@ -37,7 +55,9 @@ function ChatPane({
   const [sending, setSending] = useState(false)
   const [shownFromLine, setShownFromLine] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [quotes, setQuotes] = useState<Quote[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const prependScrollHeightRef = useRef<number | null>(null)
   const loadingMoreRef = useRef(false)
   const shownFromLineRef = useRef(0)
@@ -52,7 +72,21 @@ function ChatPane({
   // When the selected session changes, the next message-set should snap to bottom.
   useEffect(() => {
     forceScrollBottomRef.current = true
+    setQuotes([])
   }, [selected?.sessionId])
+
+  const handleAddQuote = useCallback((text: string, comment: string) => {
+    setQuotes((prev) => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text, comment }
+    ])
+  }, [])
+
+  const handleRemoveQuote = useCallback((id: string) => {
+    setQuotes((prev) => prev.filter((q) => q.id !== id))
+  }, [])
+
+  const todoState = useMemo(() => extractTodoState(messages), [messages])
 
   // After prepend: keep visual scroll position. Layout effect runs before paint.
   useLayoutEffect(() => {
@@ -62,6 +96,11 @@ function ChatPane({
       scrollRef.current.scrollTop += delta
     }
   }, [messages.length])
+
+  // Track whether the user is "near bottom" *before* a new render lands.
+  // Measuring after a streaming append shows the already-grown height which
+  // can exceed any fixed threshold, so we cache the pre-render state on scroll.
+  const wasNearBottomRef = useRef(true)
 
   // After fresh load or while user is near bottom, snap to bottom. Skip on prepend.
   useEffect(() => {
@@ -74,11 +113,13 @@ function ChatPane({
     if (forceScrollBottomRef.current) {
       el.scrollTop = el.scrollHeight
       forceScrollBottomRef.current = false
+      wasNearBottomRef.current = true
       return
     }
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
-    if (atBottom) el.scrollTop = el.scrollHeight
-  }, [messages.length, status?.thinking])
+    if (wasNearBottomRef.current) {
+      el.scrollTop = el.scrollHeight
+    }
+  }, [messages, status?.thinking])
 
   const chunkSize = settings.readonlyChunkSize
 
@@ -181,17 +222,22 @@ function ChatPane({
   }, [onPrependBlocks, chunkSize])
 
   const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return
-    if (scrollRef.current.scrollTop < 80) {
+    const el = scrollRef.current
+    if (!el) return
+    wasNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    if (el.scrollTop < 80) {
       void loadMore()
     }
   }, [loadMore])
 
   const handleSend = useCallback(async () => {
-    if (!selected || !input.trim() || sending || !live) return
-    const text = input
+    if (!selected || sending || !live) return
+    if (!input.trim() && quotes.length === 0) return
+    const text = composeMessage(input, quotes)
     setInput('')
+    setQuotes([])
     setSending(true)
+    forceScrollBottomRef.current = true
     onAppendBlocks(selected.sessionId, [{ kind: 'user-text', text }])
     onTurnStart(selected.sessionId)
     try {
@@ -202,8 +248,9 @@ function ChatPane({
       ])
     } finally {
       setSending(false)
+      textareaRef.current?.focus()
     }
-  }, [selected, input, sending, live, onAppendBlocks, onTurnStart])
+  }, [selected, input, sending, live, quotes, onAppendBlocks, onTurnStart])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -245,6 +292,7 @@ function ChatPane({
           {selected.workspacePath} · {selected.sessionId.slice(0, 8)} · {subtitleSuffix}
           {usageLine ? ` · ${usageLine}` : ''}
         </div>
+        <TodoPanel state={todoState} />
       </div>
 
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
@@ -266,24 +314,31 @@ function ChatPane({
       </div>
 
       {live ? (
-        <div className="chat-input">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈)"
-            rows={3}
-            disabled={sending}
-          />
-          <button
-            type="button"
-            className="send-btn"
-            onClick={() => void handleSend()}
-            disabled={!input.trim() || sending}
-          >
-            {sending ? '…' : '전송'}
-          </button>
-        </div>
+        <>
+          <QuoteAffordance containerRef={scrollRef} onAdd={handleAddQuote} />
+          <div className="chat-input-wrap">
+            <QuoteChips quotes={quotes} onRemove={handleRemoveQuote} />
+            <div className="chat-input">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈)"
+                rows={3}
+              />
+              <button
+                type="button"
+                className="send-btn"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => void handleSend()}
+                disabled={(!input.trim() && quotes.length === 0) || sending}
+              >
+                {sending ? '…' : '전송'}
+              </button>
+            </div>
+          </div>
+        </>
       ) : (
         <div className="chat-activate">
           <div className="chat-activate-label">이전 대화 — 읽기 전용</div>

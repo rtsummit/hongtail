@@ -535,6 +535,105 @@
   background: var(--panel);
 }
 
+/* Todo panel (CLI-style task tracker) */
+.todo-panel {
+  margin-top: 8px;
+  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.todo-panel-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  user-select: none;
+}
+
+.todo-panel-summary::-webkit-details-marker {
+  display: none;
+}
+
+.todo-panel-summary::before {
+  content: '▸';
+  color: var(--fg-dim);
+  display: inline-block;
+  width: 10px;
+  font-size: 9px;
+}
+
+.todo-panel[open] > .todo-panel-summary::before {
+  content: '▾';
+}
+
+.todo-panel-count {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.todo-panel-stats .done {
+  color: #7fbf8c;
+}
+.todo-panel-stats .in-progress {
+  color: #d49a5e;
+}
+.todo-panel-stats .pending {
+  color: var(--fg-muted);
+}
+
+.todo-panel-active {
+  color: #d49a5e;
+  margin-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.todo-panel-list {
+  list-style: none;
+  margin: 6px 0 0 0;
+  padding: 6px 10px;
+  border-left: 2px solid var(--border);
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 0 4px 4px 0;
+}
+
+.todo-panel-item {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+  font-size: 11.5px;
+  color: var(--fg);
+}
+
+.todo-panel-item.completed .todo-panel-text {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+}
+
+.todo-panel-item.in_progress .todo-panel-text {
+  color: #d49a5e;
+  font-weight: 500;
+}
+
+.todo-panel-item.in_progress .todo-panel-mark {
+  color: #d49a5e;
+}
+
+.todo-panel-item.completed .todo-panel-mark {
+  color: #7fbf8c;
+}
+
+.todo-panel-mark {
+  width: 1.2em;
+  flex-shrink: 0;
+  text-align: center;
+}
+
 .chat-title {
   font-size: 14px;
   color: var(--fg);
@@ -1242,12 +1341,173 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 /* === Input === */
+.chat-input-wrap {
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.chat-input-wrap .chat-input {
+  border-top: none;
+  padding-top: 8px;
+}
+
 .chat-input {
   display: flex;
   gap: 8px;
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
   background: var(--panel);
+}
+
+/* === Quote (selection-to-comment) === */
+.quote-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px 0;
+}
+
+.quote-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--fg);
+  line-height: 1.3;
+}
+
+.quote-chip-text {
+  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+.quote-chip-comment {
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.quote-chip-remove {
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.quote-chip-remove:hover {
+  color: var(--danger-fg, #f87171);
+}
+
+.quote-affordance {
+  position: fixed;
+  z-index: 1000;
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.quote-affordance:hover {
+  filter: brightness(1.1);
+}
+
+.quote-popover {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.quote-popover-quote {
+  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
+  font-size: 11px;
+  color: var(--fg-dim);
+  background: var(--panel-2);
+  border-left: 3px solid var(--accent);
+  padding: 6px 8px;
+  border-radius: 4px;
+  max-height: 60px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.quote-popover-input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+}
+
+.quote-popover-input:focus {
+  border-color: var(--accent);
+}
+
+.quote-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.quote-btn-cancel,
+.quote-btn-add {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.quote-btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+}
+
+.quote-btn-cancel:hover {
+  color: var(--fg);
+}
+
+.quote-btn-add {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.quote-btn-add:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .chat-input textarea {

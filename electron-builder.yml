@@ -13,6 +13,10 @@ asarUnpack:
   - resources/**
 win:
   executableName: hongluade-tmp
+  target:
+    - portable
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ToolBlock from './ToolBlock'
@@ -60,7 +61,7 @@ function pairToolBlocks(blocks: Block[]): RenderItem[] {
 }
 
 function MessageList({ blocks }: Props): React.JSX.Element {
-  const items = pairToolBlocks(blocks)
+  const items = useMemo(() => pairToolBlocks(blocks), [blocks])
   return (
     <>
       {items.map((b, i) => (
@@ -70,7 +71,7 @@ function MessageList({ blocks }: Props): React.JSX.Element {
   )
 }
 
-function ItemView({ item }: { item: RenderItem }): React.JSX.Element | null {
+const ItemView = memo(function ItemView({ item }: { item: RenderItem }): React.JSX.Element | null {
   if (item.kind === 'tool-pair') {
     return <ToolBlock use={item.use} result={item.result} />
   }
@@ -118,6 +119,6 @@ function ItemView({ item }: { item: RenderItem }): React.JSX.Element | null {
     default:
       return null
   }
-}
+})
 
-export default MessageList
+export default memo(MessageList)
