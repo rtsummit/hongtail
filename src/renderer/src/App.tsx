@@ -167,6 +167,37 @@ function App(): React.JSX.Element {
     [selected, defaultBackend, startLive]
   )
 
+  const handleStopLive = useCallback(
+    async (sessionId: string) => {
+      const a = active[sessionId]
+      if (!a) return
+      const ok = window.confirm(
+        '이 라이브 세션을 종료할까요? (JSONL 기록은 유지됩니다)'
+      )
+      if (!ok) return
+      try {
+        if (a.backend === 'terminal') {
+          await window.api.pty.kill(sessionId)
+        } else {
+          await window.api.claude.stopSession(sessionId)
+        }
+      } catch (err) {
+        console.error('stop session failed:', err)
+      }
+      setActive((prev) => {
+        if (!prev[sessionId]) return prev
+        const next = { ...prev }
+        delete next[sessionId]
+        return next
+      })
+      setSelected((prev) => {
+        if (prev?.sessionId !== sessionId) return prev
+        return { ...prev, mode: 'readonly', backend: 'app' }
+      })
+    },
+    [active]
+  )
+
   const handleTerminalExit = useCallback((sessionId: string, _code: number | null) => {
     void _code
     setActive((prev) => {
@@ -358,6 +389,7 @@ function App(): React.JSX.Element {
         onAddWorkspace={addWorkspaceDialog}
         onSelect={handleSelect}
         onStartClaude={startClaudeIn}
+        onStopLive={handleStopLive}
       />
       <div className="main-area">
         {terminalSessionList.map((t) => {

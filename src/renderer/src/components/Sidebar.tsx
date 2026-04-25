@@ -22,6 +22,7 @@ interface Props {
   onAddWorkspace: () => void | Promise<void>
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
+  onStopLive: (sessionId: string) => void | Promise<void>
 }
 
 function deriveLiveTitle(blocks: Block[] | undefined): string {
@@ -45,7 +46,8 @@ function Sidebar({
   onChangeBackend,
   onAddWorkspace,
   onSelect,
-  onStartClaude
+  onStartClaude,
+  onStopLive
 }: Props): React.JSX.Element {
   const liveByWorkspace = new Map<string, LiveSessionInfo[]>()
   for (const [sessionId, a] of Object.entries(active)) {
@@ -108,6 +110,7 @@ function Sidebar({
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
+            onStopLive={onStopLive}
           />
         ))}
       </div>

@@ -8,6 +8,7 @@ interface Props {
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
+  onStopLive: (sessionId: string) => void | Promise<void>
 }
 
 function WorkspaceCard({
@@ -15,7 +16,8 @@ function WorkspaceCard({
   liveSessions,
   selectedId,
   onSelect,
-  onStartClaude
+  onStartClaude,
+  onStopLive
 }: Props): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [sessions, setSessions] = useState<ClaudeSessionMeta[] | null>(null)
@@ -148,6 +150,17 @@ function WorkspaceCard({
                   {s.isNew ? ' · new' : ' · resumed'}
                 </span>
               </div>
+              <button
+                type="button"
+                className="session-remove"
+                title="이 라이브 세션 종료"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void onStopLive(s.sessionId)
+                }}
+              >
+                −
+              </button>
             </div>
           ))}
 
