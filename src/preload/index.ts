@@ -87,6 +87,13 @@ const api = {
     save: (sessionId: string, bytes: Uint8Array, mimeType: string): Promise<string> =>
       ipcRenderer.invoke('images:save', sessionId, bytes, mimeType)
   },
+  sessionAliases: {
+    list: () => ipcRenderer.invoke('session-aliases:list'),
+    set: (sessionId: string, alias: string) =>
+      ipcRenderer.invoke('session-aliases:set', sessionId, alias),
+    sync: (cwd: string, sessionId: string) =>
+      ipcRenderer.invoke('session-aliases:sync', cwd, sessionId)
+  },
   pty: {
     spawn: (args: {
       sessionId: string

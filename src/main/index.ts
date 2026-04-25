@@ -11,6 +11,7 @@ import { registerFontHandlers } from './fonts'
 import { registerSlashCommandHandlers } from './slashCommands'
 import { registerUsageCacheHandlers } from './usageCache'
 import { registerImageHandlers } from './images'
+import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
 
 function createWindow(): void {
@@ -74,6 +75,7 @@ app.whenReady().then(() => {
   registerSlashCommandHandlers()
   registerUsageCacheHandlers()
   registerImageHandlers()
+  registerSessionAliasHandlers()
 
   createWindow()
 

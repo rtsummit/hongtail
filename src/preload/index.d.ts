@@ -18,6 +18,11 @@ export interface SlashCommand {
   origin?: string
 }
 
+export interface SessionAlias {
+  alias: string
+  setAt: string
+}
+
 export interface UsageData {
   planName: string | null
   fiveHour: number | null
@@ -94,6 +99,11 @@ export interface ExposedApi {
   }
   images: {
     save: (sessionId: string, bytes: Uint8Array, mimeType: string) => Promise<string>
+  }
+  sessionAliases: {
+    list: () => Promise<Record<string, SessionAlias>>
+    set: (sessionId: string, alias: string) => Promise<SessionAlias | null>
+    sync: (cwd: string, sessionId: string) => Promise<SessionAlias | null>
   }
   pty: {
     spawn: (args: PtySpawnArgs) => Promise<{ alreadyRunning: boolean }>

@@ -451,6 +451,23 @@
   font-size: 12px;
 }
 
+.session-title.aliased {
+  font-weight: 600;
+}
+
+.session-alias-input {
+  flex: 1;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  min-width: 0;
+  outline: none;
+}
+
 .session-time {
   font-size: 10px;
   color: var(--fg-dim);

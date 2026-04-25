@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import SessionRow from './SessionRow'
+import SessionTitleArea from './SessionTitleArea'
 import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
+import type { SessionAlias } from '../../../preload/index.d'
 
 interface Props {
   path: string
   alias?: string
   liveSessions: LiveSessionInfo[]
+  aliasesBySession: Record<string, SessionAlias>
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
   onRemove: (path: string) => void | Promise<void>
   onSetAlias: (path: string, alias: string) => void | Promise<void>
+  onSetSessionAlias: (sessionId: string, alias: string) => void | Promise<void>
   isDragging: boolean
   dragOverPosition: 'top' | 'bottom' | null
   onDragStart: () => void
@@ -25,12 +29,14 @@ function WorkspaceCard({
   path,
   alias,
   liveSessions,
+  aliasesBySession,
   selectedId,
   onSelect,
   onStartClaude,
   onStopLive,
   onRemove,
   onSetAlias,
+  onSetSessionAlias,
   isDragging,
   dragOverPosition,
   onDragStart,
@@ -253,59 +259,70 @@ function WorkspaceCard({
             )}
           </div>
 
-          {graduatedLives.map((s) => (
-            <div
-              key={s.sessionId}
-              className={`session live${selectedId === s.sessionId ? ' active' : ''}`}
-              onClick={() =>
-                onSelect({
-                  workspacePath: path,
-                  sessionId: s.sessionId,
-                  title: s.jsonlTitle ?? s.title,
-                  mode: 'readonly'
-                })
-              }
-            >
-              <span className="live-dot" title={`${s.backend} · live`}>●</span>
-              <div className="session-info">
-                <span className="session-title" title={s.jsonlTitle ?? s.title}>
-                  {s.jsonlTitle ?? s.title}
-                </span>
-                <span className="session-time">
-                  {s.backend}
-                  {s.isNew ? ' · new' : ' · resumed'}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="session-stop"
-                title="이 라이브 대화 중지"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void onStopLive(s.sessionId)
-                }}
+          {graduatedLives.map((s) => {
+            const baseTitle = s.jsonlTitle ?? s.title
+            const aliasEntry = aliasesBySession[s.sessionId]
+            const display = aliasEntry?.alias ?? baseTitle
+            return (
+              <div
+                key={s.sessionId}
+                className={`session live${selectedId === s.sessionId ? ' active' : ''}`}
+                onClick={() =>
+                  onSelect({
+                    workspacePath: path,
+                    sessionId: s.sessionId,
+                    title: display,
+                    mode: 'readonly'
+                  })
+                }
               >
-                ◼
-              </button>
-            </div>
-          ))}
+                <span className="live-dot" title={`${s.backend} · live`}>
+                  ●
+                </span>
+                <SessionTitleArea
+                  display={display}
+                  baseTitle={baseTitle}
+                  isAlias={!!aliasEntry}
+                  subtitle={`${s.backend}${s.isNew ? ' · new' : ' · resumed'}`}
+                  onCommitAlias={(next) => onSetSessionAlias(s.sessionId, next)}
+                />
+                <button
+                  type="button"
+                  className="session-stop"
+                  title="이 라이브 대화 중지"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void onStopLive(s.sessionId)
+                  }}
+                >
+                  ◼
+                </button>
+              </div>
+            )
+          })}
 
-          {filteredPast.map((s) => (
-            <SessionRow
-              key={s.id}
-              meta={s}
-              active={selectedId === s.id}
-              onClick={() =>
-                onSelect({
-                  workspacePath: path,
-                  sessionId: s.id,
-                  title: s.title,
-                  mode: 'readonly'
-                })
-              }
-              onDelete={() => handleDelete(s.id, s.title)}
-            />
-          ))}
+          {filteredPast.map((s) => {
+            const aliasEntry = aliasesBySession[s.id]
+            const display = aliasEntry?.alias ?? s.title
+            return (
+              <SessionRow
+                key={s.id}
+                meta={s}
+                aliasEntry={aliasEntry}
+                active={selectedId === s.id}
+                onClick={() =>
+                  onSelect({
+                    workspacePath: path,
+                    sessionId: s.id,
+                    title: display,
+                    mode: 'readonly'
+                  })
+                }
+                onDelete={() => handleDelete(s.id, s.title)}
+                onSetAlias={(next) => onSetSessionAlias(s.id, next)}
+              />
+            )
+          })}
         </div>
       )}
     </section>

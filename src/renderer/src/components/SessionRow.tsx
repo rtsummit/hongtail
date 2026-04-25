@@ -1,10 +1,14 @@
+import SessionTitleArea from './SessionTitleArea'
 import type { ClaudeSessionMeta } from '../types'
+import type { SessionAlias } from '../../../preload/index.d'
 
 interface Props {
   meta: ClaudeSessionMeta
+  aliasEntry: SessionAlias | undefined
   active: boolean
   onClick: () => void
   onDelete: () => void
+  onSetAlias: (alias: string) => void | Promise<void>
 }
 
 function pad2(n: number): string {
@@ -18,15 +22,24 @@ function formatStartedAt(iso: string): string {
   return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
-function SessionRow({ meta, active, onClick, onDelete }: Props): React.JSX.Element {
+function SessionRow({
+  meta,
+  aliasEntry,
+  active,
+  onClick,
+  onDelete,
+  onSetAlias
+}: Props): React.JSX.Element {
+  const display = aliasEntry?.alias ?? meta.title
   return (
     <div className={`session${active ? ' active' : ''}`} onClick={onClick}>
-      <div className="session-info">
-        <span className="session-title" title={meta.title}>
-          {meta.title}
-        </span>
-        <span className="session-time">{formatStartedAt(meta.startedAt)}</span>
-      </div>
+      <SessionTitleArea
+        display={display}
+        baseTitle={meta.title}
+        isAlias={!!aliasEntry}
+        subtitle={formatStartedAt(meta.startedAt)}
+        onCommitAlias={onSetAlias}
+      />
       <button
         type="button"
         className="session-remove"

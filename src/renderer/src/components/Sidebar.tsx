@@ -7,6 +7,7 @@ import type {
   SelectedSession,
   WorkspaceEntry
 } from '../types'
+import type { SessionAlias } from '../../../preload/index.d'
 
 interface ActiveLike {
   workspacePath: string
@@ -20,11 +21,13 @@ interface Props {
   defaultBackend: Backend
   active: Record<string, ActiveLike>
   messagesBySession: Record<string, Block[]>
+  aliasesBySession: Record<string, SessionAlias>
   onChangeBackend: (b: Backend) => void
   onAddWorkspace: () => void | Promise<void>
   onRemoveWorkspace: (path: string) => void | Promise<void>
   onReorderWorkspaces: (fromPath: string, toPath: string, before: boolean) => void | Promise<void>
   onSetAlias: (path: string, alias: string) => void | Promise<void>
+  onSetSessionAlias: (sessionId: string, alias: string) => void | Promise<void>
   onOpenSettings: () => void
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
@@ -49,11 +52,13 @@ function Sidebar({
   defaultBackend,
   active,
   messagesBySession,
+  aliasesBySession,
   onChangeBackend,
   onAddWorkspace,
   onRemoveWorkspace,
   onReorderWorkspaces,
   onSetAlias,
+  onSetSessionAlias,
   onOpenSettings,
   onSelect,
   onStartClaude,
@@ -120,12 +125,14 @@ function Sidebar({
             path={path}
             alias={alias}
             liveSessions={liveByWorkspace.get(path) ?? []}
+            aliasesBySession={aliasesBySession}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}
             onRemove={onRemoveWorkspace}
             onSetAlias={onSetAlias}
+            onSetSessionAlias={onSetSessionAlias}
             isDragging={draggingPath === path}
             dragOverPosition={dragOver?.path === path ? (dragOver.before ? 'top' : 'bottom') : null}
             onDragStart={() => setDraggingPath(path)}

@@ -24,6 +24,7 @@ import {
   type RpcWaiterEntry
 } from './rpcBridge'
 import type { Backend, Block, SelectedSession, SessionStatus, WorkspaceEntry } from './types'
+import type { SessionAlias } from '../../preload/index.d'
 
 function App(): React.JSX.Element {
   const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([])
@@ -32,6 +33,7 @@ function App(): React.JSX.Element {
   const [active, setActive] = useState<Record<string, ActiveEntry>>({})
   const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
+  const [aliasesBySession, setAliasesBySession] = useState<Record<string, SessionAlias>>({})
   const [defaultBackend, setDefaultBackend] = useState<Backend>('app')
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem('hongluade.sidebarWidth'))
@@ -76,6 +78,12 @@ function App(): React.JSX.Element {
     },
     [sidebarWidth]
   )
+
+  useEffect(() => {
+    void window.api.sessionAliases.list().then((map) => {
+      setAliasesBySession(map ?? {})
+    })
+  }, [])
 
   useEffect(() => {
     void window.api.workspaces.load().then((items) => {
@@ -544,9 +552,47 @@ function App(): React.JSX.Element {
         setSelected({ ...s, mode: a.mode, backend: a.backend })
       } else {
         setSelected({ ...s, mode: 'readonly' })
+        // On readonly open, try to import the latest /rename from the jsonl
+        // into the alias store. Local store wins if it's more recent.
+        void window.api.sessionAliases
+          .sync(s.workspacePath, s.sessionId)
+          .then((entry) => {
+            setAliasesBySession((prev) => {
+              if (!entry) {
+                if (!(s.sessionId in prev)) return prev
+                const next = { ...prev }
+                delete next[s.sessionId]
+                return next
+              }
+              const cur = prev[s.sessionId]
+              if (cur && cur.alias === entry.alias && cur.setAt === entry.setAt) return prev
+              return { ...prev, [s.sessionId]: entry }
+            })
+          })
+          .catch((err) => console.error('alias sync failed:', err))
       }
     },
     [active]
+  )
+
+  const handleSetSessionAlias = useCallback(
+    async (sessionId: string, alias: string) => {
+      try {
+        const entry = await window.api.sessionAliases.set(sessionId, alias)
+        setAliasesBySession((prev) => {
+          if (!entry) {
+            if (!(sessionId in prev)) return prev
+            const next = { ...prev }
+            delete next[sessionId]
+            return next
+          }
+          return { ...prev, [sessionId]: entry }
+        })
+      } catch (err) {
+        console.error('set session alias failed:', err)
+      }
+    },
+    []
   )
 
   // === RPC bridge ===
@@ -685,6 +731,12 @@ function App(): React.JSX.Element {
 
   const messages = selected ? (messagesBySession[selected.sessionId] ?? []) : []
   const status = selected ? statusBySession[selected.sessionId] : undefined
+  const selectedAlias = selected ? aliasesBySession[selected.sessionId]?.alias : undefined
+  const selectedForChat = selected
+    ? selectedAlias
+      ? { ...selected, title: selectedAlias }
+      : selected
+    : null
 
   const terminalSessionList = useMemo(
     () =>
@@ -723,11 +775,13 @@ function App(): React.JSX.Element {
         defaultBackend={defaultBackend}
         active={active}
         messagesBySession={messagesBySession}
+        aliasesBySession={aliasesBySession}
         onChangeBackend={setDefaultBackend}
         onAddWorkspace={addWorkspaceDialog}
         onRemoveWorkspace={handleRemoveWorkspace}
         onReorderWorkspaces={handleReorderWorkspaces}
         onSetAlias={handleSetAlias}
+        onSetSessionAlias={handleSetSessionAlias}
         onOpenSettings={() => setSettingsOpen(true)}
         onSelect={handleSelect}
         onStartClaude={startClaudeIn}
@@ -762,7 +816,7 @@ function App(): React.JSX.Element {
         })}
         {showChatPane && (
           <ChatPane
-            selected={selected}
+            selected={selectedForChat}
             messages={messages}
             status={status}
             settings={settings}
