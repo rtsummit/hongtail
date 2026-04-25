@@ -37,11 +37,11 @@ export function registerWorkspaceHandlers(): void {
     const win = BrowserWindow.fromWebContents(event.sender)
     const result = win
       ? await dialog.showOpenDialog(win, {
-          title: '세션 디렉터리 선택',
+          title: '대화 디렉터리 선택',
           properties: ['openDirectory']
         })
       : await dialog.showOpenDialog({
-          title: '세션 디렉터리 선택',
+          title: '대화 디렉터리 선택',
           properties: ['openDirectory']
         })
     if (result.canceled || result.filePaths.length === 0) return null

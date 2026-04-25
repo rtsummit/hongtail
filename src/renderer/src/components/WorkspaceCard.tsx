@@ -49,7 +49,7 @@ function WorkspaceCard({
 
   const handleDelete = useCallback(
     async (sessionId: string, title: string) => {
-      const ok = window.confirm(`"${title}" 세션을 삭제할까요?`)
+      const ok = window.confirm(`"${title}" 대화를 삭제할까요?`)
       if (!ok) return
       try {
         await window.api.claude.deleteSession(path, sessionId)
@@ -152,14 +152,14 @@ function WorkspaceCard({
               </div>
               <button
                 type="button"
-                className="session-remove"
-                title="이 라이브 세션 종료"
+                className="session-stop"
+                title="이 라이브 대화 중지"
                 onClick={(e) => {
                   e.stopPropagation()
                   void onStopLive(s.sessionId)
                 }}
               >
-                −
+                ◼
               </button>
             </div>
           ))}

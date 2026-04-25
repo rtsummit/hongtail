@@ -30,7 +30,7 @@ function SessionRow({ meta, active, onClick, onDelete }: Props): React.JSX.Eleme
       <button
         type="button"
         className="session-remove"
-        title="세션 삭제"
+        title="대화 삭제"
         onClick={(e) => {
           e.stopPropagation()
           onDelete()

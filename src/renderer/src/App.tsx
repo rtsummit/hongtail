@@ -18,6 +18,7 @@ function App(): React.JSX.Element {
   const [selected, setSelected] = useState<SelectedSession | null>(null)
   const [messagesBySession, setMessagesBySession] = useState<Record<string, Block[]>>({})
   const [active, setActive] = useState<Record<string, ActiveEntry>>({})
+  const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [defaultBackend, setDefaultBackend] = useState<Backend>('app')
   const subscriptionsRef = useRef<Map<string, () => void>>(new Map())
@@ -117,7 +118,7 @@ function App(): React.JSX.Element {
         }
       } catch (err) {
         appendBlocks(sessionId, [
-          { kind: 'error', text: `세션 시작 실패: ${String(err)}` }
+          { kind: 'error', text: `대화 시작 실패: ${String(err)}` }
         ])
       }
     },
@@ -135,12 +136,21 @@ function App(): React.JSX.Element {
         ...prev,
         [sessionId]: { workspacePath, mode, backend }
       }))
+      if (backend === 'terminal') {
+        setTerminalReady((prev) => ({ ...prev, [sessionId]: false }))
+      }
       if (backend === 'app') {
         await startAppLive(sessionId, workspacePath, mode)
       }
     },
     [startAppLive]
   )
+
+  const handleTerminalReady = useCallback((sessionId: string) => {
+    setTerminalReady((prev) =>
+      prev[sessionId] ? prev : { ...prev, [sessionId]: true }
+    )
+  }, [])
 
   const startClaudeIn = useCallback(
     (cwd: string) => {
@@ -172,7 +182,7 @@ function App(): React.JSX.Element {
       const a = active[sessionId]
       if (!a) return
       const ok = window.confirm(
-        '이 라이브 세션을 종료할까요? (JSONL 기록은 유지됩니다)'
+        '이 라이브 대화를 중지할까요? (기록은 유지됩니다)'
       )
       if (!ok) return
       try {
@@ -202,6 +212,12 @@ function App(): React.JSX.Element {
     void _code
     setActive((prev) => {
       if (!prev[sessionId]) return prev
+      const next = { ...prev }
+      delete next[sessionId]
+      return next
+    })
+    setTerminalReady((prev) => {
+      if (!(sessionId in prev)) return prev
       const next = { ...prev }
       delete next[sessionId]
       return next
@@ -374,8 +390,17 @@ function App(): React.JSX.Element {
     [active]
   )
 
+  const isStartingTerminal =
+    !!selected &&
+    selected.backend === 'terminal' &&
+    selected.mode !== 'readonly' &&
+    terminalReady[selected.sessionId] === false
+
   const showChatPane =
-    !selected || selected.backend !== 'terminal' || selected.mode === 'readonly'
+    !selected ||
+    selected.backend !== 'terminal' ||
+    selected.mode === 'readonly' ||
+    isStartingTerminal
 
   return (
     <div className="app">
@@ -407,8 +432,9 @@ function App(): React.JSX.Element {
               sessionId={t.sessionId}
               workspacePath={t.workspacePath}
               initialCommand={command}
-              visible={visible}
+              visible={visible && terminalReady[t.sessionId] !== false}
               onExit={(code) => handleTerminalExit(t.sessionId, code)}
+              onReady={() => handleTerminalReady(t.sessionId)}
             />
           )
         })}
@@ -422,6 +448,12 @@ function App(): React.JSX.Element {
             onActivate={activate}
             onTurnStart={handleTurnStart}
           />
+        )}
+        {isStartingTerminal && (
+          <div className="terminal-loading-overlay">
+            <div className="throbber" />
+            <div className="throbber-label">터미널 시작 중…</div>
+          </div>
         )}
       </div>
     </div>

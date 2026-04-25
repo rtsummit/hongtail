@@ -156,7 +156,7 @@ function ChatPane({
         </div>
       ) : (
         <div className="chat-activate">
-          <div className="chat-activate-label">이전 세션 — 읽기 전용</div>
+          <div className="chat-activate-label">이전 대화 — 읽기 전용</div>
           <div className="chat-activate-buttons">
             <button
               type="button"

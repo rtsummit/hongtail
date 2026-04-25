@@ -9,6 +9,7 @@ interface Props {
   initialCommand: string
   visible: boolean
   onExit: (code: number | null) => void
+  onReady?: () => void
 }
 
 interface PtyEvent {
@@ -22,13 +23,17 @@ function TerminalSession({
   workspacePath,
   initialCommand,
   visible,
-  onExit
+  onExit,
+  onReady
 }: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const onExitRef = useRef(onExit)
+  const onReadyRef = useRef(onReady)
+  const hasReceivedDataRef = useRef(false)
   onExitRef.current = onExit
+  onReadyRef.current = onReady
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -60,6 +65,10 @@ function TerminalSession({
       const event = raw as PtyEvent
       if (event.type === 'data' && typeof event.data === 'string') {
         term.write(event.data)
+        if (!hasReceivedDataRef.current) {
+          hasReceivedDataRef.current = true
+          onReadyRef.current?.()
+        }
       } else if (event.type === 'exit') {
         onExitRef.current(event.code ?? null)
       }
