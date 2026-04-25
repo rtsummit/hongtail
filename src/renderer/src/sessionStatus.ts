@@ -1,4 +1,4 @@
-import type { Usage } from './types'
+import type { RateLimitInfo, Usage } from './types'
 
 const VERBS = [
   'Pondering',
@@ -66,4 +66,136 @@ export function extractUsage(event: unknown): Usage | null {
 export function isResultEvent(event: unknown): boolean {
   if (!event || typeof event !== 'object') return false
   return (event as Record<string, unknown>).type === 'result'
+}
+
+export interface InitInfo {
+  model: string
+  permissionMode: string
+  contextWindow?: number
+}
+
+export function extractInit(event: unknown): InitInfo | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'system' || e.subtype !== 'init') return null
+  if (typeof e.model !== 'string') return null
+  const model = e.model
+  const permissionMode = typeof e.permissionMode === 'string' ? e.permissionMode : 'default'
+  return { model, permissionMode, contextWindow: parseContextWindowFromModel(model) }
+}
+
+function parseContextWindowFromModel(model: string): number | undefined {
+  const m = model.match(/\[(\d+)([mk])\]$/i)
+  if (!m) return undefined
+  const n = Number(m[1])
+  if (!Number.isFinite(n)) return undefined
+  return m[2].toLowerCase() === 'm' ? n * 1_000_000 : n * 1_000
+}
+
+export function formatModelDisplay(model: string): string {
+  // claude-opus-4-7[1m] → "Opus 4.7 (1M context)"
+  const m = model.match(/^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(\[(\d+[mk])\])?$/i)
+  if (!m) return model
+  const family = m[1].charAt(0).toUpperCase() + m[1].slice(1)
+  const ver = `${m[2]}.${m[3]}`
+  const ctx = m[5] ? ` (${m[5].toUpperCase()} context)` : ''
+  return `${family} ${ver}${ctx}`
+}
+
+export function extractContextTokens(event: unknown): number | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'assistant') return null
+  const msg = e.message as Record<string, unknown> | undefined
+  const u = msg?.usage as Record<string, unknown> | undefined
+  if (!u) return null
+  const i = typeof u.input_tokens === 'number' ? u.input_tokens : 0
+  const cr = typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : 0
+  const cc = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0
+  const sum = i + cr + cc
+  return sum > 0 ? sum : null
+}
+
+export function extractContextWindowFromResult(
+  event: unknown,
+  preferredModel?: string
+): number | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'result') return null
+  const mu = e.modelUsage as Record<string, unknown> | undefined
+  if (!mu) return null
+  if (preferredModel && mu[preferredModel]) {
+    const w = (mu[preferredModel] as Record<string, unknown>)?.contextWindow
+    if (typeof w === 'number' && w > 0) return w
+  }
+  for (const info of Object.values(mu)) {
+    const w = (info as Record<string, unknown>)?.contextWindow
+    if (typeof w === 'number' && w > 0) return w
+  }
+  return null
+}
+
+export interface ControlResponse {
+  requestId: string
+  success: boolean
+  error?: string
+}
+
+export function extractControlResponse(event: unknown): ControlResponse | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'control_response') return null
+  const r = e.response as Record<string, unknown> | undefined
+  if (!r) return null
+  const requestId = typeof r.request_id === 'string' ? r.request_id : null
+  if (!requestId) return null
+  return {
+    requestId,
+    success: r.subtype === 'success',
+    error: typeof r.error === 'string' ? r.error : undefined
+  }
+}
+
+export function extractRateLimit(event: unknown): RateLimitInfo | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'rate_limit_event') return null
+  const info = e.rate_limit_info as Record<string, unknown> | undefined
+  if (!info || typeof info !== 'object') return null
+  const status = typeof info.status === 'string' ? info.status : 'unknown'
+  return {
+    status,
+    resetsAt: typeof info.resetsAt === 'number' ? info.resetsAt : undefined,
+    rateLimitType: typeof info.rateLimitType === 'string' ? info.rateLimitType : undefined,
+    isUsingOverage: typeof info.isUsingOverage === 'boolean' ? info.isUsingOverage : undefined,
+    overageStatus: typeof info.overageStatus === 'string' ? info.overageStatus : undefined
+  }
+}
+
+const WINDOW_LABELS: Record<string, string> = {
+  five_hour: '5h',
+  one_hour: '1h',
+  weekly: '주간'
+}
+
+export function formatRateLimit(info: RateLimitInfo, nowMs: number = Date.now()): string {
+  const parts: string[] = []
+  const win = info.rateLimitType ? (WINDOW_LABELS[info.rateLimitType] ?? info.rateLimitType) : null
+  if (win) parts.push(win)
+  if (info.resetsAt) {
+    const ms = info.resetsAt * 1000 - nowMs
+    if (ms > 0) {
+      const totalMin = Math.floor(ms / 60000)
+      const h = Math.floor(totalMin / 60)
+      const m = totalMin % 60
+      parts.push(`리셋 ${h > 0 ? `${h}h ${m}m` : `${m}m`}`)
+    } else {
+      parts.push('리셋됨')
+    }
+  }
+  if (info.status === 'warned') parts.push('⚠ 한도 임박')
+  else if (info.status === 'rejected') parts.push('🚫 차단')
+  if (info.isUsingOverage) parts.push('overage')
+  return parts.join(' · ')
 }

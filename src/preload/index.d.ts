@@ -11,6 +11,24 @@ export interface WorkspaceEntry {
   alias?: string
 }
 
+export interface SlashCommand {
+  name: string
+  description: string
+  source: 'builtin' | 'user' | 'project' | 'plugin'
+  origin?: string
+}
+
+export interface UsageData {
+  planName: string | null
+  fiveHour: number | null
+  sevenDay: number | null
+  fiveHourResetAt: number | null
+  sevenDayResetAt: number | null
+  cachedAt: number
+  stale: boolean
+  apiError?: string
+}
+
 export interface PtySpawnArgs {
   sessionId: string
   workspacePath: string
@@ -57,6 +75,7 @@ export interface ExposedApi {
       mode: 'new' | 'resume'
     ) => Promise<{ sessionId: string; alreadyRunning: boolean }>
     sendInput: (sessionId: string, text: string) => Promise<void>
+    controlRequest: (sessionId: string, request: Record<string, unknown>) => Promise<string>
     stopSession: (sessionId: string) => Promise<void>
     listRunning: () => Promise<string[]>
     onEvent: (sessionId: string, callback: (event: unknown) => void) => () => void
@@ -66,6 +85,15 @@ export interface ExposedApi {
   }
   fonts: {
     list: () => Promise<string[]>
+  }
+  slashCommands: {
+    list: (workspacePath?: string) => Promise<SlashCommand[]>
+  }
+  usage: {
+    get: () => Promise<UsageData | null>
+  }
+  images: {
+    save: (sessionId: string, bytes: Uint8Array, mimeType: string) => Promise<string>
   }
   pty: {
     spawn: (args: PtySpawnArgs) => Promise<{ alreadyRunning: boolean }>

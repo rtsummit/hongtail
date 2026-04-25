@@ -110,6 +110,24 @@ export function registerSessionHandlers(): void {
     session.child.stdin.write(payload + '\n')
   })
 
+  ipcMain.handle(
+    'claude:control-request',
+    async (_, sessionId: string, request: Record<string, unknown>) => {
+      const session = sessions.get(sessionId)
+      if (!session?.child.stdin) {
+        throw new Error(`Session ${sessionId} not running`)
+      }
+      const requestId = randomUUID()
+      const payload = JSON.stringify({
+        type: 'control_request',
+        request_id: requestId,
+        request
+      })
+      session.child.stdin.write(payload + '\n')
+      return requestId
+    }
+  )
+
   ipcMain.handle('claude:stop-session', async (_, sessionId: string) => {
     const session = sessions.get(sessionId)
     if (!session) return

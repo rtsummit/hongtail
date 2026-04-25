@@ -6,7 +6,16 @@ import SettingsModal from './components/SettingsModal'
 import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
-import { extractUsage, isResultEvent, pickVerb } from './sessionStatus'
+import {
+  extractContextTokens,
+  extractContextWindowFromResult,
+  extractControlResponse,
+  extractInit,
+  extractRateLimit,
+  extractUsage,
+  isResultEvent,
+  pickVerb
+} from './sessionStatus'
 import {
   installRpcBridge,
   type ActiveEntry,
@@ -37,6 +46,9 @@ function App(): React.JSX.Element {
   }, [])
   const subscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const waitersRef = useRef<Map<string, RpcWaiterEntry>>(new Map())
+  const pendingControlRef = useRef<
+    Map<string, { sessionId: string; prevMode: string | undefined }>
+  >(new Map())
 
   const handleSplitterPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -144,6 +156,81 @@ function App(): React.JSX.Element {
             outputTokens: usage.outputTokens
           }
         }))
+      }
+
+      const rateLimit = extractRateLimit(event)
+      if (rateLimit) {
+        setStatusBySession((prev) => ({
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            rateLimit
+          }
+        }))
+      }
+
+      const init = extractInit(event)
+      if (init) {
+        setStatusBySession((prev) => ({
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            model: init.model,
+            permissionMode: init.permissionMode,
+            contextWindow: init.contextWindow ?? prev[sessionId]?.contextWindow
+          }
+        }))
+      }
+
+      const ctxTokens = extractContextTokens(event)
+      if (ctxTokens != null) {
+        setStatusBySession((prev) => ({
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            contextUsedTokens: ctxTokens
+          }
+        }))
+      }
+
+      const ctxWindow = extractContextWindowFromResult(
+        event,
+        statusBySession[sessionId]?.model
+      )
+      if (ctxWindow != null) {
+        setStatusBySession((prev) => ({
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            contextWindow: ctxWindow
+          }
+        }))
+      }
+
+      const ctlResp = extractControlResponse(event)
+      if (ctlResp) {
+        const pending = pendingControlRef.current.get(ctlResp.requestId)
+        if (pending) {
+          pendingControlRef.current.delete(ctlResp.requestId)
+          if (!ctlResp.success) {
+            console.error(
+              `control request ${ctlResp.requestId} failed:`,
+              ctlResp.error
+            )
+            setStatusBySession((prev) => ({
+              ...prev,
+              [pending.sessionId]: {
+                ...prev[pending.sessionId],
+                thinking: prev[pending.sessionId]?.thinking ?? false,
+                permissionMode: pending.prevMode
+              }
+            }))
+          }
+        }
       }
 
       if (isResultEvent(event)) {
@@ -340,6 +427,38 @@ function App(): React.JSX.Element {
     [active]
   )
 
+  const handleSetPermissionMode = useCallback(async (sessionId: string, mode: string) => {
+    let prevMode: string | undefined
+    setStatusBySession((prev) => {
+      prevMode = prev[sessionId]?.permissionMode
+      return {
+        ...prev,
+        [sessionId]: {
+          ...prev[sessionId],
+          thinking: prev[sessionId]?.thinking ?? false,
+          permissionMode: mode
+        }
+      }
+    })
+    try {
+      const requestId = await window.api.claude.controlRequest(sessionId, {
+        subtype: 'set_permission_mode',
+        mode
+      })
+      pendingControlRef.current.set(requestId, { sessionId, prevMode })
+    } catch (err) {
+      console.error('set_permission_mode send failed:', err)
+      setStatusBySession((prev) => ({
+        ...prev,
+        [sessionId]: {
+          ...prev[sessionId],
+          thinking: prev[sessionId]?.thinking ?? false,
+          permissionMode: prevMode
+        }
+      }))
+    }
+  }, [])
+
   const handleTerminalExit = useCallback((sessionId: string, _code: number | null) => {
     void _code
     setActive((prev) => {
@@ -468,12 +587,20 @@ function App(): React.JSX.Element {
     })
   }, [])
 
+  const rpcControlRequest = useCallback(
+    async (sessionId: string, request: Record<string, unknown>): Promise<string> => {
+      return await window.api.claude.controlRequest(sessionId, request)
+    },
+    []
+  )
+
   const actionsRef = useRef({
     addWorkspace: rpcAddWorkspace,
     startSession: rpcStartSession,
     selectSession: rpcSelectSession,
     activate,
     sendInput: rpcSendInput,
+    controlRequest: rpcControlRequest,
     setBackend: setDefaultBackend,
     waitResult: rpcWaitResult
   })
@@ -483,6 +610,7 @@ function App(): React.JSX.Element {
     selectSession: rpcSelectSession,
     activate,
     sendInput: rpcSendInput,
+    controlRequest: rpcControlRequest,
     setBackend: setDefaultBackend,
     waitResult: rpcWaitResult
   }
@@ -497,6 +625,7 @@ function App(): React.JSX.Element {
         selectSession: (...args) => actionsRef.current.selectSession(...args),
         activate: (...args) => actionsRef.current.activate(...args),
         sendInput: (...args) => actionsRef.current.sendInput(...args),
+        controlRequest: (...args) => actionsRef.current.controlRequest(...args),
         setBackend: (...args) => actionsRef.current.setBackend(...args),
         waitResult: (...args) => actionsRef.current.waitResult(...args)
       }
@@ -601,6 +730,7 @@ function App(): React.JSX.Element {
             onPrependBlocks={prependBlocks}
             onActivate={activate}
             onTurnStart={handleTurnStart}
+            onSetPermissionMode={handleSetPermissionMode}
           />
         )}
         {isStartingTerminal && (

@@ -2,11 +2,15 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { setupLogging } from './logging'
 import { registerWorkspaceHandlers } from './workspaces'
 import { registerClaudeHandlers } from './claude'
 import { registerSessionHandlers, killAllSessions } from './session'
 import { registerPtyHandlers, killAllPty } from './pty'
 import { registerFontHandlers } from './fonts'
+import { registerSlashCommandHandlers } from './slashCommands'
+import { registerUsageCacheHandlers } from './usageCache'
+import { registerImageHandlers } from './images'
 import { startRpcServer, stopRpcServer } from './rpc'
 
 function createWindow(): void {
@@ -46,6 +50,8 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
+setupLogging()
+
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
@@ -65,6 +71,9 @@ app.whenReady().then(() => {
   registerSessionHandlers()
   registerPtyHandlers()
   registerFontHandlers()
+  registerSlashCommandHandlers()
+  registerUsageCacheHandlers()
+  registerImageHandlers()
 
   createWindow()
 

@@ -1,3 +1,4 @@
+import 'electron-log/preload' // hooks renderer console.* into the file log
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { WorkspaceEntry } from './index.d'
@@ -46,6 +47,8 @@ const api = {
       ipcRenderer.invoke('claude:start-session', { workspacePath, sessionId, mode }),
     sendInput: (sessionId: string, text: string): Promise<void> =>
       ipcRenderer.invoke('claude:send-input', sessionId, text),
+    controlRequest: (sessionId: string, request: Record<string, unknown>): Promise<string> =>
+      ipcRenderer.invoke('claude:control-request', sessionId, request),
     stopSession: (sessionId: string): Promise<void> =>
       ipcRenderer.invoke('claude:stop-session', sessionId),
     listRunning: (): Promise<string[]> => ipcRenderer.invoke('claude:list-running'),
@@ -72,6 +75,17 @@ const api = {
   },
   fonts: {
     list: (): Promise<string[]> => ipcRenderer.invoke('fonts:list')
+  },
+  slashCommands: {
+    list: (workspacePath?: string) =>
+      ipcRenderer.invoke('slash-commands:list', workspacePath)
+  },
+  usage: {
+    get: () => ipcRenderer.invoke('usage:get')
+  },
+  images: {
+    save: (sessionId: string, bytes: Uint8Array, mimeType: string): Promise<string> =>
+      ipcRenderer.invoke('images:save', sessionId, bytes, mimeType)
   },
   pty: {
     spawn: (args: {

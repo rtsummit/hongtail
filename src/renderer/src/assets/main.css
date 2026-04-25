@@ -1342,6 +1342,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 /* === Input === */
 .chat-input-wrap {
+  position: relative;
   border-top: 1px solid var(--border);
   background: var(--panel);
 }
@@ -1357,6 +1358,272 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border);
   background: var(--panel);
+}
+
+/* === Usage bar (claude-hud cache) === */
+.usage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 16px 0;
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
+}
+
+.usage-bar.stale {
+  opacity: 0.55;
+}
+
+.usage-plan {
+  font-weight: 600;
+  color: var(--fg);
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.usage-window {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.usage-label {
+  color: var(--fg-dim);
+}
+
+.usage-pct {
+  font-weight: 600;
+}
+
+.usage-pct.ok {
+  color: #4ade80;
+}
+.usage-pct.warn {
+  color: #facc15;
+}
+.usage-pct.crit {
+  color: #f87171;
+}
+
+.usage-reset {
+  color: var(--fg-dim);
+}
+
+.usage-stale-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--fg-dim);
+  border: 1px dashed var(--border);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.usage-model {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.ctx-bar {
+  letter-spacing: -1px;
+  margin-right: 2px;
+}
+.ctx-filled {
+  color: #4ade80;
+}
+.ctx-empty {
+  color: var(--border);
+}
+
+.usage-mode-wrap {
+  margin-left: auto;
+  position: relative;
+  display: inline-flex;
+}
+
+.usage-mode {
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.usage-mode:hover {
+  filter: brightness(1.15);
+}
+
+.usage-mode-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  min-width: 240px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.usage-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.usage-mode-option:hover {
+  background: var(--panel-2);
+}
+
+.usage-mode-option.active {
+  background: var(--panel-2);
+}
+
+.usage-mode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--border);
+}
+.usage-mode-dot.plan {
+  background: #c084fc;
+}
+.usage-mode-dot.bypass {
+  background: #f87171;
+}
+.usage-mode-dot.auto {
+  background: #4ade80;
+}
+.usage-mode-dot.accept {
+  background: #facc15;
+}
+
+.usage-mode-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  flex: 0 0 64px;
+}
+
+.usage-mode-hint {
+  color: var(--fg-dim);
+  font-size: 11px;
+  flex: 1;
+}
+.usage-mode.plan {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #c084fc;
+}
+.usage-mode.bypass {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
+.usage-mode.auto {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.45);
+  color: #4ade80;
+}
+.usage-mode.accept {
+  background: rgba(250, 204, 21, 0.12);
+  border-color: rgba(250, 204, 21, 0.45);
+  color: #facc15;
+}
+
+/* === Slash command completion === */
+.slash-completion {
+  position: fixed;
+  z-index: 1000;
+  overflow-y: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.slash-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid transparent;
+}
+
+.slash-item.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.slash-item.selected .slash-desc,
+.slash-item.selected .slash-source {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.slash-name {
+  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.slash-desc {
+  flex: 1 1 auto;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slash-source {
+  flex: 0 0 auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--fg-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.slash-source.builtin {
+  border-color: rgba(120, 120, 200, 0.4);
+}
+.slash-source.user {
+  border-color: rgba(120, 200, 120, 0.4);
+}
+.slash-source.project {
+  border-color: rgba(200, 180, 120, 0.4);
+}
+.slash-source.plugin {
+  border-color: rgba(200, 120, 200, 0.4);
 }
 
 /* === Quote (selection-to-comment) === */

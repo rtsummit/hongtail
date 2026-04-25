@@ -4,11 +4,51 @@ import ThinkingIndicator from './ThinkingIndicator'
 import TodoPanel from './TodoPanel'
 import QuoteAffordance from './QuoteAffordance'
 import QuoteChips, { type Quote } from './QuoteChips'
+import SlashCompletion from './SlashCompletion'
+import UsageBar from './UsageBar'
 import { parseClaudeEvent } from '../claudeEvents'
-import { formatTokens } from '../sessionStatus'
+import { formatRateLimit, formatTokens } from '../sessionStatus'
 import { extractTodoState } from '../todoState'
 import type { AppSettings } from '../settings'
 import type { Block, SelectedSession, SessionMode, SessionStatus } from '../types'
+import type { SlashCommand } from '../../../preload/index.d'
+
+interface SlashContext {
+  query: string
+  start: number
+  end: number
+}
+
+function getSlashContext(text: string, caret: number): SlashContext | null {
+  let start = caret
+  while (start > 0) {
+    const ch = text[start - 1]
+    if (ch === '\n' || ch === ' ' || ch === '\t') break
+    start--
+  }
+  if (start > 0 && text[start - 1] !== '\n') return null
+  if (text[start] !== '/') return null
+  let end = caret
+  while (end < text.length) {
+    const ch = text[end]
+    if (ch === '\n' || ch === ' ' || ch === '\t') break
+    end++
+  }
+  return { query: text.slice(start + 1, end), start, end }
+}
+
+function matchCommands(commands: SlashCommand[], query: string): SlashCommand[] {
+  if (!query) return commands
+  const q = query.toLowerCase()
+  const starts: SlashCommand[] = []
+  const includes: SlashCommand[] = []
+  for (const c of commands) {
+    const n = c.name.toLowerCase()
+    if (n.startsWith(q)) starts.push(c)
+    else if (n.includes(q)) includes.push(c)
+  }
+  return [...starts, ...includes]
+}
 
 interface Props {
   selected: SelectedSession | null
@@ -20,6 +60,7 @@ interface Props {
   onPrependBlocks: (sessionId: string, blocks: Block[]) => void
   onActivate: (mode: 'resume-full' | 'resume-summary') => void
   onTurnStart: (sessionId: string) => void
+  onSetPermissionMode: (sessionId: string, mode: string) => void
 }
 
 function isLiveMode(mode: SessionMode): boolean {
@@ -49,15 +90,20 @@ function ChatPane({
   onReplaceBlocks,
   onPrependBlocks,
   onActivate,
-  onTurnStart
+  onTurnStart,
+  onSetPermissionMode
 }: Props): React.JSX.Element {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [shownFromLine, setShownFromLine] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
+  const [allCommands, setAllCommands] = useState<SlashCommand[]>([])
+  const [slashCtx, setSlashCtx] = useState<SlashContext | null>(null)
+  const [slashIndex, setSlashIndex] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const imageCounterRef = useRef(0)
   const prependScrollHeightRef = useRef<number | null>(null)
   const loadingMoreRef = useRef(false)
   const shownFromLineRef = useRef(0)
@@ -73,7 +119,27 @@ function ChatPane({
   useEffect(() => {
     forceScrollBottomRef.current = true
     setQuotes([])
+    setSlashCtx(null)
+    imageCounterRef.current = 0
   }, [selected?.sessionId])
+
+  // Load slash commands for the current workspace.
+  useEffect(() => {
+    if (!selected) {
+      setAllCommands([])
+      return
+    }
+    let cancelled = false
+    void window.api.slashCommands
+      .list(selected.workspacePath)
+      .then((list) => {
+        if (!cancelled) setAllCommands(list)
+      })
+      .catch((err) => console.error('slash commands load failed:', err))
+    return () => {
+      cancelled = true
+    }
+  }, [selected?.workspacePath])
 
   const handleAddQuote = useCallback((text: string, comment: string) => {
     setQuotes((prev) => [
@@ -86,7 +152,97 @@ function ChatPane({
     setQuotes((prev) => prev.filter((q) => q.id !== id))
   }, [])
 
+  const insertAtCaret = useCallback((text: string) => {
+    const ta = textareaRef.current
+    if (!ta) {
+      setInput((prev) => prev + text)
+      return
+    }
+    const start = ta.selectionStart ?? ta.value.length
+    const end = ta.selectionEnd ?? start
+    setInput((prev) => prev.slice(0, start) + text + prev.slice(end))
+    requestAnimationFrame(() => {
+      const node = textareaRef.current
+      if (!node) return
+      const pos = start + text.length
+      node.focus()
+      node.setSelectionRange(pos, pos)
+    })
+  }, [])
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items
+      if (!items || !selected) return
+      const images: File[] = []
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const f = item.getAsFile()
+          if (f) images.push(f)
+        }
+      }
+      if (images.length === 0) return
+      e.preventDefault()
+      for (const file of images) {
+        try {
+          const buf = new Uint8Array(await file.arrayBuffer())
+          const path = await window.api.images.save(
+            selected.sessionId,
+            buf,
+            file.type || 'image/png'
+          )
+          imageCounterRef.current += 1
+          insertAtCaret(`[Image #${imageCounterRef.current}: ${path}]\n`)
+        } catch (err) {
+          console.error('image paste failed:', err)
+        }
+      }
+    },
+    [selected, insertAtCaret]
+  )
+
   const todoState = useMemo(() => extractTodoState(messages), [messages])
+
+  // Tick once a minute so the "리셋 Xh Ym" label refreshes.
+  const [, setNowTick] = useState(0)
+  useEffect(() => {
+    if (!status?.rateLimit?.resetsAt) return
+    const id = window.setInterval(() => setNowTick((t) => t + 1), 60_000)
+    return () => window.clearInterval(id)
+  }, [status?.rateLimit?.resetsAt])
+
+  const matchedCommands = useMemo(() => {
+    if (!slashCtx) return []
+    return matchCommands(allCommands, slashCtx.query)
+  }, [slashCtx, allCommands])
+
+  useEffect(() => {
+    if (slashIndex >= matchedCommands.length) setSlashIndex(0)
+  }, [matchedCommands.length, slashIndex])
+
+  const updateSlashFromTextarea = useCallback((value: string, caret: number) => {
+    setSlashCtx(getSlashContext(value, caret))
+  }, [])
+
+  const pickSlashCommand = useCallback(
+    (cmd: SlashCommand) => {
+      if (!slashCtx) return
+      const before = input.slice(0, slashCtx.start)
+      const after = input.slice(slashCtx.end)
+      const inserted = `/${cmd.name} `
+      const newText = before + inserted + after
+      const newCaret = before.length + inserted.length
+      setInput(newText)
+      setSlashCtx(null)
+      requestAnimationFrame(() => {
+        const ta = textareaRef.current
+        if (!ta) return
+        ta.focus()
+        ta.setSelectionRange(newCaret, newCaret)
+      })
+    },
+    [input, slashCtx]
+  )
 
   // After prepend: keep visual scroll position. Layout effect runs before paint.
   useLayoutEffect(() => {
@@ -253,6 +409,28 @@ function ChatPane({
   }, [selected, input, sending, live, quotes, onAppendBlocks, onTurnStart])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (slashCtx && matchedCommands.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashIndex((i) => (i + 1) % matchedCommands.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashIndex((i) => (i - 1 + matchedCommands.length) % matchedCommands.length)
+        return
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing)) {
+        e.preventDefault()
+        pickSlashCommand(matchedCommands[slashIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setSlashCtx(null)
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       void handleSend()
@@ -284,6 +462,8 @@ function ChatPane({
       ? `↓ ${formatTokens(lastUsage.outputTokens)} tokens${lastUsage.inputTokens ? ` · ↑ ${formatTokens(lastUsage.inputTokens)}` : ''}`
       : null
 
+  const rateLimitLine = status?.rateLimit ? formatRateLimit(status.rateLimit) : null
+
   return (
     <main className="chat-pane">
       <div className="chat-header">
@@ -291,6 +471,7 @@ function ChatPane({
         <div className="chat-subtitle">
           {selected.workspacePath} · {selected.sessionId.slice(0, 8)} · {subtitleSuffix}
           {usageLine ? ` · ${usageLine}` : ''}
+          {rateLimitLine ? ` · ${rateLimitLine}` : ''}
         </div>
         <TodoPanel state={todoState} />
       </div>
@@ -317,14 +498,45 @@ function ChatPane({
         <>
           <QuoteAffordance containerRef={scrollRef} onAdd={handleAddQuote} />
           <div className="chat-input-wrap">
+            <UsageBar
+              status={status}
+              onSetPermissionMode={
+                selected
+                  ? (mode) => onSetPermissionMode(selected.sessionId, mode)
+                  : undefined
+              }
+            />
             <QuoteChips quotes={quotes} onRemove={handleRemoveQuote} />
+            {slashCtx && matchedCommands.length > 0 && (
+              <SlashCompletion
+                commands={matchedCommands}
+                selectedIndex={slashIndex}
+                anchorRef={textareaRef}
+                onPick={pickSlashCommand}
+                onHover={setSlashIndex}
+              />
+            )}
             <div className="chat-input">
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setInput(v)
+                  updateSlashFromTextarea(v, e.target.selectionStart ?? v.length)
+                }}
+                onSelect={(e) =>
+                  updateSlashFromTextarea(
+                    e.currentTarget.value,
+                    e.currentTarget.selectionStart ?? 0
+                  )
+                }
+                onPaste={(e) => {
+                  void handlePaste(e)
+                }}
+                onBlur={() => setSlashCtx(null)}
                 onKeyDown={handleKeyDown}
-                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈)"
+                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, Ctrl+V: 이미지)"
                 rows={3}
               />
               <button

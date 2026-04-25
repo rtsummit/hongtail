@@ -98,6 +98,10 @@ async function dispatch(req: IncomingMessage): Promise<unknown> {
     return callRenderer('sendInput', [body.sessionId, body.text])
   }
 
+  if (route === 'POST /sessions/control') {
+    return callRenderer('controlRequest', [body.sessionId, body.request])
+  }
+
   if (route === 'POST /sessions/wait-result') {
     return callRenderer('waitResult', [body.sessionId, body.timeoutMs ?? 60000])
   }

@@ -16,12 +16,25 @@ export interface Usage {
   cacheCreationTokens?: number
 }
 
+export interface RateLimitInfo {
+  status: string // 'allowed' | 'warned' | 'rejected' | etc
+  resetsAt?: number // unix seconds
+  rateLimitType?: string // 'five_hour' | etc
+  isUsingOverage?: boolean
+  overageStatus?: string
+}
+
 export interface SessionStatus {
   thinking: boolean
   turnStart?: number
   verb?: string
   outputTokens?: number
   usage?: Usage
+  rateLimit?: RateLimitInfo
+  model?: string // raw model id, e.g. "claude-opus-4-7[1m]"
+  permissionMode?: string // 'default' | 'auto' | 'plan' | 'bypassPermissions' | ...
+  contextWindow?: number // tokens, e.g. 1_000_000
+  contextUsedTokens?: number // last turn's input + cache_read + cache_creation
 }
 
 export interface LiveSessionInfo {
