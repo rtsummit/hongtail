@@ -4,24 +4,24 @@ import ChatPane from './components/ChatPane'
 import TerminalSession from './components/TerminalSession'
 import { parseClaudeEvent } from './claudeEvents'
 import { extractUsage, isResultEvent, pickVerb } from './sessionStatus'
+import {
+  installRpcBridge,
+  type ActiveEntry,
+  type ActiveMode,
+  type RpcSnapshot,
+  type RpcWaiterEntry
+} from './rpcBridge'
 import type { Backend, Block, SelectedSession, SessionStatus } from './types'
-
-type ActiveMode = 'new' | 'resume-full' | 'resume-summary'
-
-interface ActiveSession {
-  workspacePath: string
-  mode: ActiveMode
-  backend: Backend
-}
 
 function App(): React.JSX.Element {
   const [workspaces, setWorkspaces] = useState<string[]>([])
   const [selected, setSelected] = useState<SelectedSession | null>(null)
   const [messagesBySession, setMessagesBySession] = useState<Record<string, Block[]>>({})
-  const [active, setActive] = useState<Record<string, ActiveSession>>({})
+  const [active, setActive] = useState<Record<string, ActiveEntry>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [defaultBackend, setDefaultBackend] = useState<Backend>('app')
   const subscriptionsRef = useRef<Map<string, () => void>>(new Map())
+  const waitersRef = useRef<Map<string, RpcWaiterEntry>>(new Map())
 
   useEffect(() => {
     void window.api.workspaces.load().then(setWorkspaces)
@@ -32,7 +32,7 @@ function App(): React.JSX.Element {
     await window.api.workspaces.save(next)
   }, [])
 
-  const addWorkspace = useCallback(async () => {
+  const addWorkspaceDialog = useCallback(async () => {
     const picked = await window.api.workspaces.pickDirectory()
     if (!picked) return
     if (workspaces.includes(picked)) return
@@ -60,7 +60,11 @@ function App(): React.JSX.Element {
       if (usage?.outputTokens !== undefined) {
         setStatusBySession((prev) => ({
           ...prev,
-          [sessionId]: { ...prev[sessionId], thinking: prev[sessionId]?.thinking ?? false, outputTokens: usage.outputTokens }
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            outputTokens: usage.outputTokens
+          }
         }))
       }
 
@@ -74,6 +78,13 @@ function App(): React.JSX.Element {
             usage: finalUsage ?? prev[sessionId]?.usage
           }
         }))
+
+        const waiter = waitersRef.current.get(sessionId)
+        if (waiter) {
+          window.clearTimeout(waiter.timer)
+          waitersRef.current.delete(sessionId)
+          waiter.resolve({ usage: finalUsage })
+        }
       }
     },
     [appendBlocks]
@@ -127,7 +138,6 @@ function App(): React.JSX.Element {
       if (backend === 'app') {
         await startAppLive(sessionId, workspacePath, mode)
       }
-      // Terminal backend is started by <TerminalSession> component lifecycle
     },
     [startAppLive]
   )
@@ -186,6 +196,119 @@ function App(): React.JSX.Element {
     [active]
   )
 
+  // === RPC bridge ===
+  const stateRef = useRef<RpcSnapshot>({
+    workspaces: [],
+    selected: null,
+    active: {},
+    status: {},
+    defaultBackend: 'app',
+    messageCounts: {}
+  })
+  const messagesRef = useRef<Record<string, Block[]>>({})
+
+  stateRef.current = {
+    workspaces,
+    selected,
+    active,
+    status: statusBySession,
+    defaultBackend,
+    messageCounts: Object.fromEntries(
+      Object.entries(messagesBySession).map(([k, v]) => [k, v.length])
+    )
+  }
+  messagesRef.current = messagesBySession
+
+  const rpcAddWorkspace = useCallback(
+    async (path: string) => {
+      if (!workspaces.includes(path)) await persist([path, ...workspaces])
+    },
+    [workspaces, persist]
+  )
+
+  const rpcStartSession = useCallback(
+    async (
+      workspacePath: string,
+      backend: Backend,
+      mode: ActiveMode,
+      sessionId?: string | null
+    ): Promise<{ sessionId: string }> => {
+      const id = sessionId ?? crypto.randomUUID()
+      setSelected({
+        workspacePath,
+        sessionId: id,
+        title: mode === 'new' ? 'New session' : 'Resumed session',
+        mode,
+        backend
+      })
+      await startLive(id, workspacePath, mode, backend)
+      return { sessionId: id }
+    },
+    [startLive]
+  )
+
+  const rpcSelectSession = useCallback(
+    (workspacePath: string, sessionId: string, title: string) => {
+      handleSelect({ workspacePath, sessionId, title, mode: 'readonly' })
+    },
+    [handleSelect]
+  )
+
+  const rpcSendInput = useCallback(
+    async (sessionId: string, text: string) => {
+      appendBlocks(sessionId, [{ kind: 'user-text', text }])
+      handleTurnStart(sessionId)
+      await window.api.claude.sendInput(sessionId, text)
+    },
+    [appendBlocks, handleTurnStart]
+  )
+
+  const rpcWaitResult = useCallback((sessionId: string, timeoutMs = 60000) => {
+    return new Promise<unknown>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        waitersRef.current.delete(sessionId)
+        reject(new Error('timeout'))
+      }, timeoutMs)
+      waitersRef.current.set(sessionId, { resolve, reject, timer })
+    })
+  }, [])
+
+  const actionsRef = useRef({
+    addWorkspace: rpcAddWorkspace,
+    startSession: rpcStartSession,
+    selectSession: rpcSelectSession,
+    activate,
+    sendInput: rpcSendInput,
+    setBackend: setDefaultBackend,
+    waitResult: rpcWaitResult
+  })
+  actionsRef.current = {
+    addWorkspace: rpcAddWorkspace,
+    startSession: rpcStartSession,
+    selectSession: rpcSelectSession,
+    activate,
+    sendInput: rpcSendInput,
+    setBackend: setDefaultBackend,
+    waitResult: rpcWaitResult
+  }
+
+  useEffect(() => {
+    const uninstall = installRpcBridge({
+      getSnapshot: () => stateRef.current,
+      getMessages: (id) => messagesRef.current[id] ?? [],
+      actions: {
+        addWorkspace: (...args) => actionsRef.current.addWorkspace(...args),
+        startSession: (...args) => actionsRef.current.startSession(...args),
+        selectSession: (...args) => actionsRef.current.selectSession(...args),
+        activate: (...args) => actionsRef.current.activate(...args),
+        sendInput: (...args) => actionsRef.current.sendInput(...args),
+        setBackend: (...args) => actionsRef.current.setBackend(...args),
+        waitResult: (...args) => actionsRef.current.waitResult(...args)
+      }
+    })
+    return uninstall
+  }, [])
+
   // Cleanup all subscriptions on unmount
   useEffect(() => {
     const subs = subscriptionsRef.current
@@ -216,7 +339,7 @@ function App(): React.JSX.Element {
         selected={selected}
         defaultBackend={defaultBackend}
         onChangeBackend={setDefaultBackend}
-        onAddWorkspace={addWorkspace}
+        onAddWorkspace={addWorkspaceDialog}
         onSelect={handleSelect}
         onStartClaude={startClaudeIn}
       />

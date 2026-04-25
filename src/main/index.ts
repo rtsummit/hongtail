@@ -6,6 +6,7 @@ import { registerWorkspaceHandlers } from './workspaces'
 import { registerClaudeHandlers } from './claude'
 import { registerSessionHandlers, killAllSessions } from './session'
 import { registerPtyHandlers, killAllPty } from './pty'
+import { startRpcServer, stopRpcServer } from './rpc'
 
 function createWindow(): void {
   // Create the browser window.
@@ -65,6 +66,8 @@ app.whenReady().then(() => {
 
   createWindow()
 
+  startRpcServer(() => BrowserWindow.getAllWindows()[0] ?? null)
+
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -86,6 +89,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   killAllSessions()
   killAllPty()
+  stopRpcServer()
 })
 
 // In this file you can include the rest of your app's specific main process
