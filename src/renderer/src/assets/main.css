@@ -135,13 +135,19 @@
 
 .workspace-list::-webkit-scrollbar-thumb,
 .session-list::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: transparent;
   border-radius: 5px;
   border: 2px solid var(--panel);
+  transition: background 0.15s ease;
 }
 
-.workspace-list::-webkit-scrollbar-thumb:hover,
-.session-list::-webkit-scrollbar-thumb:hover {
+.workspace-list:hover::-webkit-scrollbar-thumb,
+.session-list:hover::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.workspace-list:hover::-webkit-scrollbar-thumb:hover,
+.session-list:hover::-webkit-scrollbar-thumb:hover {
   background: var(--fg-dim);
 }
 
