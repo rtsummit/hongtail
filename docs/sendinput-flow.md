@@ -118,10 +118,12 @@ setMessagesBySession / setStatusBySession
 
 - main 의 `claude:send-input` 진입점에서 `text.startsWith('/')` 검사 → hongluade 가 자체 처리할 명령은 stdin 으로 보내지 않고 분기 (예: `/rename foo` → 세션/워크스페이스 alias 변경 IPC 로 라우팅)
 - 자동완성에서 인터랙티브 전용 빌트인을 제외하거나 회색 처리
-- `/permissions` → `control_request` (`set_permission_mode`) ✓ 이미 구현
-- `/model` → `control_request` (`set_model`) — 미구현, 추가 가능
+- `/permissions` → `control_request` (`set_permission_mode`) ✓ 구현됨 (UsageBar dropdown)
+- `/model` → `control_request` (`set_model`) ✓ 구현됨 (UsageBar model dropdown, Opus/Sonnet/Haiku/default)
+- 인터럽트 ✓ 구현됨 — ChatPane 의 send 버튼이 thinking 중 ◼ 으로 변신, `control_request` (`interrupt`) 송출. Sidebar 의 ◼ (claude.stopSession = child kill) 과 분리:
+  - ChatPane ◼ : turn 만 중단, 세션 살림
+  - Sidebar ◼ : 라이브 대화 종료
 - `/clear` → renderer 단에서 `messagesBySession[sid]` 비우기 (자식엔 안 보냄)
-- 인터럽트 (stop 버튼) → 현재 child kill 인데 `control_request` (`interrupt`) 로 바꾸면 세션 살린 채 turn 만 중단 가능
 
 ## 이미지 첨부 — 현재 방식
 
