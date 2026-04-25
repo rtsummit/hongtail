@@ -29,6 +29,7 @@ export interface LiveSessionInfo {
   title: string
   backend: Backend
   isNew: boolean
+  hasUserMessage: boolean
 }
 
 export type Block =

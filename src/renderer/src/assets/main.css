@@ -178,14 +178,26 @@
   color: var(--fg);
   cursor: pointer;
   user-select: none;
-  background: rgba(14, 99, 156, 0.15);
+  background: rgba(14, 99, 156, 0.12);
   border: 1px dashed var(--accent);
   transition:
     background-color 0.1s,
-    border-color 0.1s;
+    border-color 0.1s,
+    color 0.1s;
 }
 
 .new-conversation:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.new-conversation.has-fresh {
+  background: rgba(14, 99, 156, 0.25);
+  border-style: solid;
+}
+
+.new-conversation.has-fresh.selected {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
@@ -195,14 +207,21 @@
   font-size: 14px;
   line-height: 1;
   color: var(--accent);
+  flex: 0 0 auto;
 }
 
-.new-conversation:hover .new-conversation-plus {
+.new-conversation:hover .new-conversation-plus,
+.new-conversation.has-fresh.selected .new-conversation-plus {
   color: white;
 }
 
 .new-conversation-label {
   font-weight: 500;
+  flex: 1;
+}
+
+.new-conversation .live-dot {
+  margin-left: auto;
 }
 
 /* === Session list === */

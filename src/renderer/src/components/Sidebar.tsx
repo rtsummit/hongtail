@@ -33,7 +33,7 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
       }
     }
   }
-  return '(새 세션)'
+  return '새로운 대화'
 }
 
 function Sidebar({
@@ -50,11 +50,18 @@ function Sidebar({
   const liveByWorkspace = new Map<string, LiveSessionInfo[]>()
   for (const [sessionId, a] of Object.entries(active)) {
     const list = liveByWorkspace.get(a.workspacePath) ?? []
+    const blocks = messagesBySession[sessionId]
+    // App mode: user-text block existence is graduation signal.
+    // Terminal mode: blocks are empty (we don't track PTY content); WorkspaceCard
+    //   determines graduation via JSONL existence.
+    const hasUserMessage =
+      a.backend === 'app' ? (blocks?.some((b) => b.kind === 'user-text') ?? false) : false
     list.push({
       sessionId,
-      title: deriveLiveTitle(messagesBySession[sessionId]),
+      title: deriveLiveTitle(blocks),
       backend: a.backend,
-      isNew: a.mode === 'new'
+      isNew: a.mode === 'new',
+      hasUserMessage
     })
     liveByWorkspace.set(a.workspacePath, list)
   }

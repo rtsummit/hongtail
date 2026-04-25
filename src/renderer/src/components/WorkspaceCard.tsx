@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import SessionRow from './SessionRow'
 import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
 
@@ -34,12 +34,28 @@ function WorkspaceCard({
     void refresh()
   }, [refresh])
 
-  // Refresh past sessions when live count changes (new JSONL may have appeared)
+  // Refresh once shortly after a new live session appears (catch fast graduation)
   useEffect(() => {
     if (liveSessions.length === 0) return
     const id = window.setTimeout(() => void refresh(), 2000)
     return () => window.clearTimeout(id)
   }, [liveSessions.length, refresh])
+
+  // Poll periodically while a terminal session is fresh (waiting for JSONL appearance).
+  // Stops once all terminal sessions have graduated.
+  const hasFreshTerminal = useMemo(
+    () =>
+      liveSessions.some(
+        (s) => s.backend === 'terminal' && !s.hasUserMessage
+      ),
+    [liveSessions]
+  )
+
+  useEffect(() => {
+    if (!hasFreshTerminal) return
+    const id = window.setInterval(() => void refresh(), 5000)
+    return () => window.clearInterval(id)
+  }, [hasFreshTerminal, refresh])
 
   const handleNewConversation = useCallback(() => {
     void onStartClaude(path)
@@ -62,7 +78,39 @@ function WorkspaceCard({
   )
 
   const liveIds = new Set(liveSessions.map((s) => s.sessionId))
+  const jsonlIds = new Set((sessions ?? []).map((s) => s.id))
+  const jsonlById = new Map((sessions ?? []).map((s) => [s.id, s]))
+
+  // Decide fresh vs graduated.
+  // Fresh: hasn't received first user message yet (app: no user-text block; terminal: no JSONL)
+  // Graduated: has at least one exchange
+  const liveExt = liveSessions.map((s) => ({
+    ...s,
+    graduated: s.hasUserMessage || jsonlIds.has(s.sessionId),
+    jsonlTitle: jsonlById.get(s.sessionId)?.title
+  }))
+  // At most one fresh per workspace (we only allow one at a time).
+  const fresh = liveExt.find((s) => !s.graduated) ?? null
+  const graduatedLives = liveExt.filter((s) => s.graduated)
   const filteredPast = (sessions ?? []).filter((s) => !liveIds.has(s.id))
+
+  const freshSelected = fresh && selectedId === fresh.sessionId
+  const newConversationClasses = ['new-conversation']
+  if (fresh) newConversationClasses.push('has-fresh')
+  if (freshSelected) newConversationClasses.push('selected')
+
+  const handleNewConversationClick = (): void => {
+    if (fresh) {
+      onSelect({
+        workspacePath: path,
+        sessionId: fresh.sessionId,
+        title: fresh.title,
+        mode: 'readonly'
+      })
+    } else {
+      handleNewConversation()
+    }
+  }
 
   return (
     <section className={`workspace${collapsed ? ' collapsed' : ''}`}>
@@ -76,15 +124,24 @@ function WorkspaceCard({
       {!collapsed && (
         <div className="session-list">
           <div
-            className="new-conversation"
-            onClick={handleNewConversation}
-            title="이 디렉터리에서 새 대화 시작 (현재 모드 사용)"
+            className={newConversationClasses.join(' ')}
+            onClick={handleNewConversationClick}
+            title={
+              fresh
+                ? '대기 중인 새로운 대화 (선택)'
+                : '이 디렉터리에서 새 대화 시작 (현재 모드 사용)'
+            }
           >
             <span className="new-conversation-plus">+</span>
             <span className="new-conversation-label">새로운 대화</span>
+            {fresh && (
+              <span className="live-dot" title={`${fresh.backend} · waiting`}>
+                ●
+              </span>
+            )}
           </div>
 
-          {liveSessions.map((s) => (
+          {graduatedLives.map((s) => (
             <div
               key={s.sessionId}
               className={`session live${selectedId === s.sessionId ? ' active' : ''}`}
@@ -92,15 +149,15 @@ function WorkspaceCard({
                 onSelect({
                   workspacePath: path,
                   sessionId: s.sessionId,
-                  title: s.title,
+                  title: s.jsonlTitle ?? s.title,
                   mode: 'readonly'
                 })
               }
             >
               <span className="live-dot" title={`${s.backend} · live`}>●</span>
               <div className="session-info">
-                <span className="session-title" title={s.title}>
-                  {s.title}
+                <span className="session-title" title={s.jsonlTitle ?? s.title}>
+                  {s.jsonlTitle ?? s.title}
                 </span>
                 <span className="session-time">
                   {s.backend}
@@ -110,24 +167,22 @@ function WorkspaceCard({
             </div>
           ))}
 
-          {sessions === null && liveSessions.length === 0 ? null : (
-            filteredPast.map((s) => (
-              <SessionRow
-                key={s.id}
-                meta={s}
-                active={selectedId === s.id}
-                onClick={() =>
-                  onSelect({
-                    workspacePath: path,
-                    sessionId: s.id,
-                    title: s.title,
-                    mode: 'readonly'
-                  })
-                }
-                onDelete={() => handleDelete(s.id, s.title)}
-              />
-            ))
-          )}
+          {filteredPast.map((s) => (
+            <SessionRow
+              key={s.id}
+              meta={s}
+              active={selectedId === s.id}
+              onClick={() =>
+                onSelect({
+                  workspacePath: path,
+                  sessionId: s.id,
+                  title: s.title,
+                  mode: 'readonly'
+                })
+              }
+              onDelete={() => handleDelete(s.id, s.title)}
+            />
+          ))}
         </div>
       )}
     </section>
