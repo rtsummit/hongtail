@@ -11,6 +11,8 @@ const api = {
     listSessions: (cwd: string) => ipcRenderer.invoke('claude:list-sessions', cwd),
     deleteSession: (cwd: string, sessionId: string): Promise<void> =>
       ipcRenderer.invoke('claude:delete-session', cwd, sessionId),
+    readSession: (cwd: string, sessionId: string): Promise<unknown[]> =>
+      ipcRenderer.invoke('claude:read-session', cwd, sessionId),
     startSession: (
       workspacePath: string,
       sessionId: string | null,
@@ -24,6 +26,29 @@ const api = {
     listRunning: (): Promise<string[]> => ipcRenderer.invoke('claude:list-running'),
     onEvent: (sessionId: string, callback: (event: unknown) => void): (() => void) => {
       const channel = `claude:event:${sessionId}`
+      const handler = (_: IpcRendererEvent, event: unknown): void => callback(event)
+      ipcRenderer.on(channel, handler)
+      return (): void => {
+        ipcRenderer.off(channel, handler)
+      }
+    }
+  },
+  pty: {
+    spawn: (args: {
+      sessionId: string
+      workspacePath: string
+      cols: number
+      rows: number
+      command?: string
+      delayMs?: number
+    }): Promise<{ alreadyRunning: boolean }> => ipcRenderer.invoke('pty:spawn', args),
+    write: (sessionId: string, data: string): Promise<void> =>
+      ipcRenderer.invoke('pty:write', sessionId, data),
+    resize: (sessionId: string, cols: number, rows: number): Promise<void> =>
+      ipcRenderer.invoke('pty:resize', sessionId, cols, rows),
+    kill: (sessionId: string): Promise<void> => ipcRenderer.invoke('pty:kill', sessionId),
+    onEvent: (sessionId: string, callback: (event: unknown) => void): (() => void) => {
+      const channel = `pty:event:${sessionId}`
       const handler = (_: IpcRendererEvent, event: unknown): void => callback(event)
       ipcRenderer.on(channel, handler)
       return (): void => {

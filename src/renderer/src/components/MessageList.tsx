@@ -48,6 +48,28 @@ function BlockView({ block }: { block: Block }): React.JSX.Element | null {
           <pre className="tool-body">{stringify(block.content)}</pre>
         </div>
       )
+    case 'command-invoke':
+      return (
+        <div className="command-card invoke">
+          <div className="command-header">
+            <span className="command-icon">▸</span>
+            <span className="command-name">{block.name}</span>
+            {block.args ? <span className="command-args">{block.args}</span> : null}
+          </div>
+          {block.message && block.message !== block.name ? (
+            <div className="command-message">{block.message}</div>
+          ) : null}
+        </div>
+      )
+    case 'command-output':
+      return (
+        <div className={`command-card output ${block.stream}`}>
+          <div className="command-header">
+            <span className="command-stream">{block.stream}</span>
+          </div>
+          <pre className="command-output-text">{block.text}</pre>
+        </div>
+      )
     case 'system':
       return <div className="system-line">{block.text}</div>
     case 'error':

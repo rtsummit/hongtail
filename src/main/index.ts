@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { registerWorkspaceHandlers } from './workspaces'
 import { registerClaudeHandlers } from './claude'
 import { registerSessionHandlers, killAllSessions } from './session'
+import { registerPtyHandlers, killAllPty } from './pty'
 
 function createWindow(): void {
   // Create the browser window.
@@ -60,6 +61,7 @@ app.whenReady().then(() => {
   registerWorkspaceHandlers()
   registerClaudeHandlers()
   registerSessionHandlers()
+  registerPtyHandlers()
 
   createWindow()
 
@@ -75,6 +77,7 @@ app.whenReady().then(() => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   killAllSessions()
+  killAllPty()
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -82,6 +85,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   killAllSessions()
+  killAllPty()
 })
 
 // In this file you can include the rest of your app's specific main process

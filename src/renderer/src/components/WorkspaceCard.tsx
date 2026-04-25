@@ -80,7 +80,14 @@ function WorkspaceCard({ path, selectedId, onSelect, onStartClaude }: Props): Re
                 key={s.id}
                 meta={s}
                 active={selectedId === s.id}
-                onClick={() => onSelect({ workspacePath: path, sessionId: s.id, title: s.title })}
+                onClick={() =>
+                  onSelect({
+                    workspacePath: path,
+                    sessionId: s.id,
+                    title: s.title,
+                    mode: 'readonly'
+                  })
+                }
                 onDelete={() => handleDelete(s.id, s.title)}
               />
             ))

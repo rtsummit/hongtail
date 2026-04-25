@@ -14,6 +14,7 @@ interface ContentBlock {
 interface ClaudeEvent {
   type?: string
   subtype?: string
+  isMeta?: boolean
   message?: { role?: string; content?: ContentBlock[] | string }
   data?: string
   raw?: string
@@ -30,6 +31,7 @@ export function parseClaudeEvent(raw: unknown): Block[] {
     case 'assistant':
       return parseMessageContent(event.message?.content, 'assistant')
     case 'user':
+      if (event.isMeta) return []
       return parseMessageContent(event.message?.content, 'user')
     case 'system':
       // system init/etc — usually verbose, skip in UI for now
@@ -52,22 +54,60 @@ export function parseClaudeEvent(raw: unknown): Block[] {
   }
 }
 
+function processUserText(text: string): Block[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  const cmdNameMatch = trimmed.match(/<command-name>\s*([\s\S]*?)\s*<\/command-name>/)
+  if (cmdNameMatch) {
+    const name = cmdNameMatch[1].trim() || 'command'
+    const argsMatch = trimmed.match(/<command-args>\s*([\s\S]*?)\s*<\/command-args>/)
+    const messageMatch = trimmed.match(/<command-message>\s*([\s\S]*?)\s*<\/command-message>/)
+    const args = argsMatch?.[1]?.trim() || undefined
+    const message = messageMatch?.[1]?.trim() || undefined
+    return [{ kind: 'command-invoke', name, args, message }]
+  }
+
+  const localOutMatch = trimmed.match(
+    /<local-command-(stdout|stderr)>([\s\S]*?)<\/local-command-\1>/
+  )
+  if (localOutMatch) {
+    const stream = localOutMatch[1] as 'stdout' | 'stderr'
+    const out = localOutMatch[2]
+    if (!out.trim()) return []
+    return [{ kind: 'command-output', stream, text: out }]
+  }
+
+  if (
+    trimmed.startsWith('<system-reminder>') ||
+    trimmed.startsWith('<local-command-caveat>') ||
+    trimmed.startsWith('<command-message>') ||
+    trimmed.startsWith('<command-args>')
+  ) {
+    return []
+  }
+
+  return [{ kind: 'user-text', text }]
+}
+
 function parseMessageContent(
   content: ContentBlock[] | string | undefined,
   role: 'assistant' | 'user'
 ): Block[] {
   if (!content) return []
   if (typeof content === 'string') {
-    return [{ kind: role === 'assistant' ? 'assistant-text' : 'user-text', text: content }]
+    if (role === 'user') return processUserText(content)
+    return [{ kind: 'assistant-text', text: content }]
   }
   const blocks: Block[] = []
   for (const block of content) {
     if (!block || typeof block !== 'object') continue
     if (block.type === 'text' && typeof block.text === 'string') {
-      blocks.push({
-        kind: role === 'assistant' ? 'assistant-text' : 'user-text',
-        text: block.text
-      })
+      if (role === 'user') {
+        blocks.push(...processUserText(block.text))
+      } else {
+        blocks.push({ kind: 'assistant-text', text: block.text })
+      }
     } else if (block.type === 'tool_use') {
       blocks.push({
         kind: 'tool-use',

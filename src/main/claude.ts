@@ -127,9 +127,36 @@ async function deleteSession(cwd: string, sessionId: string): Promise<void> {
   }
 }
 
+async function readSession(cwd: string, sessionId: string): Promise<unknown[]> {
+  const dir = projectDir(cwd)
+  const file = join(dir, `${sessionId}.jsonl`)
+  const events: unknown[] = []
+  try {
+    const stream = createReadStream(file, { encoding: 'utf-8' })
+    const rl = createInterface({ input: stream, crlfDelay: Infinity })
+    for await (const line of rl) {
+      if (!line.trim()) continue
+      try {
+        events.push(JSON.parse(line))
+      } catch {
+        /* skip invalid line */
+      }
+    }
+    rl.close()
+    stream.destroy()
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw err
+  }
+  return events
+}
+
 export function registerClaudeHandlers(): void {
   ipcMain.handle('claude:list-sessions', async (_, cwd: string) => listSessions(cwd))
   ipcMain.handle('claude:delete-session', async (_, cwd: string, sessionId: string) => {
     await deleteSession(cwd, sessionId)
   })
+  ipcMain.handle('claude:read-session', async (_, cwd: string, sessionId: string) =>
+    readSession(cwd, sessionId)
+  )
 }

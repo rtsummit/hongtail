@@ -6,6 +6,33 @@
   height: 100%;
 }
 
+.main-area {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-host {
+  position: absolute;
+  inset: 0;
+  background: #1e1e1e;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.terminal-host .xterm,
+.terminal-host .xterm-viewport,
+.terminal-host .xterm-screen {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.terminal-host .xterm-viewport {
+  background-color: #1e1e1e !important;
+}
+
 /* === Sidebar === */
 .sidebar {
   flex: 0 0 240px;
@@ -16,6 +43,38 @@
   gap: 10px;
   padding: 10px;
   overflow: hidden;
+}
+
+.mode-toggle {
+  display: flex;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-toggle-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition:
+    background-color 0.1s,
+    color 0.1s;
+}
+
+.mode-toggle-btn:hover {
+  color: var(--fg);
+}
+
+.mode-toggle-btn.active {
+  background: var(--accent);
+  color: white;
 }
 
 .new-session-btn {
@@ -369,12 +428,116 @@
   background: #1a1a1a;
 }
 
+.command-card {
+  align-self: stretch;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  user-select: text;
+}
+
+.command-card.invoke {
+  border-left-color: var(--accent);
+}
+
+.command-card.output.stdout {
+  border-left-color: #4a9d6f;
+}
+
+.command-card.output.stderr {
+  border-left-color: var(--danger-border);
+}
+
+.command-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.command-icon {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.command-name {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.command-args {
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+.command-stream {
+  color: var(--fg-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.command-message {
+  color: var(--fg-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.command-output-text {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  background: #1a1a1a;
+  border-radius: 3px;
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 11px;
+}
+
 .system-line {
   align-self: center;
   font-size: 11px;
   color: var(--fg-dim);
   font-family: 'Cascadia Code', 'Consolas', monospace;
   font-style: italic;
+}
+
+.thinking-row {
+  align-self: flex-start;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  color: #d49a5e;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.thinking-spinner {
+  font-size: 14px;
+  color: #d49a5e;
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.thinking-verb {
+  color: #d49a5e;
+  font-weight: 500;
+}
+
+.thinking-info {
+  color: var(--fg-dim);
+  font-size: 11px;
 }
 
 .system-line.error {
@@ -427,4 +590,69 @@
 .send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.chat-input-readonly {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg-dim);
+  font-size: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
+.chat-activate {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.chat-activate-label {
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.chat-activate-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.activate-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--fg);
+  transition:
+    background-color 0.1s,
+    border-color 0.1s;
+}
+
+.activate-btn:hover {
+  border-color: var(--accent);
+}
+
+.activate-btn.full {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.activate-btn.full:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.activate-btn.summary {
+  background: transparent;
+  border-color: var(--border);
 }
