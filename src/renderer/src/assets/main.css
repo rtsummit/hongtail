@@ -118,20 +118,30 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-right: 2px;
+  padding-right: 4px;
+  min-height: 0;
 }
 
-.workspace-list::-webkit-scrollbar {
-  width: 8px;
+.workspace-list::-webkit-scrollbar,
+.session-list::-webkit-scrollbar {
+  width: 10px;
 }
 
-.workspace-list::-webkit-scrollbar-thumb {
-  background: var(--panel-2);
-  border-radius: 4px;
+.workspace-list::-webkit-scrollbar-track,
+.session-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.workspace-list::-webkit-scrollbar-thumb:hover {
+.workspace-list::-webkit-scrollbar-thumb,
+.session-list::-webkit-scrollbar-thumb {
   background: var(--border);
+  border-radius: 5px;
+  border: 2px solid var(--panel);
+}
+
+.workspace-list::-webkit-scrollbar-thumb:hover,
+.session-list::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-dim);
 }
 
 /* === Workspace card === */
@@ -238,6 +248,8 @@
   flex-direction: column;
   padding: 6px;
   gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .session {

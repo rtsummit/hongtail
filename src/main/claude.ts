@@ -11,7 +11,10 @@ export interface ClaudeSessionMeta {
 }
 
 function encodeCwd(path: string): string {
-  return path.replace(/[\\/:]/g, '-')
+  // Claude encodes the project dir name by replacing every non-alphanumeric
+  // char (except '.' and '-') with '-'. So '_', ':', '\', '/', spaces, etc.
+  // all become '-'. Verified against existing ~/.claude/projects dirs.
+  return path.replace(/[^a-zA-Z0-9.-]/g, '-')
 }
 
 function projectDir(cwd: string): string {
