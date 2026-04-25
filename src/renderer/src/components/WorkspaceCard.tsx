@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
 import SessionRow from './SessionRow'
-import type { ClaudeSessionMeta, SelectedSession } from '../types'
+import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
 
 interface Props {
   path: string
+  liveSessions: LiveSessionInfo[]
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
 }
 
-function WorkspaceCard({ path, selectedId, onSelect, onStartClaude }: Props): React.JSX.Element {
+function WorkspaceCard({
+  path,
+  liveSessions,
+  selectedId,
+  onSelect,
+  onStartClaude
+}: Props): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
   const [sessions, setSessions] = useState<ClaudeSessionMeta[] | null>(null)
 
@@ -27,10 +34,16 @@ function WorkspaceCard({ path, selectedId, onSelect, onStartClaude }: Props): Re
     void refresh()
   }, [refresh])
 
-  const handleAdd = useCallback(async () => {
-    await onStartClaude(path)
-    window.setTimeout(() => void refresh(), 2000)
-  }, [path, onStartClaude, refresh])
+  // Refresh past sessions when live count changes (new JSONL may have appeared)
+  useEffect(() => {
+    if (liveSessions.length === 0) return
+    const id = window.setTimeout(() => void refresh(), 2000)
+    return () => window.clearTimeout(id)
+  }, [liveSessions.length, refresh])
+
+  const handleNewConversation = useCallback(() => {
+    void onStartClaude(path)
+  }, [path, onStartClaude])
 
   const handleDelete = useCallback(
     async (sessionId: string, title: string) => {
@@ -48,6 +61,9 @@ function WorkspaceCard({ path, selectedId, onSelect, onStartClaude }: Props): Re
     [path, refresh, selectedId, onSelect]
   )
 
+  const liveIds = new Set(liveSessions.map((s) => s.sessionId))
+  const filteredPast = (sessions ?? []).filter((s) => !liveIds.has(s.id))
+
   return (
     <section className={`workspace${collapsed ? ' collapsed' : ''}`}>
       <header className="workspace-header" onClick={() => setCollapsed((v) => !v)}>
@@ -55,27 +71,47 @@ function WorkspaceCard({ path, selectedId, onSelect, onStartClaude }: Props): Re
         <span className="workspace-name" title={path}>
           {path}
         </span>
-        <button
-          type="button"
-          className="workspace-add"
-          title="이 디렉터리에서 claude 실행"
-          onClick={(e) => {
-            e.stopPropagation()
-            void handleAdd()
-          }}
-        >
-          +
-        </button>
       </header>
 
       {!collapsed && (
         <div className="session-list">
-          {sessions === null ? (
-            <div className="session-empty">loading…</div>
-          ) : sessions.length === 0 ? (
-            <div className="session-empty">(아직 없음)</div>
-          ) : (
-            sessions.map((s) => (
+          <div
+            className="new-conversation"
+            onClick={handleNewConversation}
+            title="이 디렉터리에서 새 대화 시작 (현재 모드 사용)"
+          >
+            <span className="new-conversation-plus">+</span>
+            <span className="new-conversation-label">새로운 대화</span>
+          </div>
+
+          {liveSessions.map((s) => (
+            <div
+              key={s.sessionId}
+              className={`session live${selectedId === s.sessionId ? ' active' : ''}`}
+              onClick={() =>
+                onSelect({
+                  workspacePath: path,
+                  sessionId: s.sessionId,
+                  title: s.title,
+                  mode: 'readonly'
+                })
+              }
+            >
+              <span className="live-dot" title={`${s.backend} · live`}>●</span>
+              <div className="session-info">
+                <span className="session-title" title={s.title}>
+                  {s.title}
+                </span>
+                <span className="session-time">
+                  {s.backend}
+                  {s.isNew ? ' · new' : ' · resumed'}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          {sessions === null && liveSessions.length === 0 ? null : (
+            filteredPast.map((s) => (
               <SessionRow
                 key={s.id}
                 meta={s}

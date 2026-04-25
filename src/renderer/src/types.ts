@@ -24,6 +24,13 @@ export interface SessionStatus {
   usage?: Usage
 }
 
+export interface LiveSessionInfo {
+  sessionId: string
+  title: string
+  backend: Backend
+  isNew: boolean
+}
+
 export type Block =
   | { kind: 'user-text'; text: string }
   | { kind: 'assistant-text'; text: string }

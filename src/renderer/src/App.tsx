@@ -338,6 +338,8 @@ function App(): React.JSX.Element {
         workspaces={workspaces}
         selected={selected}
         defaultBackend={defaultBackend}
+        active={active}
+        messagesBySession={messagesBySession}
         onChangeBackend={setDefaultBackend}
         onAddWorkspace={addWorkspaceDialog}
         onSelect={handleSelect}
