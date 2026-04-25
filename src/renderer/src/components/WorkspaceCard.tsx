@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import SessionRow from './SessionRow'
 import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
 
@@ -40,22 +40,6 @@ function WorkspaceCard({
     const id = window.setTimeout(() => void refresh(), 2000)
     return () => window.clearTimeout(id)
   }, [liveSessions.length, refresh])
-
-  // Poll periodically while a terminal session is fresh (waiting for JSONL appearance).
-  // Stops once all terminal sessions have graduated.
-  const hasFreshTerminal = useMemo(
-    () =>
-      liveSessions.some(
-        (s) => s.backend === 'terminal' && !s.hasUserMessage
-      ),
-    [liveSessions]
-  )
-
-  useEffect(() => {
-    if (!hasFreshTerminal) return
-    const id = window.setInterval(() => void refresh(), 5000)
-    return () => window.clearInterval(id)
-  }, [hasFreshTerminal, refresh])
 
   const handleNewConversation = useCallback(() => {
     void onStartClaude(path)

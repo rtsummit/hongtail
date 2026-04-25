@@ -52,10 +52,11 @@ function Sidebar({
     const list = liveByWorkspace.get(a.workspacePath) ?? []
     const blocks = messagesBySession[sessionId]
     // App mode: user-text block existence is graduation signal.
-    // Terminal mode: blocks are empty (we don't track PTY content); WorkspaceCard
-    //   determines graduation via JSONL existence.
+    // Terminal mode: claude creates JSONL on session start (~1s) and we don't
+    //   track PTY content, so there's no meaningful "fresh" phase — treat as
+    //   graduated immediately so it appears as a normal live entry.
     const hasUserMessage =
-      a.backend === 'app' ? (blocks?.some((b) => b.kind === 'user-text') ?? false) : false
+      a.backend === 'app' ? (blocks?.some((b) => b.kind === 'user-text') ?? false) : true
     list.push({
       sessionId,
       title: deriveLiveTitle(blocks),

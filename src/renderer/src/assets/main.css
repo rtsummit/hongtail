@@ -248,8 +248,6 @@
   flex-direction: column;
   padding: 6px;
   gap: 2px;
-  max-height: 320px;
-  overflow-y: auto;
 }
 
 .session {
