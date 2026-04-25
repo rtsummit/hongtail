@@ -1,34 +1,44 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { useCallback, useEffect, useState } from 'react'
+import Sidebar from './components/Sidebar'
+import ChatPane from './components/ChatPane'
+import type { SelectedSession } from './types'
 
 function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const [workspaces, setWorkspaces] = useState<string[]>([])
+  const [selected, setSelected] = useState<SelectedSession | null>(null)
+
+  useEffect(() => {
+    void window.api.workspaces.load().then(setWorkspaces)
+  }, [])
+
+  const persist = useCallback(async (next: string[]) => {
+    setWorkspaces(next)
+    await window.api.workspaces.save(next)
+  }, [])
+
+  const addWorkspace = useCallback(async () => {
+    const picked = await window.api.workspaces.pickDirectory()
+    if (!picked) return
+    if (workspaces.includes(picked)) return
+    await persist([picked, ...workspaces])
+  }, [workspaces, persist])
+
+  const startClaudeIn = useCallback(async (cwd: string) => {
+    // Wired in Step 3
+    console.log('[startClaudeIn]', cwd)
+  }, [])
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
-      </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
+    <div className="app">
+      <Sidebar
+        workspaces={workspaces}
+        selected={selected}
+        onAddWorkspace={addWorkspace}
+        onSelect={setSelected}
+        onStartClaude={startClaudeIn}
+      />
+      <ChatPane selected={selected} />
+    </div>
   )
 }
 

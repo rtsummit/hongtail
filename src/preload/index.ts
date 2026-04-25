@@ -1,12 +1,19 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
-const api = {}
+const api = {
+  workspaces: {
+    load: (): Promise<string[]> => ipcRenderer.invoke('workspaces:load'),
+    save: (paths: string[]): Promise<void> => ipcRenderer.invoke('workspaces:save', paths),
+    pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('workspaces:pick-directory')
+  },
+  claude: {
+    listSessions: (cwd: string) => ipcRenderer.invoke('claude:list-sessions', cwd),
+    deleteSession: (cwd: string, sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('claude:delete-session', cwd, sessionId)
+  }
+}
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
