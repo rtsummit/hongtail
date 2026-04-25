@@ -47,12 +47,11 @@
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
   overflow: hidden;
   box-sizing: border-box;
-  height: 100vh;
   min-height: 0;
 }
 
@@ -152,6 +151,7 @@
   border-radius: 6px;
   overflow: hidden;
   background: transparent;
+  flex-shrink: 0;
 }
 
 .workspace-header {
