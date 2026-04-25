@@ -167,6 +167,20 @@ function App(): React.JSX.Element {
     [selected, defaultBackend, startLive]
   )
 
+  const handleTerminalExit = useCallback((sessionId: string, _code: number | null) => {
+    void _code
+    setActive((prev) => {
+      if (!prev[sessionId]) return prev
+      const next = { ...prev }
+      delete next[sessionId]
+      return next
+    })
+    setSelected((prev) => {
+      if (prev?.sessionId !== sessionId) return prev
+      return { ...prev, mode: 'readonly', backend: 'app' }
+    })
+  }, [])
+
   const handleTurnStart = useCallback((sessionId: string) => {
     setStatusBySession((prev) => ({
       ...prev,
@@ -362,6 +376,7 @@ function App(): React.JSX.Element {
               workspacePath={t.workspacePath}
               initialCommand={command}
               visible={visible}
+              onExit={(code) => handleTerminalExit(t.sessionId, code)}
             />
           )
         })}

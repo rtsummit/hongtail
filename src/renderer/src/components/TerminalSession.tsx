@@ -8,6 +8,7 @@ interface Props {
   workspacePath: string
   initialCommand: string
   visible: boolean
+  onExit: (code: number | null) => void
 }
 
 interface PtyEvent {
@@ -20,7 +21,8 @@ function TerminalSession({
   sessionId,
   workspacePath,
   initialCommand,
-  visible
+  visible,
+  onExit
 }: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -57,7 +59,7 @@ function TerminalSession({
       if (event.type === 'data' && typeof event.data === 'string') {
         term.write(event.data)
       } else if (event.type === 'exit') {
-        term.write(`\r\n\x1b[31m[프로세스 종료 code=${event.code ?? '?'}]\x1b[0m\r\n`)
+        onExit(event.code ?? null)
       }
     })
 
@@ -66,8 +68,7 @@ function TerminalSession({
       workspacePath,
       cols: term.cols,
       rows: term.rows,
-      command: initialCommand,
-      delayMs: 250
+      command: initialCommand
     })
 
     term.onData((data) => {
@@ -90,10 +91,8 @@ function TerminalSession({
       window.removeEventListener('resize', onWindowResize)
       unsub()
       term.dispose()
-      // PTY 는 일부러 살려둠. React StrictMode 의 double-invoke 에서
-      // 죽이면 자동 claude 명령이 사라짐. 앱 종료 시 killAllPty 가 정리.
     }
-  }, [sessionId, workspacePath, initialCommand])
+  }, [sessionId, workspacePath, initialCommand, onExit])
 
   useEffect(() => {
     if (!visible) return
@@ -110,10 +109,11 @@ function TerminalSession({
 
   return (
     <div
-      ref={containerRef}
       className="terminal-host"
       style={{ display: visible ? 'block' : 'none' }}
-    />
+    >
+      <div ref={containerRef} className="terminal-host-inner" />
+    </div>
   )
 }
 

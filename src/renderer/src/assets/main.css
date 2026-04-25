@@ -20,6 +20,13 @@
   background: #1e1e1e;
   padding: 4px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-host-inner {
+  flex: 1;
+  min-height: 0;
 }
 
 .terminal-host .xterm,
@@ -32,6 +39,7 @@
 .terminal-host .xterm-viewport {
   background-color: #1e1e1e !important;
 }
+
 
 /* === Sidebar === */
 .sidebar {

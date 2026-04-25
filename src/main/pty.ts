@@ -38,7 +38,15 @@ export function registerPtyHandlers(): void {
     const isWin = process.platform === 'win32'
     const shell = isWin ? 'cmd.exe' : process.env.SHELL || 'bash'
 
-    const proc = pty.spawn(shell, [], {
+    // When command is provided, run it via shell -c / cmd /c so that the shell
+    // exits as soon as the command exits — propagating PTY exit so the renderer
+    // can clean up the session. Without this, cmd would stay alive after claude exits.
+    const cmdArgs: string[] = []
+    if (command) {
+      cmdArgs.push(isWin ? '/c' : '-c', command)
+    }
+
+    const proc = pty.spawn(shell, cmdArgs, {
       name: 'xterm-256color',
       cols,
       rows,
@@ -54,13 +62,7 @@ export function registerPtyHandlers(): void {
 
     ptys.set(sessionId, { proc, workspacePath })
 
-    if (command) {
-      setTimeout(() => {
-        const entry = ptys.get(sessionId)
-        if (entry) entry.proc.write(`${command}\r`)
-      }, delayMs ?? 200)
-    }
-
+    void delayMs
     return { alreadyRunning: false }
   })
 

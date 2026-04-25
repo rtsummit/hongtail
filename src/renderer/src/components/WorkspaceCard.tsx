@@ -34,9 +34,9 @@ function WorkspaceCard({
     void refresh()
   }, [refresh])
 
-  // Refresh once shortly after a new live session appears (catch fast graduation)
+  // Refresh shortly after a live session count changes (created or exited)
+  // — catches both fast graduation and post-exit JSONL appearance.
   useEffect(() => {
-    if (liveSessions.length === 0) return
     const id = window.setTimeout(() => void refresh(), 2000)
     return () => window.clearTimeout(id)
   }, [liveSessions.length, refresh])
