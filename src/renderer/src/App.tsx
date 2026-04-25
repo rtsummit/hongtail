@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import ChatPane from './components/ChatPane'
 import TerminalSession from './components/TerminalSession'
+import SettingsModal from './components/SettingsModal'
+import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
+import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
 import { extractUsage, isResultEvent, pickVerb } from './sessionStatus'
 import {
@@ -11,24 +14,79 @@ import {
   type RpcSnapshot,
   type RpcWaiterEntry
 } from './rpcBridge'
-import type { Backend, Block, SelectedSession, SessionStatus } from './types'
+import type { Backend, Block, SelectedSession, SessionStatus, WorkspaceEntry } from './types'
 
 function App(): React.JSX.Element {
-  const [workspaces, setWorkspaces] = useState<string[]>([])
+  const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([])
   const [selected, setSelected] = useState<SelectedSession | null>(null)
   const [messagesBySession, setMessagesBySession] = useState<Record<string, Block[]>>({})
   const [active, setActive] = useState<Record<string, ActiveEntry>>({})
   const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [defaultBackend, setDefaultBackend] = useState<Backend>('app')
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const stored = Number(localStorage.getItem('hongluade.sidebarWidth'))
+    return Number.isFinite(stored) && stored >= 180 && stored <= 600 ? stored : 240
+  })
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const handleSettingsChange = useCallback((next: AppSettings) => {
+    setSettings(next)
+    saveSettings(next)
+  }, [])
   const subscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const waitersRef = useRef<Map<string, RpcWaiterEntry>>(new Map())
 
+  const handleSplitterPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startWidth = sidebarWidth
+      const target = e.currentTarget
+      target.setPointerCapture(e.pointerId)
+      target.classList.add('active')
+      const move = (ev: PointerEvent): void => {
+        const next = Math.min(600, Math.max(180, startWidth + (ev.clientX - startX)))
+        setSidebarWidth(next)
+      }
+      const up = (ev: PointerEvent): void => {
+        target.releasePointerCapture(ev.pointerId)
+        target.classList.remove('active')
+        target.removeEventListener('pointermove', move)
+        target.removeEventListener('pointerup', up)
+        const finalWidth = Math.min(
+          600,
+          Math.max(180, startWidth + (ev.clientX - startX))
+        )
+        localStorage.setItem('hongluade.sidebarWidth', String(finalWidth))
+      }
+      target.addEventListener('pointermove', move)
+      target.addEventListener('pointerup', up)
+    },
+    [sidebarWidth]
+  )
+
   useEffect(() => {
-    void window.api.workspaces.load().then(setWorkspaces)
+    void window.api.workspaces.load().then((items) => {
+      // Defensive: tolerate older main-process build that still returns string[]
+      const normalized: WorkspaceEntry[] = (items as unknown[])
+        .map((item): WorkspaceEntry | null => {
+          if (typeof item === 'string') return { path: item }
+          if (item && typeof item === 'object' && typeof (item as { path?: unknown }).path === 'string') {
+            const o = item as { path: string; alias?: unknown }
+            return typeof o.alias === 'string' && o.alias.trim()
+              ? { path: o.path, alias: o.alias }
+              : { path: o.path }
+          }
+          return null
+        })
+        .filter((x): x is WorkspaceEntry => x !== null)
+      setWorkspaces(normalized)
+    })
   }, [])
 
-  const persist = useCallback(async (next: string[]) => {
+  const persist = useCallback(async (next: WorkspaceEntry[]) => {
     setWorkspaces(next)
     await window.api.workspaces.save(next)
   }, [])
@@ -36,9 +94,20 @@ function App(): React.JSX.Element {
   const addWorkspaceDialog = useCallback(async () => {
     const picked = await window.api.workspaces.pickDirectory()
     if (!picked) return
-    if (workspaces.includes(picked)) return
-    await persist([picked, ...workspaces])
+    if (workspaces.some((w) => w.path === picked)) return
+    await persist([{ path: picked }, ...workspaces])
   }, [workspaces, persist])
+
+  const handleSetAlias = useCallback(
+    async (path: string, alias: string) => {
+      const trimmed = alias.trim()
+      const next = workspaces.map((w) =>
+        w.path === path ? (trimmed ? { path, alias: trimmed } : { path }) : w
+      )
+      await persist(next)
+    },
+    [workspaces, persist]
+  )
 
   const appendBlocks = useCallback((sessionId: string, blocks: Block[]) => {
     if (blocks.length === 0) return
@@ -50,6 +119,14 @@ function App(): React.JSX.Element {
 
   const replaceBlocks = useCallback((sessionId: string, blocks: Block[]) => {
     setMessagesBySession((prev) => ({ ...prev, [sessionId]: blocks }))
+  }, [])
+
+  const prependBlocks = useCallback((sessionId: string, blocks: Block[]) => {
+    if (blocks.length === 0) return
+    setMessagesBySession((prev) => ({
+      ...prev,
+      [sessionId]: [...blocks, ...(prev[sessionId] ?? [])]
+    }))
   }, [])
 
   const handleClaudeEvent = useCallback(
@@ -147,13 +224,13 @@ function App(): React.JSX.Element {
   )
 
   const handleTerminalReady = useCallback((sessionId: string) => {
-    // Always wait at least 500ms so the throbber is visible even when claude
+    // Always wait at least 2000ms so the throbber is visible even when claude
     // resumes nearly instantly (cached context).
     window.setTimeout(() => {
       setTerminalReady((prev) =>
         prev[sessionId] ? prev : { ...prev, [sessionId]: true }
       )
-    }, 500)
+    }, 2000)
   }, [])
 
   const startClaudeIn = useCallback(
@@ -179,6 +256,57 @@ function App(): React.JSX.Element {
       void startLive(selected.sessionId, selected.workspacePath, mode, backend)
     },
     [selected, defaultBackend, startLive]
+  )
+
+  const handleReorderWorkspaces = useCallback(
+    async (fromPath: string, toPath: string, before: boolean) => {
+      if (fromPath === toPath) return
+      const moving = workspaces.find((w) => w.path === fromPath)
+      if (!moving) return
+      const next = workspaces.filter((w) => w.path !== fromPath)
+      const idx = next.findIndex((w) => w.path === toPath)
+      if (idx === -1) return
+      next.splice(before ? idx : idx + 1, 0, moving)
+      await persist(next)
+    },
+    [workspaces, persist]
+  )
+
+  const handleRemoveWorkspace = useCallback(
+    async (path: string) => {
+      const liveInWorkspace = Object.entries(active).filter(
+        ([, a]) => a.workspacePath === path
+      )
+      const livePart =
+        liveInWorkspace.length > 0
+          ? `\n\n진행 중인 라이브 대화 ${liveInWorkspace.length}개도 함께 종료됩니다.`
+          : ''
+      const ok = window.confirm(
+        `워크스페이스를 목록에서 제거할까요?\n${path}${livePart}\n\n(저장된 대화 기록 자체는 삭제되지 않습니다)`
+      )
+      if (!ok) return
+
+      for (const [sessionId, a] of liveInWorkspace) {
+        try {
+          if (a.backend === 'terminal') {
+            await window.api.pty.kill(sessionId)
+          } else {
+            await window.api.claude.stopSession(sessionId)
+          }
+        } catch (err) {
+          console.error('stop session during workspace remove failed:', err)
+        }
+      }
+
+      setActive((prev) => {
+        const next = { ...prev }
+        for (const [sessionId] of liveInWorkspace) delete next[sessionId]
+        return next
+      })
+      setSelected((prev) => (prev?.workspacePath === path ? null : prev))
+      await persist(workspaces.filter((w) => w.path !== path))
+    },
+    [active, workspaces, persist]
   )
 
   const handleStopLive = useCallback(
@@ -273,7 +401,7 @@ function App(): React.JSX.Element {
   const messagesRef = useRef<Record<string, Block[]>>({})
 
   stateRef.current = {
-    workspaces,
+    workspaces: workspaces.map((w) => w.path),
     selected,
     active,
     status: statusBySession,
@@ -286,7 +414,9 @@ function App(): React.JSX.Element {
 
   const rpcAddWorkspace = useCallback(
     async (path: string) => {
-      if (!workspaces.includes(path)) await persist([path, ...workspaces])
+      if (!workspaces.some((w) => w.path === path)) {
+        await persist([{ path }, ...workspaces])
+      }
     },
     [workspaces, persist]
   )
@@ -406,8 +536,17 @@ function App(): React.JSX.Element {
     selected.mode === 'readonly' ||
     isStartingTerminal
 
+  const appStyle: Record<string, string> = {
+    '--sidebar-width': `${sidebarWidth}px`,
+    '--ui-font-size': `${settings.fontSize}px`,
+    fontSize: `${settings.fontSize}px`
+  }
+  if (settings.uiFonts.length > 0) appStyle['--ui-font'] = fontStackToCss(settings.uiFonts)
+  if (settings.monoFonts.length > 0) appStyle['--mono-font'] = fontStackToCss(settings.monoFonts)
+
   return (
-    <div className="app">
+    <ToolDefaultOpenContext.Provider value={settings.toolCardsDefaultOpen}>
+    <div className="app" style={appStyle as React.CSSProperties}>
       <Sidebar
         workspaces={workspaces}
         selected={selected}
@@ -416,9 +555,18 @@ function App(): React.JSX.Element {
         messagesBySession={messagesBySession}
         onChangeBackend={setDefaultBackend}
         onAddWorkspace={addWorkspaceDialog}
+        onRemoveWorkspace={handleRemoveWorkspace}
+        onReorderWorkspaces={handleReorderWorkspaces}
+        onSetAlias={handleSetAlias}
+        onOpenSettings={() => setSettingsOpen(true)}
         onSelect={handleSelect}
         onStartClaude={startClaudeIn}
         onStopLive={handleStopLive}
+      />
+      <div
+        className="splitter"
+        onPointerDown={handleSplitterPointerDown}
+        title="드래그하여 사이드바 너비 조정"
       />
       <div className="main-area">
         {terminalSessionList.map((t) => {
@@ -447,8 +595,10 @@ function App(): React.JSX.Element {
             selected={selected}
             messages={messages}
             status={status}
+            settings={settings}
             onAppendBlocks={appendBlocks}
             onReplaceBlocks={replaceBlocks}
+            onPrependBlocks={prependBlocks}
             onActivate={activate}
             onTurnStart={handleTurnStart}
           />
@@ -460,7 +610,14 @@ function App(): React.JSX.Element {
           </div>
         )}
       </div>
+      <SettingsModal
+        open={settingsOpen}
+        settings={settings}
+        onClose={() => setSettingsOpen(false)}
+        onChange={handleSettingsChange}
+      />
     </div>
+    </ToolDefaultOpenContext.Provider>
   )
 }
 

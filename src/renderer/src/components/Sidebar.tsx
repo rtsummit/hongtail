@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import WorkspaceCard from './WorkspaceCard'
 import type {
   Backend,
   Block,
   LiveSessionInfo,
-  SelectedSession
+  SelectedSession,
+  WorkspaceEntry
 } from '../types'
 
 interface ActiveLike {
@@ -13,13 +15,17 @@ interface ActiveLike {
 }
 
 interface Props {
-  workspaces: string[]
+  workspaces: WorkspaceEntry[]
   selected: SelectedSession | null
   defaultBackend: Backend
   active: Record<string, ActiveLike>
   messagesBySession: Record<string, Block[]>
   onChangeBackend: (b: Backend) => void
   onAddWorkspace: () => void | Promise<void>
+  onRemoveWorkspace: (path: string) => void | Promise<void>
+  onReorderWorkspaces: (fromPath: string, toPath: string, before: boolean) => void | Promise<void>
+  onSetAlias: (path: string, alias: string) => void | Promise<void>
+  onOpenSettings: () => void
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
@@ -45,10 +51,16 @@ function Sidebar({
   messagesBySession,
   onChangeBackend,
   onAddWorkspace,
+  onRemoveWorkspace,
+  onReorderWorkspaces,
+  onSetAlias,
+  onOpenSettings,
   onSelect,
   onStartClaude,
   onStopLive
 }: Props): React.JSX.Element {
+  const [draggingPath, setDraggingPath] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState<{ path: string; before: boolean } | null>(null)
   const liveByWorkspace = new Map<string, LiveSessionInfo[]>()
   for (const [sessionId, a] of Object.entries(active)) {
     const list = liveByWorkspace.get(a.workspacePath) ?? []
@@ -102,17 +114,54 @@ function Sidebar({
       </button>
 
       <div className="workspace-list">
-        {workspaces.map((path) => (
+        {workspaces.map(({ path, alias }) => (
           <WorkspaceCard
             key={path}
             path={path}
+            alias={alias}
             liveSessions={liveByWorkspace.get(path) ?? []}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}
+            onRemove={onRemoveWorkspace}
+            onSetAlias={onSetAlias}
+            isDragging={draggingPath === path}
+            dragOverPosition={dragOver?.path === path ? (dragOver.before ? 'top' : 'bottom') : null}
+            onDragStart={() => setDraggingPath(path)}
+            onDragEnd={() => {
+              setDraggingPath(null)
+              setDragOver(null)
+            }}
+            onDragOverHeader={(before) => {
+              if (!draggingPath || draggingPath === path) return
+              setDragOver((prev) =>
+                prev?.path === path && prev.before === before ? prev : { path, before }
+              )
+            }}
+            onDragLeaveHeader={() => {
+              setDragOver((prev) => (prev?.path === path ? null : prev))
+            }}
+            onDropHeader={(before) => {
+              if (draggingPath && draggingPath !== path) {
+                void onReorderWorkspaces(draggingPath, path, before)
+              }
+              setDraggingPath(null)
+              setDragOver(null)
+            }}
           />
         ))}
+      </div>
+
+      <div className="sidebar-footer">
+        <button
+          type="button"
+          className="settings-btn"
+          onClick={onOpenSettings}
+          title="설정"
+        >
+          ⚙ <span>설정</span>
+        </button>
       </div>
     </aside>
   )

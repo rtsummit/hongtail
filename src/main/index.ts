@@ -6,6 +6,7 @@ import { registerWorkspaceHandlers } from './workspaces'
 import { registerClaudeHandlers } from './claude'
 import { registerSessionHandlers, killAllSessions } from './session'
 import { registerPtyHandlers, killAllPty } from './pty'
+import { registerFontHandlers } from './fonts'
 import { startRpcServer, stopRpcServer } from './rpc'
 
 function createWindow(): void {
@@ -63,6 +64,7 @@ app.whenReady().then(() => {
   registerClaudeHandlers()
   registerSessionHandlers()
   registerPtyHandlers()
+  registerFontHandlers()
 
   createWindow()
 

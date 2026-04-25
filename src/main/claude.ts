@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
-import { promises as fs, createReadStream } from 'fs'
+import { ipcMain, type WebContents } from 'electron'
+import { promises as fs, createReadStream, watch as fsWatch, type FSWatcher } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
@@ -154,6 +154,199 @@ async function readSession(cwd: string, sessionId: string): Promise<unknown[]> {
   return events
 }
 
+interface ReadFromResult {
+  events: unknown[]
+  newOffset: number
+  truncated: boolean
+}
+
+interface ReadTailResult {
+  events: unknown[]
+  newOffset: number
+  totalLines: number
+  skippedLines: number
+}
+
+async function readSessionRange(
+  cwd: string,
+  sessionId: string,
+  startLine: number,
+  endLine: number
+): Promise<{ events: unknown[] }> {
+  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
+  const events: unknown[] = []
+  if (endLine <= startLine) return { events }
+  try {
+    const stream = createReadStream(file, { encoding: 'utf-8' })
+    const rl = createInterface({ input: stream, crlfDelay: Infinity })
+    let total = 0
+    for await (const line of rl) {
+      if (!line.trim()) continue
+      if (total >= endLine) break
+      if (total >= startLine) {
+        try {
+          events.push(JSON.parse(line))
+        } catch {
+          /* skip */
+        }
+      }
+      total++
+    }
+    rl.close()
+    stream.destroy()
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { events: [] }
+    throw err
+  }
+  return { events }
+}
+
+async function readSessionTail(
+  cwd: string,
+  sessionId: string,
+  tailLines: number
+): Promise<ReadTailResult> {
+  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
+  let stat
+  try {
+    stat = await fs.stat(file)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { events: [], newOffset: 0, totalLines: 0, skippedLines: 0 }
+    }
+    throw err
+  }
+  const ring: string[] = new Array(tailLines)
+  let writeIdx = 0
+  let total = 0
+  const stream = createReadStream(file, { encoding: 'utf-8' })
+  const rl = createInterface({ input: stream, crlfDelay: Infinity })
+  for await (const line of rl) {
+    if (!line.trim()) continue
+    ring[writeIdx % tailLines] = line
+    writeIdx++
+    total++
+  }
+  rl.close()
+  stream.destroy()
+  const start = Math.max(0, writeIdx - tailLines)
+  const events: unknown[] = []
+  for (let i = start; i < writeIdx; i++) {
+    try {
+      events.push(JSON.parse(ring[i % tailLines]))
+    } catch {
+      /* skip */
+    }
+  }
+  return {
+    events,
+    newOffset: stat.size,
+    totalLines: total,
+    skippedLines: Math.max(0, total - tailLines)
+  }
+}
+
+async function readSessionFromOffset(
+  cwd: string,
+  sessionId: string,
+  fromOffset: number
+): Promise<ReadFromResult> {
+  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
+  let stat
+  try {
+    stat = await fs.stat(file)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { events: [], newOffset: 0, truncated: true }
+    }
+    throw err
+  }
+  if (fromOffset > stat.size) {
+    // file shrank or was rewritten; signal full reload
+    return { events: [], newOffset: 0, truncated: true }
+  }
+  if (fromOffset === stat.size) {
+    return { events: [], newOffset: stat.size, truncated: false }
+  }
+  const stream = createReadStream(file, { encoding: 'utf-8', start: fromOffset })
+  let buffer = ''
+  for await (const chunk of stream) buffer += chunk
+  // Only consume up to the last complete line; keep any trailing partial line for
+  // the next read so we don't lose data when a writer is mid-append.
+  const lastNewline = buffer.lastIndexOf('\n')
+  const completePart = lastNewline >= 0 ? buffer.slice(0, lastNewline + 1) : ''
+  const events: unknown[] = []
+  if (completePart) {
+    for (const line of completePart.split('\n')) {
+      if (!line.trim()) continue
+      try {
+        events.push(JSON.parse(line))
+      } catch {
+        /* skip */
+      }
+    }
+  }
+  const consumedBytes = Buffer.byteLength(completePart, 'utf-8')
+  return { events, newOffset: fromOffset + consumedBytes, truncated: false }
+}
+
+interface WatchEntry {
+  watcher: FSWatcher
+  sender: WebContents
+  debounceTimer: NodeJS.Timeout | null
+}
+
+const watches = new Map<string, WatchEntry>()
+
+function watchKey(senderId: number, sessionId: string): string {
+  return `${senderId}::${sessionId}`
+}
+
+function stopWatch(key: string): void {
+  const entry = watches.get(key)
+  if (!entry) return
+  if (entry.debounceTimer) clearTimeout(entry.debounceTimer)
+  try {
+    entry.watcher.close()
+  } catch {
+    /* ignore */
+  }
+  watches.delete(key)
+}
+
+function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
+  const key = watchKey(sender.id, sessionId)
+  stopWatch(key)
+  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
+  let watcher: FSWatcher
+  try {
+    watcher = fsWatch(file, { persistent: false })
+  } catch (err) {
+    console.error('watch start failed:', err)
+    return
+  }
+  const entry: WatchEntry = { watcher, sender, debounceTimer: null }
+  watches.set(key, entry)
+
+  const channel = `claude:session-changed:${sessionId}`
+  watcher.on('change', () => {
+    if (sender.isDestroyed()) {
+      stopWatch(key)
+      return
+    }
+    if (entry.debounceTimer) clearTimeout(entry.debounceTimer)
+    entry.debounceTimer = setTimeout(() => {
+      entry.debounceTimer = null
+      if (!sender.isDestroyed()) sender.send(channel)
+    }, 150)
+  })
+  watcher.on('error', (err) => {
+    console.error('watch error:', err)
+    stopWatch(key)
+  })
+  sender.once('destroyed', () => stopWatch(key))
+}
+
 export function registerClaudeHandlers(): void {
   ipcMain.handle('claude:list-sessions', async (_, cwd: string) => listSessions(cwd))
   ipcMain.handle('claude:delete-session', async (_, cwd: string, sessionId: string) => {
@@ -162,4 +355,29 @@ export function registerClaudeHandlers(): void {
   ipcMain.handle('claude:read-session', async (_, cwd: string, sessionId: string) =>
     readSession(cwd, sessionId)
   )
+  ipcMain.handle(
+    'claude:read-session-from',
+    async (_, cwd: string, sessionId: string, fromOffset: number) =>
+      readSessionFromOffset(cwd, sessionId, fromOffset)
+  )
+  ipcMain.handle(
+    'claude:read-session-tail',
+    async (_, cwd: string, sessionId: string, tailLines: number) =>
+      readSessionTail(cwd, sessionId, tailLines)
+  )
+  ipcMain.handle(
+    'claude:read-session-range',
+    async (_, cwd: string, sessionId: string, startLine: number, endLine: number) =>
+      readSessionRange(cwd, sessionId, startLine, endLine)
+  )
+  ipcMain.handle('claude:watch-session', (event, cwd: string, sessionId: string) => {
+    startWatch(event.sender, cwd, sessionId)
+  })
+  ipcMain.handle('claude:unwatch-session', (event, sessionId: string) => {
+    stopWatch(watchKey(event.sender.id, sessionId))
+  })
+}
+
+export function killAllClaudeWatches(): void {
+  for (const key of Array.from(watches.keys())) stopWatch(key)
 }

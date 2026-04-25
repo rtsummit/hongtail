@@ -1,10 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { WorkspaceEntry } from './index.d'
 
 const api = {
   workspaces: {
-    load: (): Promise<string[]> => ipcRenderer.invoke('workspaces:load'),
-    save: (paths: string[]): Promise<void> => ipcRenderer.invoke('workspaces:save', paths),
+    load: (): Promise<WorkspaceEntry[]> => ipcRenderer.invoke('workspaces:load'),
+    save: (entries: WorkspaceEntry[]): Promise<void> =>
+      ipcRenderer.invoke('workspaces:save', entries),
     pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('workspaces:pick-directory')
   },
   claude: {
@@ -13,6 +15,29 @@ const api = {
       ipcRenderer.invoke('claude:delete-session', cwd, sessionId),
     readSession: (cwd: string, sessionId: string): Promise<unknown[]> =>
       ipcRenderer.invoke('claude:read-session', cwd, sessionId),
+    readSessionFrom: (
+      cwd: string,
+      sessionId: string,
+      fromOffset: number
+    ): Promise<{ events: unknown[]; newOffset: number; truncated: boolean }> =>
+      ipcRenderer.invoke('claude:read-session-from', cwd, sessionId, fromOffset),
+    readSessionTail: (
+      cwd: string,
+      sessionId: string,
+      tailLines: number
+    ): Promise<{
+      events: unknown[]
+      newOffset: number
+      totalLines: number
+      skippedLines: number
+    }> => ipcRenderer.invoke('claude:read-session-tail', cwd, sessionId, tailLines),
+    readSessionRange: (
+      cwd: string,
+      sessionId: string,
+      startLine: number,
+      endLine: number
+    ): Promise<{ events: unknown[] }> =>
+      ipcRenderer.invoke('claude:read-session-range', cwd, sessionId, startLine, endLine),
     startSession: (
       workspacePath: string,
       sessionId: string | null,
@@ -31,7 +56,22 @@ const api = {
       return (): void => {
         ipcRenderer.off(channel, handler)
       }
+    },
+    watchSession: (cwd: string, sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('claude:watch-session', cwd, sessionId),
+    unwatchSession: (sessionId: string): Promise<void> =>
+      ipcRenderer.invoke('claude:unwatch-session', sessionId),
+    onSessionChanged: (sessionId: string, callback: () => void): (() => void) => {
+      const channel = `claude:session-changed:${sessionId}`
+      const handler = (): void => callback()
+      ipcRenderer.on(channel, handler)
+      return (): void => {
+        ipcRenderer.off(channel, handler)
+      }
     }
+  },
+  fonts: {
+    list: (): Promise<string[]> => ipcRenderer.invoke('fonts:list')
   },
   pty: {
     spawn: (args: {

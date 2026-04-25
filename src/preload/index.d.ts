@@ -6,6 +6,11 @@ export interface ClaudeSessionMeta {
   startedAt: string
 }
 
+export interface WorkspaceEntry {
+  path: string
+  alias?: string
+}
+
 export interface PtySpawnArgs {
   sessionId: string
   workspacePath: string
@@ -17,14 +22,35 @@ export interface PtySpawnArgs {
 
 export interface ExposedApi {
   workspaces: {
-    load: () => Promise<string[]>
-    save: (paths: string[]) => Promise<void>
+    load: () => Promise<WorkspaceEntry[]>
+    save: (entries: WorkspaceEntry[]) => Promise<void>
     pickDirectory: () => Promise<string | null>
   }
   claude: {
     listSessions: (cwd: string) => Promise<ClaudeSessionMeta[]>
     deleteSession: (cwd: string, sessionId: string) => Promise<void>
     readSession: (cwd: string, sessionId: string) => Promise<unknown[]>
+    readSessionFrom: (
+      cwd: string,
+      sessionId: string,
+      fromOffset: number
+    ) => Promise<{ events: unknown[]; newOffset: number; truncated: boolean }>
+    readSessionTail: (
+      cwd: string,
+      sessionId: string,
+      tailLines: number
+    ) => Promise<{
+      events: unknown[]
+      newOffset: number
+      totalLines: number
+      skippedLines: number
+    }>
+    readSessionRange: (
+      cwd: string,
+      sessionId: string,
+      startLine: number,
+      endLine: number
+    ) => Promise<{ events: unknown[] }>
     startSession: (
       workspacePath: string,
       sessionId: string | null,
@@ -34,6 +60,12 @@ export interface ExposedApi {
     stopSession: (sessionId: string) => Promise<void>
     listRunning: () => Promise<string[]>
     onEvent: (sessionId: string, callback: (event: unknown) => void) => () => void
+    watchSession: (cwd: string, sessionId: string) => Promise<void>
+    unwatchSession: (sessionId: string) => Promise<void>
+    onSessionChanged: (sessionId: string, callback: () => void) => () => void
+  }
+  fonts: {
+    list: () => Promise<string[]>
   }
   pty: {
     spawn: (args: PtySpawnArgs) => Promise<{ alreadyRunning: boolean }>

@@ -1,24 +1,69 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import SessionRow from './SessionRow'
 import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
 
 interface Props {
   path: string
+  alias?: string
   liveSessions: LiveSessionInfo[]
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
+  onRemove: (path: string) => void | Promise<void>
+  onSetAlias: (path: string, alias: string) => void | Promise<void>
+  isDragging: boolean
+  dragOverPosition: 'top' | 'bottom' | null
+  onDragStart: () => void
+  onDragEnd: () => void
+  onDragOverHeader: (before: boolean) => void
+  onDragLeaveHeader: () => void
+  onDropHeader: (before: boolean) => void
 }
 
 function WorkspaceCard({
   path,
+  alias,
   liveSessions,
   selectedId,
   onSelect,
   onStartClaude,
-  onStopLive
+  onStopLive,
+  onRemove,
+  onSetAlias,
+  isDragging,
+  dragOverPosition,
+  onDragStart,
+  onDragEnd,
+  onDragOverHeader,
+  onDragLeaveHeader,
+  onDropHeader
 }: Props): React.JSX.Element {
+  const [editingAlias, setEditingAlias] = useState(false)
+  const [aliasDraft, setAliasDraft] = useState('')
+  const aliasInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editingAlias) {
+      aliasInputRef.current?.focus()
+      aliasInputRef.current?.select()
+    }
+  }, [editingAlias])
+
+  const beginEditAlias = useCallback(() => {
+    setAliasDraft(alias ?? '')
+    setEditingAlias(true)
+  }, [alias])
+
+  const commitAlias = useCallback(() => {
+    if (!editingAlias) return
+    setEditingAlias(false)
+    if (aliasDraft.trim() !== (alias ?? '')) void onSetAlias(path, aliasDraft.trim())
+  }, [editingAlias, aliasDraft, alias, path, onSetAlias])
+
+  const cancelEditAlias = useCallback(() => {
+    setEditingAlias(false)
+  }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [sessions, setSessions] = useState<ClaudeSessionMeta[] | null>(null)
 
@@ -98,13 +143,94 @@ function WorkspaceCard({
     }
   }
 
+  const headerClasses = ['workspace-header']
+  if (isDragging) headerClasses.push('dragging')
+  if (dragOverPosition === 'top') headerClasses.push('drag-over-top')
+  if (dragOverPosition === 'bottom') headerClasses.push('drag-over-bottom')
+
   return (
     <section className={`workspace${collapsed ? ' collapsed' : ''}`}>
-      <header className="workspace-header" onClick={() => setCollapsed((v) => !v)}>
+      <header
+        className={headerClasses.join(' ')}
+        draggable={!editingAlias}
+        onDragStart={(e) => {
+          if (editingAlias) {
+            e.preventDefault()
+            return
+          }
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', path)
+          onDragStart()
+        }}
+        onDragEnd={onDragEnd}
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          const rect = e.currentTarget.getBoundingClientRect()
+          const before = e.clientY < rect.top + rect.height / 2
+          onDragOverHeader(before)
+        }}
+        onDragLeave={onDragLeaveHeader}
+        onDrop={(e) => {
+          e.preventDefault()
+          const rect = e.currentTarget.getBoundingClientRect()
+          const before = e.clientY < rect.top + rect.height / 2
+          onDropHeader(before)
+        }}
+        onClick={() => {
+          if (editingAlias) return
+          setCollapsed((v) => !v)
+        }}
+      >
+        <span className="drag-handle" title="드래그하여 순서 변경">⋮⋮</span>
         <span className="chevron">▾</span>
-        <span className="workspace-name" title={path}>
-          {path}
-        </span>
+        <div
+          className="workspace-meta"
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            beginEditAlias()
+          }}
+          title={alias ? `${alias}\n${path}\n\n더블클릭: 별칭 편집` : `${path}\n\n더블클릭: 별칭 추가`}
+        >
+          {editingAlias ? (
+            <input
+              ref={aliasInputRef}
+              className="workspace-alias-input"
+              type="text"
+              value={aliasDraft}
+              placeholder="별칭 (비우면 제거)"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setAliasDraft(e.target.value)}
+              onBlur={commitAlias}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitAlias()
+                } else if (e.key === 'Escape') {
+                  e.preventDefault()
+                  cancelEditAlias()
+                }
+              }}
+            />
+          ) : alias ? (
+            <span className="workspace-alias">{alias}</span>
+          ) : (
+            <span className="workspace-name">
+              {path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          className="workspace-remove"
+          title="이 워크스페이스를 목록에서 제거"
+          onClick={(e) => {
+            e.stopPropagation()
+            void onRemove(path)
+          }}
+        >
+          −
+        </button>
       </header>
 
       {!collapsed && (

@@ -42,4 +42,4 @@ export type Block =
   | { kind: 'system'; text: string }
   | { kind: 'error'; text: string }
 
-export type { ClaudeSessionMeta } from '../../preload/index.d'
+export type { ClaudeSessionMeta, WorkspaceEntry } from '../../preload/index.d'

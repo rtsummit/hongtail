@@ -82,9 +82,14 @@ function processUserText(text: string): Block[] {
     trimmed.startsWith('<system-reminder>') ||
     trimmed.startsWith('<local-command-caveat>') ||
     trimmed.startsWith('<command-message>') ||
-    trimmed.startsWith('<command-args>')
+    trimmed.startsWith('<command-args>') ||
+    trimmed.startsWith('<task-notification>')
   ) {
     return []
+  }
+
+  if (trimmed === '[Request interrupted by user]') {
+    return [{ kind: 'system', text: '— 중단됨 —' }]
   }
 
   return [{ kind: 'user-text', text }]
