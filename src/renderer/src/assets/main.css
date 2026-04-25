@@ -46,11 +46,14 @@
   flex: 0 0 240px;
   background: var(--panel);
   border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
   gap: 10px;
   padding: 10px;
   overflow: hidden;
+  box-sizing: border-box;
+  height: 100vh;
+  min-height: 0;
 }
 
 .mode-toggle {
@@ -113,7 +116,6 @@
 }
 
 .workspace-list {
-  flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
