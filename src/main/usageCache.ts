@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { homedir } from 'os'
 import { promises as fsp } from 'fs'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 
 export interface UsageData {
   planName: string | null
@@ -93,6 +94,90 @@ export async function readUsage(): Promise<UsageData | null> {
     ...memo.parsed,
     stale: Date.now() - memo.parsed.cachedAt > FRESH_TTL_MS
   }
+}
+
+// claude-hud's getUsage() honors a 5-minute API cache regardless of how often
+// it's called, so triggering more often than FRESH_TTL_MS is harmless — the
+// extra calls just no-op against the file cache. We still gate locally to
+// avoid spawning an in-process module re-import on every turn.
+let refreshInFlight = false
+
+async function findLatestUsageApi(): Promise<string | null> {
+  const baseDir = join(homedir(), '.claude', 'plugins', 'cache', 'claude-hud', 'claude-hud')
+  let entries: string[]
+  try {
+    entries = await fsp.readdir(baseDir)
+  } catch {
+    return null
+  }
+  const versions = entries
+    .map((name) => ({ name, parts: name.split('.').map((p) => parseInt(p, 10)) }))
+    .filter((v) => v.parts.length > 0 && v.parts.every((n) => Number.isFinite(n)))
+    .sort((a, b) => {
+      const len = Math.max(a.parts.length, b.parts.length)
+      for (let i = 0; i < len; i++) {
+        const av = a.parts[i] ?? 0
+        const bv = b.parts[i] ?? 0
+        if (av !== bv) return bv - av
+      }
+      return 0
+    })
+  if (versions.length === 0) return null
+  const candidate = join(baseDir, versions[0].name, 'dist', 'usage-api.js')
+  try {
+    await fsp.access(candidate)
+    return candidate
+  } catch {
+    return null
+  }
+}
+
+interface UsageApiModule {
+  clearCache?: (homeDir: string) => void
+  getUsage?: (overrides?: unknown) => Promise<unknown>
+}
+
+/**
+ * Triggered by stream-json `result` / `rate_limit_event` events. Forces
+ * claude-hud's usage-api.js to re-fetch the OAuth quota when our cache is
+ * older than FRESH_TTL_MS. claude-hud is the only writer of the cache file,
+ * so we delegate to its module to keep the schema (lastGoodData, rate-limit
+ * backoff, etc.) consistent.
+ */
+export function refreshUsageCacheIfStale(): void {
+  if (refreshInFlight) return
+  refreshInFlight = true
+  void (async () => {
+    try {
+      try {
+        const st = await fsp.stat(cachePath())
+        if (Date.now() - st.mtimeMs < FRESH_TTL_MS) return
+      } catch {
+        // no cache yet — fall through and try to populate it
+      }
+      const apiPath = await findLatestUsageApi()
+      if (!apiPath) return
+      const fileUrl = pathToFileURL(apiPath).href
+      let mod: UsageApiModule
+      try {
+        mod = (await import(/* @vite-ignore */ fileUrl)) as UsageApiModule
+      } catch {
+        return
+      }
+      try {
+        mod.clearCache?.(homedir())
+      } catch {
+        /* ignore */
+      }
+      try {
+        await mod.getUsage?.()
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      refreshInFlight = false
+    }
+  })()
 }
 
 export function registerUsageCacheHandlers(): void {

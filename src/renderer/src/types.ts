@@ -35,6 +35,12 @@ export interface SessionStatus {
   permissionMode?: string // 'default' | 'auto' | 'plan' | 'bypassPermissions' | ...
   contextWindow?: number // tokens, e.g. 1_000_000
   contextUsedTokens?: number // last turn's input + cache_read + cache_creation
+  // Cumulative usage for the current session (sum of `result` events).
+  // Includes sub-agent activity since `result.usage` is the whole turn.
+  sessionInputTokens?: number
+  sessionCacheTokens?: number // cache_read + cache_creation
+  sessionOutputTokens?: number
+  sessionCostUsd?: number
 }
 
 export interface LiveSessionInfo {

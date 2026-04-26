@@ -1464,6 +1464,17 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-dim);
 }
 
+.usage-tokens {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-cost {
+  color: var(--fg-dim);
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
 .usage-stale-tag {
   font-size: 10px;
   text-transform: uppercase;

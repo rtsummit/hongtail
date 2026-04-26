@@ -51,6 +51,10 @@ interface UsageLike {
 export function extractUsage(event: unknown): Usage | null {
   if (!event || typeof event !== 'object') return null
   const e = event as Record<string, unknown>
+  // Sub-agent (Task tool) assistant events share the parent's session_id but
+  // report their own (small) model usage. Treat them as not-the-user's-turn.
+  // `result` events apply to the whole turn and don't carry parent_tool_use_id.
+  if (e.type === 'assistant' && e.parent_tool_use_id != null) return null
   const u =
     (e.usage as UsageLike | undefined) ??
     ((e.message as Record<string, unknown> | undefined)?.usage as UsageLike | undefined)
@@ -128,6 +132,9 @@ export function extractContextTokens(event: unknown): number | null {
   if (!event || typeof event !== 'object') return null
   const e = event as Record<string, unknown>
   if (e.type !== 'assistant') return null
+  // Sub-agents emit assistant events with their own (smaller) model usage —
+  // counting those would jitter the main session's context bar.
+  if (e.parent_tool_use_id != null) return null
   const msg = e.message as Record<string, unknown> | undefined
   const u = msg?.usage as Record<string, unknown> | undefined
   if (!u) return null
@@ -136,6 +143,32 @@ export function extractContextTokens(event: unknown): number | null {
   const cc = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0
   const sum = i + cr + cc
   return sum > 0 ? sum : null
+}
+
+export interface ResultTotals {
+  inputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  outputTokens: number
+  costUsd: number
+}
+
+// Sum of one whole turn (main agent + any sub-agents). For session-cumulative tracking.
+export function extractResultTotals(event: unknown): ResultTotals | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'result') return null
+  const u = e.usage as Record<string, unknown> | undefined
+  if (!u) return null
+  return {
+    inputTokens: typeof u.input_tokens === 'number' ? u.input_tokens : 0,
+    cacheReadTokens:
+      typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : 0,
+    cacheCreationTokens:
+      typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0,
+    outputTokens: typeof u.output_tokens === 'number' ? u.output_tokens : 0,
+    costUsd: typeof e.total_cost_usd === 'number' ? e.total_cost_usd : 0
+  }
 }
 
 export function extractContextWindowFromResult(

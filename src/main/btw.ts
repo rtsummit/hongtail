@@ -5,6 +5,7 @@ import { promises as fsp } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { projectDir } from './claude'
+import { refreshUsageCacheIfStale } from './usageCache'
 
 interface BtwProc {
   child: ChildProcess
@@ -103,6 +104,10 @@ function spawnBtw(
           if (proc && !proc.sessionId) proc.sessionId = sessId
         }
         emit(sender, args.ownerId, event)
+        const t = (event as { type?: string }).type
+        if (t === 'result' || t === 'rate_limit_event') {
+          refreshUsageCacheIfStale()
+        }
       } catch {
         emit(sender, args.ownerId, { type: 'parse_error', raw: line })
       }

@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow, type WebContents } from 'electron'
 import { spawn, type ChildProcess } from 'child_process'
 import { randomUUID } from 'crypto'
 import { createInterface } from 'readline'
+import { refreshUsageCacheIfStale } from './usageCache'
 
 interface Session {
   id: string
@@ -60,6 +61,10 @@ function spawnClaude(
       try {
         const event = JSON.parse(line)
         emit(sender, sessionId, event)
+        const t = (event as { type?: string }).type
+        if (t === 'result' || t === 'rate_limit_event') {
+          refreshUsageCacheIfStale()
+        }
       } catch {
         emit(sender, sessionId, { type: 'parse_error', raw: line })
       }

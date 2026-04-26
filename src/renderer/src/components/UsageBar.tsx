@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { formatModelDisplay } from '../sessionStatus'
+import { formatModelDisplay, formatTokens } from '../sessionStatus'
 import type { SessionStatus } from '../types'
 import type { UsageData } from '../../../preload/index.d'
 
@@ -146,9 +146,23 @@ function UsageBar({
   const mode = status?.permissionMode
   const showMode = !!mode && !!onSetPermissionMode
 
+  const sessionInTokens =
+    (status?.sessionInputTokens ?? 0) + (status?.sessionCacheTokens ?? 0)
+  const sessionOutTokens = status?.sessionOutputTokens ?? 0
+  const sessionCost = status?.sessionCostUsd ?? 0
+  const hasSessionTokens = sessionInTokens > 0 || sessionOutTokens > 0
+
   // Hide entirely if there's nothing to show.
   const hasUsage = usage && (usage.fiveHour != null || usage.sevenDay != null)
-  if (!modelDisplay && ctxPercent == null && !hasUsage && !showMode && !showModel) return null
+  if (
+    !modelDisplay &&
+    ctxPercent == null &&
+    !hasUsage &&
+    !hasSessionTokens &&
+    !showMode &&
+    !showModel
+  )
+    return null
 
   const now = Date.now()
   return (
@@ -196,6 +210,18 @@ function UsageBar({
           <span className="usage-label">Context</span>
           <ContextBar percent={ctxPercent} />
           <span className={`usage-pct ${pctClass(ctxPercent)}`}>{ctxPercent}%</span>
+        </span>
+      )}
+
+      {hasSessionTokens && (
+        <span className="usage-window" title="이 세션 누적 (sub-agent 포함)">
+          <span className="usage-label">Σ</span>
+          <span className="usage-tokens">
+            ↑{formatTokens(sessionInTokens)} ↓{formatTokens(sessionOutTokens)}
+          </span>
+          {sessionCost > 0 && (
+            <span className="usage-cost">${sessionCost.toFixed(2)}</span>
+          )}
         </span>
       )}
 

@@ -17,6 +17,7 @@ import {
   extractInit,
   extractPermissionModeEvent,
   extractRateLimit,
+  extractResultTotals,
   extractUsage,
   isResultEvent,
   parseContextWindowFromModel,
@@ -294,14 +295,30 @@ function App(): React.JSX.Element {
 
       if (isResultEvent(event)) {
         const finalUsage = extractUsage(event)
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: false,
-            usage: finalUsage ?? prev[sessionId]?.usage
+        const totals = extractResultTotals(event)
+        setStatusBySession((prev) => {
+          const cur = prev[sessionId]
+          const cumulative = totals
+            ? {
+                sessionInputTokens: (cur?.sessionInputTokens ?? 0) + totals.inputTokens,
+                sessionCacheTokens:
+                  (cur?.sessionCacheTokens ?? 0) +
+                  totals.cacheReadTokens +
+                  totals.cacheCreationTokens,
+                sessionOutputTokens: (cur?.sessionOutputTokens ?? 0) + totals.outputTokens,
+                sessionCostUsd: (cur?.sessionCostUsd ?? 0) + totals.costUsd
+              }
+            : null
+          return {
+            ...prev,
+            [sessionId]: {
+              ...cur,
+              thinking: false,
+              usage: finalUsage ?? cur?.usage,
+              ...(cumulative ?? {})
+            }
           }
-        }))
+        })
 
         const waiter = waitersRef.current.get(sessionId)
         if (waiter) {
