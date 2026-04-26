@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import ChatPane from './components/ChatPane'
-import TerminalSession from './components/TerminalSession'
+import TerminalSession, { type TerminalSearchHandle } from './components/TerminalSession'
 import SettingsModal from './components/SettingsModal'
+import FindBar from './components/FindBar'
 import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
@@ -44,6 +45,9 @@ function App(): React.JSX.Element {
   })
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
+  const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
+  const activeTerminalRef = useRef<TerminalSearchHandle | null>(null)
 
   const defaultBackend = settings.defaultBackend
   const setDefaultBackend = useCallback((b: Backend) => {
@@ -780,6 +784,25 @@ function App(): React.JSX.Element {
     }
   }, [])
 
+  // Global Ctrl+F to open the find bar (works in both app + terminal modes).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault()
+        e.stopPropagation()
+        setFindOpen(true)
+      } else if (e.key === 'Escape' && findOpen) {
+        // Let FindBar's own Escape close it; this is a fallback when bar lacks focus.
+        const target = e.target as HTMLElement
+        if (!target.closest('.find-bar')) {
+          setFindOpen(false)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [findOpen])
+
   const messages = selected ? (messagesBySession[selected.sessionId] ?? []) : []
   const status = selected ? statusBySession[selected.sessionId] : undefined
   const selectedAlias = selected ? aliasesBySession[selected.sessionId]?.alias : undefined
@@ -802,6 +825,17 @@ function App(): React.JSX.Element {
     selected.backend === 'terminal' &&
     selected.mode !== 'readonly' &&
     terminalReady[selected.sessionId] === false
+
+  // Keep activeTerminalRef in sync with current selection so FindBar uses the
+  // right xterm SearchAddon when switching between terminals.
+  if (selected?.backend === 'terminal') {
+    activeTerminalRef.current = terminalRefs.current.get(selected.sessionId) ?? null
+  } else {
+    activeTerminalRef.current = null
+  }
+
+  const findMode: 'app' | 'terminal' =
+    selected?.backend === 'terminal' && selected.mode !== 'readonly' ? 'terminal' : 'app'
 
   const showChatPane =
     !selected ||
@@ -855,6 +889,13 @@ function App(): React.JSX.Element {
           return (
             <TerminalSession
               key={t.sessionId}
+              ref={(handle) => {
+                if (handle) terminalRefs.current.set(t.sessionId, handle)
+                else terminalRefs.current.delete(t.sessionId)
+                if (selected?.sessionId === t.sessionId) {
+                  activeTerminalRef.current = handle ?? null
+                }
+              }}
               sessionId={t.sessionId}
               workspacePath={t.workspacePath}
               initialCommand={command}
@@ -887,6 +928,12 @@ function App(): React.JSX.Element {
           </div>
         )}
       </div>
+      <FindBar
+        open={findOpen}
+        mode={findMode}
+        terminalRef={activeTerminalRef}
+        onClose={() => setFindOpen(false)}
+      />
       <SettingsModal
         open={settingsOpen}
         settings={settings}

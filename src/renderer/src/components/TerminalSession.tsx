@@ -1,7 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
+
+export interface TerminalSearchHandle {
+  findNext: (query: string) => boolean
+  findPrevious: (query: string) => boolean
+  clear: () => void
+}
 
 interface Props {
   sessionId: string
@@ -18,22 +25,29 @@ interface PtyEvent {
   code?: number
 }
 
-function TerminalSession({
-  sessionId,
-  workspacePath,
-  initialCommand,
-  visible,
-  onExit,
-  onReady
-}: Props): React.JSX.Element {
+const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function TerminalSession(
+  { sessionId, workspacePath, initialCommand, visible, onExit, onReady },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const searchRef = useRef<SearchAddon | null>(null)
   const onExitRef = useRef(onExit)
   const onReadyRef = useRef(onReady)
   const hasReceivedDataRef = useRef(false)
   onExitRef.current = onExit
   onReadyRef.current = onReady
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      findNext: (query) => searchRef.current?.findNext(query) ?? false,
+      findPrevious: (query) => searchRef.current?.findPrevious(query) ?? false,
+      clear: () => searchRef.current?.clearDecorations()
+    }),
+    []
+  )
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -51,7 +65,9 @@ function TerminalSession({
       }
     })
     const fit = new FitAddon()
+    const search = new SearchAddon()
     term.loadAddon(fit)
+    term.loadAddon(search)
     term.open(containerRef.current)
     try {
       fit.fit()
@@ -60,6 +76,7 @@ function TerminalSession({
     }
     termRef.current = term
     fitRef.current = fit
+    searchRef.current = search
 
     const unsub = window.api.pty.onEvent(sessionId, (raw) => {
       const event = raw as PtyEvent
@@ -122,6 +139,7 @@ function TerminalSession({
     return () => {
       window.removeEventListener('resize', onWindowResize)
       unsub()
+      searchRef.current = null
       term.dispose()
     }
     // onExit intentionally excluded — we access latest via onExitRef.
@@ -150,6 +168,6 @@ function TerminalSession({
       <div ref={containerRef} className="terminal-host-inner" />
     </div>
   )
-}
+})
 
 export default TerminalSession
