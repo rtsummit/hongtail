@@ -94,6 +94,23 @@ const api = {
     sync: (cwd: string, sessionId: string) =>
       ipcRenderer.invoke('session-aliases:sync', cwd, sessionId)
   },
+  btw: {
+    ask: (args: {
+      ownerId: string
+      workspacePath: string
+      systemPrompt: string
+      question: string
+    }): Promise<void> => ipcRenderer.invoke('btw:ask', args),
+    cancel: (ownerId: string): Promise<void> => ipcRenderer.invoke('btw:cancel', ownerId),
+    onEvent: (ownerId: string, callback: (event: unknown) => void): (() => void) => {
+      const channel = `btw:event:${ownerId}`
+      const handler = (_: IpcRendererEvent, event: unknown): void => callback(event)
+      ipcRenderer.on(channel, handler)
+      return (): void => {
+        ipcRenderer.off(channel, handler)
+      }
+    }
+  },
   pty: {
     spawn: (args: {
       sessionId: string

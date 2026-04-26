@@ -112,6 +112,16 @@ export interface ExposedApi {
     kill: (sessionId: string) => Promise<void>
     onEvent: (sessionId: string, callback: (event: unknown) => void) => () => void
   }
+  btw: {
+    ask: (args: {
+      ownerId: string
+      workspacePath: string
+      systemPrompt: string
+      question: string
+    }) => Promise<void>
+    cancel: (ownerId: string) => Promise<void>
+    onEvent: (ownerId: string, callback: (event: unknown) => void) => () => void
+  }
 }
 
 declare global {

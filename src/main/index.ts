@@ -6,6 +6,7 @@ import { setupLogging } from './logging'
 import { registerWorkspaceHandlers } from './workspaces'
 import { registerClaudeHandlers } from './claude'
 import { registerSessionHandlers, killAllSessions } from './session'
+import { registerBtwHandlers, killAllBtw } from './btw'
 import { registerPtyHandlers, killAllPty } from './pty'
 import { registerFontHandlers } from './fonts'
 import { registerSlashCommandHandlers } from './slashCommands'
@@ -70,6 +71,7 @@ app.whenReady().then(() => {
   registerWorkspaceHandlers()
   registerClaudeHandlers()
   registerSessionHandlers()
+  registerBtwHandlers()
   registerPtyHandlers()
   registerFontHandlers()
   registerSlashCommandHandlers()
@@ -93,6 +95,7 @@ app.whenReady().then(() => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   killAllSessions()
+  killAllBtw()
   killAllPty()
   if (process.platform !== 'darwin') {
     app.quit()
@@ -101,6 +104,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   killAllSessions()
+  killAllBtw()
   killAllPty()
   stopRpcServer()
 })
