@@ -4,7 +4,8 @@ import { is } from '@electron-toolkit/utils'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 
-const PORT = Number(process.env.HONGLUADE_RPC_PORT ?? 9876)
+const DEFAULT_PORT = process.env.HONGLUADE_TEST === '1' ? 9877 : 9876
+const PORT = Number(process.env.HONGLUADE_RPC_PORT ?? DEFAULT_PORT)
 const ENABLE_EVAL = process.env.HONGLUADE_RPC_EVAL === '1'
 
 let server: Server | null = null
@@ -147,8 +148,21 @@ export function startRpcServer(getWindow: () => BrowserWindow | null): void {
     }
   })
 
+  const onListenError = (err: NodeJS.ErrnoException): void => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(
+        `[rpc] port ${PORT} already in use — RPC disabled for this instance ` +
+          `(set HONGLUADE_RPC_PORT to use a different port)`
+      )
+    } else {
+      console.error('[rpc] server error:', err)
+    }
+    server = null
+  }
+  server.once('error', onListenError)
   server.listen(PORT, '127.0.0.1', () => {
     console.log(`[rpc] http://127.0.0.1:${PORT} (dev mode)`)
+    server?.off('error', onListenError)
   })
 }
 

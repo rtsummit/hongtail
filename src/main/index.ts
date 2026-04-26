@@ -15,6 +15,10 @@ import { registerImageHandlers } from './images'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
 
+const TEST_INSTANCE = process.env.HONGLUADE_TEST === '1'
+const APP_NAME = TEST_INSTANCE ? 'hongluade_test' : 'hongluade'
+process.title = APP_NAME
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -22,7 +26,7 @@ function createWindow(): void {
     height: 800,
     show: false,
     autoHideMenuBar: true,
-    title: 'hongluade',
+    title: APP_NAME,
     backgroundColor: '#1e1e1e',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -56,7 +60,8 @@ setupLogging()
 
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId(TEST_INSTANCE ? 'com.electron.test' : 'com.electron')
+  app.setName(APP_NAME)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
