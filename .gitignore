@@ -5,6 +5,7 @@ logs
 .DS_Store
 .eslintcache
 *.log*
+*.tsbuildinfo
 
 # Claude Code state
 .claude/
