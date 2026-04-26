@@ -137,7 +137,8 @@ function UsageBar({
 
   const modelDisplay = status?.model ? formatModelDisplay(status.model) : null
   const currentFamily = modelFamily(status?.model)
-  const showModel = !!modelDisplay && !!onSetModel
+  const showModel = !!onSetModel
+  const modelLabel = modelDisplay ?? 'default'
   const ctxPercent =
     status?.contextUsedTokens != null && status?.contextWindow
       ? Math.min(100, Math.round((status.contextUsedTokens / status.contextWindow) * 100))
@@ -147,7 +148,7 @@ function UsageBar({
 
   // Hide entirely if there's nothing to show.
   const hasUsage = usage && (usage.fiveHour != null || usage.sevenDay != null)
-  if (!modelDisplay && ctxPercent == null && !hasUsage && !showMode) return null
+  if (!modelDisplay && ctxPercent == null && !hasUsage && !showMode && !showModel) return null
 
   const now = Date.now()
   return (
@@ -161,7 +162,7 @@ function UsageBar({
             onClick={() => setModelOpen((o) => !o)}
             title="모델 변경"
           >
-            [{modelDisplay}] ▾
+            [{modelLabel}] ▾
           </button>
           {modelOpen && (
             <div className="usage-mode-menu">
