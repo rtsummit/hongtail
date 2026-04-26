@@ -10,7 +10,7 @@ import { parseClaudeEvent } from '../claudeEvents'
 import { formatRateLimit, formatTokens } from '../sessionStatus'
 import { extractTodoState } from '../todoState'
 import type { AppSettings } from '../settings'
-import type { Block, SelectedSession, SessionMode, SessionStatus } from '../types'
+import type { Backend, Block, SelectedSession, SessionMode, SessionStatus } from '../types'
 import type { SlashCommand } from '../../../preload/index.d'
 
 interface SlashContext {
@@ -58,7 +58,7 @@ interface Props {
   onAppendBlocks: (sessionId: string, blocks: Block[]) => void
   onReplaceBlocks: (sessionId: string, blocks: Block[]) => void
   onPrependBlocks: (sessionId: string, blocks: Block[]) => void
-  onActivate: (mode: 'resume-full' | 'resume-summary') => void
+  onActivate: (mode: 'resume-full' | 'resume-summary', backend?: Backend) => void
   onTurnStart: (sessionId: string) => void
   onSetPermissionMode: (sessionId: string, mode: string) => void
   onSetModel: (sessionId: string, model: string) => void
@@ -595,6 +595,13 @@ function ChatPane({
               onClick={() => onActivate('resume-summary')}
             >
               Summary로 활성화
+            </button>
+            <button
+              type="button"
+              className="activate-btn terminal"
+              onClick={() => onActivate('resume-full', 'terminal')}
+            >
+              터미널로 열기
             </button>
           </div>
         </div>

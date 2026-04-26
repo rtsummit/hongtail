@@ -390,9 +390,9 @@ function App(): React.JSX.Element {
   )
 
   const activate = useCallback(
-    (mode: 'resume-full' | 'resume-summary') => {
+    (mode: 'resume-full' | 'resume-summary', backendOverride?: Backend) => {
       if (!selected) return
-      const backend = defaultBackend
+      const backend = backendOverride ?? defaultBackend
       setSelected((prev) => (prev ? { ...prev, mode, backend } : prev))
       void startLive(selected.sessionId, selected.workspacePath, mode, backend)
     },

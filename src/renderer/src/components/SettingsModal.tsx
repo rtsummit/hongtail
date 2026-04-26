@@ -234,10 +234,11 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
                 })
               }
             />
-            <span className="settings-label-inline">대화를 터미널로 열기</span>
+            <span className="settings-label-inline">새로운 대화를 터미널로 열기</span>
           </label>
           <p className="settings-hint">
             끄면 앱 모드 (기본). 새 대화 시작 시에만 적용 — 기존 진행 중 대화에는 영향 없음.
+            이전 대화 resume 은 readonly 화면의 버튼으로 직접 선택.
           </p>
         </div>
         <footer className="modal-footer">

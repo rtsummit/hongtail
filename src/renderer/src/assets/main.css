@@ -1931,6 +1931,11 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-color: var(--border);
 }
 
+.activate-btn.terminal {
+  background: transparent;
+  border-color: var(--border);
+}
+
 /* === Sidebar footer + settings button === */
 .sidebar-footer {
   border-top: 1px solid var(--border);
