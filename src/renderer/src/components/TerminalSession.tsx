@@ -163,7 +163,7 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
   return (
     <div
       className="terminal-host"
-      style={{ display: visible ? 'block' : 'none' }}
+      style={{ display: visible ? 'flex' : 'none' }}
     >
       <div ref={containerRef} className="terminal-host-inner" />
     </div>
