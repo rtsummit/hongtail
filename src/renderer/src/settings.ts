@@ -1,4 +1,4 @@
-export type DefaultBackend = 'app' | 'terminal'
+export type DefaultBackend = 'app' | 'terminal' | 'interactive'
 
 export interface AppSettings {
   uiFonts: string[]
@@ -68,7 +68,9 @@ export function loadSettings(): AppSettings {
           ? parsed.toolCardsDefaultOpen
           : DEFAULT_SETTINGS.toolCardsDefaultOpen,
       defaultBackend:
-        parsed.defaultBackend === 'app' || parsed.defaultBackend === 'terminal'
+        parsed.defaultBackend === 'app' ||
+        parsed.defaultBackend === 'terminal' ||
+        parsed.defaultBackend === 'interactive'
           ? parsed.defaultBackend
           : DEFAULT_SETTINGS.defaultBackend
     }
