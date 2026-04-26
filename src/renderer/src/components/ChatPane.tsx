@@ -309,7 +309,12 @@ function ChatPane({
 
   useEffect(() => {
     if (!selected) return
-    if (selected.mode !== 'readonly') return
+    // readonly 모드는 항상 jsonl 로 그림. 'interactive' 백엔드는 라이브여도
+    // jsonl tail 이 chat UI 의 단일 source — 인터랙티브 claude TUI 는 PTY 안에서
+    // 알아서 화면을 그리고, 우리는 그 결과로 jsonl 에 쓰이는 record 만 본다.
+    const isReadonly = selected.mode === 'readonly'
+    const isInteractiveLive = selected.backend === 'interactive' && !isReadonly
+    if (!isReadonly && !isInteractiveLive) return
     const sessionId = selected.sessionId
     const workspacePath = selected.workspacePath
     sessionContextRef.current = { sessionId, workspacePath }
@@ -422,10 +427,16 @@ function ChatPane({
     setQuotes([])
     setSending(true)
     forceScrollBottomRef.current = true
-    onAppendBlocks(selected.sessionId, [{ kind: 'user-text', text }])
     onTurnStart(selected.sessionId)
     try {
-      await window.api.claude.sendInput(selected.sessionId, text)
+      if (selected.backend === 'interactive') {
+        // PTY 안의 인터랙티브 claude TUI 에 텍스트를 그대로 흘려보내고 CR 로 submit.
+        // user-text echo 는 안 함 — 잠시 후 jsonl 에 user record 로 들어와 그릴 거다.
+        await window.api.pty.write(selected.sessionId, text + '\r')
+      } else {
+        onAppendBlocks(selected.sessionId, [{ kind: 'user-text', text }])
+        await window.api.claude.sendInput(selected.sessionId, text)
+      }
     } catch (err) {
       onAppendBlocks(selected.sessionId, [
         { kind: 'error', text: `전송 실패: ${String(err)}` }
