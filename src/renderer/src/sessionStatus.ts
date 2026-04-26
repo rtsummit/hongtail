@@ -72,6 +72,22 @@ export function isResultEvent(event: unknown): boolean {
   return (event as Record<string, unknown>).type === 'result'
 }
 
+// 인터랙티브 백엔드 jsonl 에는 stream-json 의 `result` 이벤트가 없다. turn 종료
+// 시그널은 assistant record 의 stop_reason 이 'end_turn' 또는 'stop_sequence'
+// 인 것으로 식별. tool_use 는 다음 chunk 가 이어지므로 종료 아님.
+export function isAssistantTurnEnd(event: unknown): boolean {
+  if (!event || typeof event !== 'object') return false
+  const e = event as Record<string, unknown>
+  if (e.type !== 'assistant') return false
+  if (e.parent_tool_use_id != null) return false
+  const isSidechain = e.isSidechain
+  if (isSidechain === true) return false
+  const msg = e.message as Record<string, unknown> | undefined
+  if (!msg) return false
+  const sr = msg.stop_reason
+  return sr === 'end_turn' || sr === 'stop_sequence'
+}
+
 export interface InitInfo {
   model: string
   permissionMode: string

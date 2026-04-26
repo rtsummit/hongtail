@@ -19,6 +19,7 @@ import {
   extractRateLimit,
   extractResultTotals,
   extractUsage,
+  isAssistantTurnEnd,
   isResultEvent,
   parseContextWindowFromModel,
   pickVerb
@@ -291,6 +292,20 @@ function App(): React.JSX.Element {
             pending.rollback?.()
           }
         }
+      }
+
+      // 'interactive' 백엔드는 stream-json result 이벤트가 없으니 assistant
+      // record 의 stop_reason='end_turn'/'stop_sequence' 로 turn 종료를 감지.
+      // stream-json 모드에서도 결국 result 가 곧 따라오니 idempotent.
+      if (isAssistantTurnEnd(event)) {
+        setStatusBySession((prev) => {
+          const cur = prev[sessionId]
+          if (!cur || cur.thinking === false) return prev
+          return {
+            ...prev,
+            [sessionId]: { ...cur, thinking: false }
+          }
+        })
       }
 
       if (isResultEvent(event)) {
@@ -624,87 +639,116 @@ function App(): React.JSX.Element {
     [active]
   )
 
-  const handleSetPermissionMode = useCallback(async (sessionId: string, mode: string) => {
-    let prevMode: string | undefined
-    setStatusBySession((prev) => {
-      prevMode = prev[sessionId]?.permissionMode
-      return {
-        ...prev,
-        [sessionId]: {
-          ...prev[sessionId],
-          thinking: prev[sessionId]?.thinking ?? false,
-          permissionMode: mode
-        }
-      }
-    })
-    const rollback = (): void =>
-      setStatusBySession((prev) => ({
-        ...prev,
-        [sessionId]: {
-          ...prev[sessionId],
-          thinking: prev[sessionId]?.thinking ?? false,
-          permissionMode: prevMode
-        }
-      }))
-    try {
-      const requestId = await window.api.claude.controlRequest(sessionId, {
-        subtype: 'set_permission_mode',
-        mode
-      })
-      pendingControlRef.current.set(requestId, { rollback })
-    } catch (err) {
-      console.error('set_permission_mode send failed:', err)
-      rollback()
-    }
-  }, [])
+  // 'interactive' 백엔드는 stream-json control_request 채널이 없으므로 PTY 의
+  // 키/텍스트 입력으로 번역한다. claude TUI 가 그걸 자체 처리.
+  const isInteractiveBackend = useCallback(
+    (sessionId: string): boolean => active[sessionId]?.backend === 'interactive',
+    [active]
+  )
 
-  const handleSetModel = useCallback(async (sessionId: string, model: string) => {
-    let prevModel: string | undefined
-    setStatusBySession((prev) => {
-      prevModel = prev[sessionId]?.model
-      return {
-        ...prev,
-        [sessionId]: {
-          ...prev[sessionId],
-          thinking: prev[sessionId]?.thinking ?? false,
+  const handleSetPermissionMode = useCallback(
+    async (sessionId: string, mode: string) => {
+      let prevMode: string | undefined
+      setStatusBySession((prev) => {
+        prevMode = prev[sessionId]?.permissionMode
+        return {
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            permissionMode: mode
+          }
+        }
+      })
+      const rollback = (): void =>
+        setStatusBySession((prev) => ({
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            permissionMode: prevMode
+          }
+        }))
+      try {
+        if (isInteractiveBackend(sessionId)) {
+          // /permissions <mode> 를 TUI 입력으로 보낸다. 결과는 jsonl 의
+          // permission-mode record 로 검증되어 status 가 업데이트됨.
+          await window.api.pty.write(sessionId, `/permissions ${mode}\r`)
+          return
+        }
+        const requestId = await window.api.claude.controlRequest(sessionId, {
+          subtype: 'set_permission_mode',
+          mode
+        })
+        pendingControlRef.current.set(requestId, { rollback })
+      } catch (err) {
+        console.error('set_permission_mode send failed:', err)
+        rollback()
+      }
+    },
+    [isInteractiveBackend]
+  )
+
+  const handleSetModel = useCallback(
+    async (sessionId: string, model: string) => {
+      let prevModel: string | undefined
+      setStatusBySession((prev) => {
+        prevModel = prev[sessionId]?.model
+        return {
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            model
+          }
+        }
+      })
+      const rollback = (): void =>
+        setStatusBySession((prev) => ({
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            model: prevModel
+          }
+        }))
+      try {
+        if (isInteractiveBackend(sessionId)) {
+          await window.api.pty.write(sessionId, `/model ${model}\r`)
+          return
+        }
+        const requestId = await window.api.claude.controlRequest(sessionId, {
+          subtype: 'set_model',
           model
-        }
+        })
+        pendingControlRef.current.set(requestId, { rollback })
+      } catch (err) {
+        console.error('set_model send failed:', err)
+        rollback()
       }
-    })
-    const rollback = (): void =>
-      setStatusBySession((prev) => ({
-        ...prev,
-        [sessionId]: {
-          ...prev[sessionId],
-          thinking: prev[sessionId]?.thinking ?? false,
-          model: prevModel
-        }
-      }))
-    try {
-      const requestId = await window.api.claude.controlRequest(sessionId, {
-        subtype: 'set_model',
-        model
-      })
-      pendingControlRef.current.set(requestId, { rollback })
-    } catch (err) {
-      console.error('set_model send failed:', err)
-      rollback()
-    }
-  }, [])
+    },
+    [isInteractiveBackend]
+  )
 
-  const handleInterrupt = useCallback(async (sessionId: string) => {
-    try {
-      const requestId = await window.api.claude.controlRequest(sessionId, {
-        subtype: 'interrupt'
-      })
-      // Mark this request so the response handler doesn't log it as a failure.
-      // Status updates (thinking → false) come from the upcoming `result` event
-      // that claude emits when a turn ends — so we don't mutate state here.
-      pendingControlRef.current.set(requestId, {})
-    } catch (err) {
-      console.error('interrupt send failed:', err)
-    }
-  }, [])
+  const handleInterrupt = useCallback(
+    async (sessionId: string) => {
+      try {
+        if (isInteractiveBackend(sessionId)) {
+          // claude TUI 는 ESC 로 진행 중 turn 을 중단. thinking=false 는 곧
+          // jsonl 의 다음 record 로 자연스럽게 끝남 (또는 사용자 다음 입력).
+          await window.api.pty.write(sessionId, '\x1b')
+          return
+        }
+        const requestId = await window.api.claude.controlRequest(sessionId, {
+          subtype: 'interrupt'
+        })
+        pendingControlRef.current.set(requestId, {})
+      } catch (err) {
+        console.error('interrupt send failed:', err)
+      }
+    },
+    [isInteractiveBackend]
+  )
 
   const handleTerminalExit = useCallback((sessionId: string, _code: number | null) => {
     void _code
