@@ -131,15 +131,16 @@ function WorkspaceCard({
   const graduatedLives = liveExt.filter((s) => s.graduated)
   const filteredPast = (sessions ?? []).filter((s) => !liveIds.has(s.id))
 
-  // Manual session order: new sessions are appended, removed sessions are dropped.
+  // Manual session order: new sessions are prepended (newest at top),
+  // removed sessions are dropped, manual drag order is preserved.
   const [sessionOrder, setSessionOrder] = useState<string[]>([])
   const liveKey = graduatedLives.map((s) => s.sessionId).join('|')
   useEffect(() => {
     setSessionOrder((prev) => {
       const currentIds = new Set(graduatedLives.map((s) => s.sessionId))
       const kept = prev.filter((id) => currentIds.has(id))
-      const appended = graduatedLives.map((s) => s.sessionId).filter((id) => !prev.includes(id))
-      return [...kept, ...appended]
+      const fresh = graduatedLives.map((s) => s.sessionId).filter((id) => !prev.includes(id))
+      return [...fresh, ...kept]
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveKey])
