@@ -30,6 +30,10 @@ import {
 import type { Backend, Block, SelectedSession, SessionStatus, WorkspaceEntry } from './types'
 import type { SessionAlias } from '../../preload/index.d'
 
+// Shift+Tab 으로 사이클링되는 permission mode 들. Claude Code CLI 와 동일하게
+// bypassPermissions / auto 는 우발 진입 방지를 위해 사이클에서 제외 — 메뉴로만 진입.
+const PERMISSION_MODE_CYCLE = ['default', 'acceptEdits', 'plan'] as const
+
 function App(): React.JSX.Element {
   const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([])
   const [selected, setSelected] = useState<SelectedSession | null>(null)
@@ -808,6 +812,27 @@ function App(): React.JSX.Element {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [findOpen])
+
+  // Global Shift+Tab to cycle permission mode on the active app session.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Tab' || !e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return
+      if (e.isComposing || e.keyCode === 229) return
+      if (!selected || selected.backend !== 'app' || selected.mode === 'readonly') return
+      e.preventDefault()
+      e.stopPropagation()
+      const sessionId = selected.sessionId
+      const current = statusBySession[sessionId]?.permissionMode ?? 'default'
+      const idx = PERMISSION_MODE_CYCLE.indexOf(
+        current as (typeof PERMISSION_MODE_CYCLE)[number]
+      )
+      const next =
+        PERMISSION_MODE_CYCLE[idx === -1 ? 0 : (idx + 1) % PERMISSION_MODE_CYCLE.length]
+      void handleSetPermissionMode(sessionId, next)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [selected, statusBySession, handleSetPermissionMode])
 
   const messages = selected ? (messagesBySession[selected.sessionId] ?? []) : []
   const status = selected ? statusBySession[selected.sessionId] : undefined
