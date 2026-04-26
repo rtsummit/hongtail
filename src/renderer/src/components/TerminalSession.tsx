@@ -140,6 +140,14 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true
 
+      // While IME is composing (Korean/Japanese/Chinese), don't intercept —
+      // the user is still building a character and IME owns the key. If we
+      // preventDefault now, IME's commit flow races with our direct PTY write
+      // and the composing char ends up duplicated alongside our sequence.
+      // keyCode === 229 is the legacy "IME pending" indicator some Chromium
+      // builds emit instead of (or alongside) e.isComposing.
+      if (e.isComposing || e.keyCode === 229) return true
+
       // Ctrl+V: read clipboard and inject as terminal input.
       // Returning false suppresses xterm's default Ctrl+V handling (which would
       // otherwise emit a literal SYN char, ^V, to the shell).
