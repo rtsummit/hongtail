@@ -136,22 +136,11 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       void window.api.pty.resize(sessionId, cols, rows)
     })
 
-    // Custom key event interceptor for desktop-app-friendly shortcuts.
+    // Ctrl+V: read clipboard and inject. customKeyEventHandler fires inside
+    // xterm's own keydown handler, fine for keys that don't conflict with IME.
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true
-
-      // While IME is composing (Korean/Japanese/Chinese), don't intercept —
-      // the user is still building a character and IME owns the key. If we
-      // preventDefault now, IME's commit flow races with our direct PTY write
-      // and the composing char ends up duplicated alongside our sequence.
-      // keyCode === 229 is the legacy "IME pending" indicator some Chromium
-      // builds emit instead of (or alongside) e.isComposing.
       if (e.isComposing || e.keyCode === 229) return true
-
-      // Ctrl+V: read clipboard and inject as terminal input.
-      // Returning false suppresses xterm's default Ctrl+V handling (which would
-      // otherwise emit a literal SYN char, ^V, to the shell).
-      // Ctrl+Shift+V is left alone for xterm/OS to handle.
       if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) {
         if (e.shiftKey) return true
         e.preventDefault()
@@ -163,21 +152,49 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
           .catch((err) => console.error('terminal paste failed:', err))
         return false
       }
-
-      // Shift+Enter → send ESC+CR (Alt+Enter equivalent). claude CLI's TUI
-      // (Ink-based) and other modern terminal apps interpret this as
-      // "newline within input" instead of "submit". Default xterm sends \r
-      // for Shift+Enter which submits.
-      // Reference: claude's own VSCode terminal setup ships the exact same
-      // keybinding ("shift+enter" → sendSequence "\x1b\r").
-      if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Enter') {
-        e.preventDefault()
-        void window.api.pty.write(sessionId, '\x1b\r')
-        return false
-      }
-
       return true
     })
+
+    // Capture-phase Enter handler at the container level — fires *before*
+    // xterm's own keydown listener (which is attached on textarea, capture).
+    // This is the only way to actually suppress xterm's Enter processing.
+    //
+    // Why we can't do this in customKeyEventHandler:
+    //   xterm's _keyDown does:
+    //     compositionHelper.keydown(e)   // finalizes composition for Enter,
+    //                                    // returns TRUE → not an early-return
+    //     evaluateKeyboardEvent(e)       // sees Enter → sends \r anyway
+    //   So even if customKeyEventHandler returns false, the second step still
+    //   runs and \r leaks. During IME, this is what produces the duplicate
+    //   "composing char + \r" the user sees. By stopping immediate propagation
+    //   *before* xterm's listener, the entire _keyDown is skipped.
+    //
+    //   Composition still commits cleanly because compositionend is a separate
+    //   browser event that xterm subscribes to independently of keydown.
+    const hostEl = containerRef.current
+    const hostKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Enter') return
+
+      // Case 1: IME is composing → swallow Enter so xterm doesn't append \r
+      // after the composing char gets committed via compositionend.
+      // Don't preventDefault — we want IME / textarea to handle composition end.
+      if (e.isComposing || e.keyCode === 229) {
+        e.stopImmediatePropagation()
+        return
+      }
+
+      // Case 2: Shift+Enter (no composition) → send Alt+Enter sequence (\x1b\r)
+      // which Ink-based TUIs (claude CLI) interpret as "newline within input"
+      // instead of "submit". claude's own VSCode setup uses the same mapping.
+      if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        void window.api.pty.write(sessionId, '\x1b\r')
+        return
+      }
+      // Otherwise (plain Enter / Ctrl+Enter / etc): let xterm handle.
+    }
+    hostEl.addEventListener('keydown', hostKeyDown, true)
 
     const onWindowResize = (): void => {
       try {
@@ -190,6 +207,7 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
 
     return () => {
       window.removeEventListener('resize', onWindowResize)
+      hostEl.removeEventListener('keydown', hostKeyDown, true)
       unsub()
       searchRef.current = null
       term.dispose()
