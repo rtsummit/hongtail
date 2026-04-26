@@ -105,18 +105,6 @@ export interface ExposedApi {
     set: (sessionId: string, alias: string) => Promise<SessionAlias | null>
     sync: (cwd: string, sessionId: string) => Promise<SessionAlias | null>
   }
-  find: {
-    start: (query: string, opts?: { findNext?: boolean; forward?: boolean }) => Promise<void>
-    stop: () => Promise<void>
-    onResult: (
-      callback: (result: {
-        requestId: number
-        activeMatchOrdinal: number
-        matches: number
-        finalUpdate: boolean
-      }) => void
-    ) => () => void
-  }
   pty: {
     spawn: (args: PtySpawnArgs) => Promise<{ alreadyRunning: boolean }>
     write: (sessionId: string, data: string) => Promise<void>

@@ -2033,6 +2033,20 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   line-height: 1;
 }
 
+mark.find-highlight {
+  background: rgba(250, 204, 21, 0.4);
+  color: inherit;
+  padding: 0;
+  border-radius: 2px;
+}
+
+mark.find-highlight.active {
+  background: rgba(250, 204, 21, 0.85);
+  color: #1e1e1e;
+  outline: 1px solid rgba(250, 204, 21, 0.95);
+  outline-offset: 1px;
+}
+
 /* === Modal === */
 .modal-backdrop {
   position: fixed;

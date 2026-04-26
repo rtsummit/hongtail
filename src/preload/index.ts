@@ -94,24 +94,6 @@ const api = {
     sync: (cwd: string, sessionId: string) =>
       ipcRenderer.invoke('session-aliases:sync', cwd, sessionId)
   },
-  find: {
-    start: (query: string, opts?: { findNext?: boolean; forward?: boolean }) =>
-      ipcRenderer.invoke('find:start', query, opts),
-    stop: () => ipcRenderer.invoke('find:stop'),
-    onResult: (
-      callback: (result: {
-        requestId: number
-        activeMatchOrdinal: number
-        matches: number
-        finalUpdate: boolean
-      }) => void
-    ): (() => void) => {
-      const handler = (_: IpcRendererEvent, result: unknown): void =>
-        callback(result as Parameters<typeof callback>[0])
-      ipcRenderer.on('find:result', handler)
-      return () => ipcRenderer.off('find:result', handler)
-    }
-  },
   pty: {
     spawn: (args: {
       sessionId: string

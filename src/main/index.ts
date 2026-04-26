@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, webContents } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -13,45 +13,6 @@ import { registerUsageCacheHandlers } from './usageCache'
 import { registerImageHandlers } from './images'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
-
-function registerFindInPageHandlers(): void {
-  // Bridge Electron's webContents.findInPage to renderer-side FindBar.
-  // findInPage highlights matches in DOM, gives match count via 'found-in-page'
-  // event, and supports forward/back navigation. Doesn't touch <canvas> (xterm)
-  // — terminal mode uses xterm-addon-search separately on the renderer side.
-  ipcMain.handle(
-    'find:start',
-    (event, query: string, opts?: { findNext?: boolean; forward?: boolean }) => {
-      if (!query) {
-        event.sender.stopFindInPage('clearSelection')
-        return
-      }
-      event.sender.findInPage(query, {
-        findNext: opts?.findNext ?? false,
-        forward: opts?.forward ?? true
-      })
-    }
-  )
-  ipcMain.handle('find:stop', (event) => {
-    event.sender.stopFindInPage('clearSelection')
-  })
-
-  // Forward 'found-in-page' results back to the renderer that started the search.
-  webContents.getAllWebContents().forEach((wc) => bindFoundInPage(wc))
-  app.on('web-contents-created', (_, wc) => bindFoundInPage(wc))
-}
-
-function bindFoundInPage(wc: Electron.WebContents): void {
-  wc.on('found-in-page', (_, result) => {
-    if (wc.isDestroyed()) return
-    wc.send('find:result', {
-      requestId: result.requestId,
-      activeMatchOrdinal: result.activeMatchOrdinal,
-      matches: result.matches,
-      finalUpdate: result.finalUpdate
-    })
-  })
-}
 
 function createWindow(): void {
   // Create the browser window.
@@ -115,7 +76,6 @@ app.whenReady().then(() => {
   registerUsageCacheHandlers()
   registerImageHandlers()
   registerSessionAliasHandlers()
-  registerFindInPageHandlers()
 
   createWindow()
 
