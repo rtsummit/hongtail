@@ -15,6 +15,7 @@ interface ClaudeEvent {
   type?: string
   subtype?: string
   isMeta?: boolean
+  isSidechain?: boolean
   message?: { role?: string; content?: ContentBlock[] | string }
   data?: string
   raw?: string
@@ -29,10 +30,10 @@ export function parseClaudeEvent(raw: unknown): Block[] {
 
   switch (event.type) {
     case 'assistant':
-      return parseMessageContent(event.message?.content, 'assistant')
+      return parseMessageContent(event.message?.content, 'assistant', !!event.isSidechain)
     case 'user':
       if (event.isMeta) return []
-      return parseMessageContent(event.message?.content, 'user')
+      return parseMessageContent(event.message?.content, 'user', !!event.isSidechain)
     case 'system':
       // system init/etc — usually verbose, skip in UI for now
       return []
@@ -97,10 +98,16 @@ function processUserText(text: string): Block[] {
 
 function parseMessageContent(
   content: ContentBlock[] | string | undefined,
-  role: 'assistant' | 'user'
+  role: 'assistant' | 'user',
+  isSidechain = false
 ): Block[] {
   if (!content) return []
+  // Sidechain = events from a subagent (Agent tool). Hide their text/monologue
+  // (the agent's prompt would otherwise re-render as a blue user bubble, and
+  // intermediate reasoning floods the parent chat). Tool calls below still
+  // flow through so the user can see what the subagent did.
   if (typeof content === 'string') {
+    if (isSidechain) return []
     if (role === 'user') return processUserText(content)
     return [{ kind: 'assistant-text', text: content }]
   }
@@ -108,6 +115,7 @@ function parseMessageContent(
   for (const block of content) {
     if (!block || typeof block !== 'object') continue
     if (block.type === 'text' && typeof block.text === 'string') {
+      if (isSidechain) continue
       if (role === 'user') {
         blocks.push(...processUserText(block.text))
       } else {
