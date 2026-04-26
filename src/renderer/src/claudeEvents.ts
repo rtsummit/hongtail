@@ -15,7 +15,11 @@ interface ClaudeEvent {
   type?: string
   subtype?: string
   isMeta?: boolean
+  // Subagent (Agent tool) marker. JSONL persistence sets `isSidechain: true`,
+  // but stream-json output marks the same events with `parent_tool_use_id`
+  // pointing at the parent Agent's tool_use_id. Live mode only sees the latter.
   isSidechain?: boolean
+  parent_tool_use_id?: string | null
   message?: { role?: string; content?: ContentBlock[] | string }
   data?: string
   raw?: string
@@ -28,12 +32,14 @@ export function parseClaudeEvent(raw: unknown): Block[] {
   const event = raw as ClaudeEvent
   if (!event || typeof event !== 'object') return []
 
+  const isSidechain = !!event.isSidechain || !!event.parent_tool_use_id
+
   switch (event.type) {
     case 'assistant':
-      return parseMessageContent(event.message?.content, 'assistant', !!event.isSidechain)
+      return parseMessageContent(event.message?.content, 'assistant', isSidechain)
     case 'user':
       if (event.isMeta) return []
-      return parseMessageContent(event.message?.content, 'user', !!event.isSidechain)
+      return parseMessageContent(event.message?.content, 'user', isSidechain)
     case 'system':
       // system init/etc — usually verbose, skip in UI for now
       return []
