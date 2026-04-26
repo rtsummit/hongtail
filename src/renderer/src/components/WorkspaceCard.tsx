@@ -146,9 +146,17 @@ function WorkspaceCard({
   }, [liveKey])
 
   const orderedLives = useMemo(() => {
-    if (sessionOrder.length === 0) return graduatedLives
     const byId = new Map(graduatedLives.map((s) => [s.sessionId, s]))
-    return sessionOrder.map((id) => byId.get(id)).filter(Boolean) as typeof graduatedLives
+    // Sessions already tracked in manual order
+    const tracked = sessionOrder
+      .map((id) => byId.get(id))
+      .filter(Boolean) as typeof graduatedLives
+    // New sessions not yet synced into sessionOrder (one-render gap before
+    // useEffect runs) — show them at the TOP immediately so users see the
+    // newly-graduated conversation jump to the top right away.
+    const trackedIds = new Set(sessionOrder)
+    const untracked = graduatedLives.filter((s) => !trackedIds.has(s.sessionId))
+    return [...untracked, ...tracked]
   }, [sessionOrder, graduatedLives])
 
   const [draggingSession, setDraggingSession] = useState<string | null>(null)
