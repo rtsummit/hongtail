@@ -136,14 +136,15 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       void window.api.pty.resize(sessionId, cols, rows)
     })
 
-    // Ctrl+V: read clipboard and inject as terminal input.
-    // Returning false suppresses xterm's default Ctrl+V handling (which would
-    // otherwise emit a literal SYN char, ^V, to the shell).
-    // Ctrl+Shift+C still uses xterm's built-in copy via OS shortcut.
+    // Custom key event interceptor for desktop-app-friendly shortcuts.
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true
+
+      // Ctrl+V: read clipboard and inject as terminal input.
+      // Returning false suppresses xterm's default Ctrl+V handling (which would
+      // otherwise emit a literal SYN char, ^V, to the shell).
+      // Ctrl+Shift+V is left alone for xterm/OS to handle.
       if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) {
-        // Don't consume Ctrl+Shift+V — let it through unchanged for xterm/OS to handle.
         if (e.shiftKey) return true
         e.preventDefault()
         void navigator.clipboard
@@ -154,6 +155,19 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
           .catch((err) => console.error('terminal paste failed:', err))
         return false
       }
+
+      // Shift+Enter → send ESC+CR (Alt+Enter equivalent). claude CLI's TUI
+      // (Ink-based) and other modern terminal apps interpret this as
+      // "newline within input" instead of "submit". Default xterm sends \r
+      // for Shift+Enter which submits.
+      // Reference: claude's own VSCode terminal setup ships the exact same
+      // keybinding ("shift+enter" → sendSequence "\x1b\r").
+      if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Enter') {
+        e.preventDefault()
+        void window.api.pty.write(sessionId, '\x1b\r')
+        return false
+      }
+
       return true
     })
 
