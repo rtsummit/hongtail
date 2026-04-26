@@ -4,10 +4,16 @@ import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 
+export interface TerminalSearchResults {
+  resultIndex: number // 0-based; -1 if none
+  resultCount: number
+}
+
 export interface TerminalSearchHandle {
   findNext: (query: string) => boolean
   findPrevious: (query: string) => boolean
   clear: () => void
+  onResults: (cb: (r: TerminalSearchResults) => void) => () => void
 }
 
 interface Props {
@@ -39,12 +45,36 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
   onExitRef.current = onExit
   onReadyRef.current = onReady
 
+  // Visible decorations for all matches and the active one. xterm's SearchAddon
+  // paints these as DOM overlays in the viewport (not as canvas glyphs) and
+  // also marks them in the overview ruler.
+  const SEARCH_DECORATIONS = {
+    matchBackground: 'rgba(250, 204, 21, 0.4)',
+    matchBorder: 'rgba(250, 204, 21, 0.6)',
+    matchOverviewRuler: 'rgba(250, 204, 21, 0.7)',
+    activeMatchBackground: 'rgba(250, 204, 21, 0.9)',
+    activeMatchBorder: 'rgba(250, 204, 21, 1)',
+    activeMatchColorOverviewRuler: 'rgba(250, 204, 21, 1)'
+  }
+
   useImperativeHandle(
     ref,
     () => ({
-      findNext: (query) => searchRef.current?.findNext(query) ?? false,
-      findPrevious: (query) => searchRef.current?.findPrevious(query) ?? false,
-      clear: () => searchRef.current?.clearDecorations()
+      findNext: (query) =>
+        searchRef.current?.findNext(query, { decorations: SEARCH_DECORATIONS }) ?? false,
+      findPrevious: (query) =>
+        searchRef.current?.findPrevious(query, { decorations: SEARCH_DECORATIONS }) ?? false,
+      clear: () => searchRef.current?.clearDecorations(),
+      onResults: (cb) => {
+        const search = searchRef.current
+        if (!search?.onDidChangeResults) return () => {}
+        const disposable = search.onDidChangeResults((r) => {
+          // r per xterm typings is `{ resultIndex, resultCount } | undefined`.
+          if (!r) cb({ resultIndex: -1, resultCount: 0 })
+          else cb({ resultIndex: r.resultIndex, resultCount: r.resultCount })
+        })
+        return () => disposable.dispose()
+      }
     }),
     []
   )

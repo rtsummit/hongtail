@@ -181,7 +181,22 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
     }
   }, [open, mode, query, recompute])
 
-  // Terminal-mode search runs through xterm SearchAddon (no DOM/highlight API).
+  // Terminal-mode: subscribe to SearchAddon's onDidChangeResults event so the
+  // counter (resultIndex+1 / resultCount) reflects what xterm tracks internally.
+  useEffect(() => {
+    if (!open) return
+    if (mode !== 'terminal') return
+    const handle = terminalRef.current
+    if (!handle) return
+    const off = handle.onResults((r) => {
+      setMatchCount(r.resultCount)
+      setActive(r.resultCount > 0 ? r.resultIndex : -1)
+    })
+    return off
+  }, [open, mode, terminalRef])
+
+  // Terminal-mode search: run findNext on query change. Result count comes via
+  // the onResults subscription above (not from findNext's boolean).
   useEffect(() => {
     if (!open) return
     if (mode !== 'terminal') return
@@ -197,9 +212,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null
-      const ok = handle.findNext(q)
-      setMatchCount(ok ? 1 : 0)
-      setActive(ok ? 0 : -1)
+      handle.findNext(q)
     }, 200)
     return () => {
       if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
@@ -242,9 +255,9 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         if (!handle) return
         const q = query.trim()
         if (!q) return
-        const ok = delta > 0 ? handle.findNext(q) : handle.findPrevious(q)
-        setMatchCount(ok ? 1 : 0)
-        setActive(ok ? 0 : -1)
+        // findNext / findPrevious will fire onResults with new resultIndex.
+        if (delta > 0) handle.findNext(q)
+        else handle.findPrevious(q)
       }
     },
     [mode, matchCount, terminalRef, query]
@@ -253,9 +266,8 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
   const counter = useMemo(() => {
     if (!query.trim()) return ''
     if (matchCount === 0) return '없음'
-    if (mode === 'terminal') return active >= 0 ? '찾음' : '없음'
     return `${active + 1}/${matchCount}`
-  }, [active, matchCount, mode, query])
+  }, [active, matchCount, query])
 
   if (!open) return null
 
