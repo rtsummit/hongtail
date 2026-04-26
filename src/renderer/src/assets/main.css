@@ -1358,17 +1358,10 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 /* === Input === */
-.chat-input-wrap,
-.terminal-input-wrap {
+.chat-input-wrap {
   position: relative;
   border-top: 1px solid var(--border);
   background: var(--panel);
-  flex: 0 0 auto;
-}
-
-.terminal-input-wrap .chat-input {
-  border-top: none;
-  padding-top: 8px;
 }
 
 .chat-input-wrap .chat-input {
