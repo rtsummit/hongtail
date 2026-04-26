@@ -109,15 +109,27 @@ async function listSessions(cwd: string): Promise<ClaudeSessionMeta[]> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw err
   }
-  const sessions: ClaudeSessionMeta[] = []
+  const items: { meta: ClaudeSessionMeta; mtime: number }[] = []
   for (const name of entries) {
     if (!name.endsWith('.jsonl')) continue
     const id = name.slice(0, -'.jsonl'.length)
     if (!id) continue
-    sessions.push(await parseSessionMeta(join(dir, name), id))
+    const filePath = join(dir, name)
+    const meta = await parseSessionMeta(filePath, id)
+    let mtime = 0
+    try {
+      const st = await fs.stat(filePath)
+      mtime = st.mtimeMs
+    } catch {
+      /* fallback to 0 */
+    }
+    items.push({ meta, mtime })
   }
-  sessions.sort((a, b) => (b.startedAt > a.startedAt ? 1 : b.startedAt < a.startedAt ? -1 : 0))
-  return sessions
+  // Sort by file mtime descending — most recently used at the top.
+  // This handles resumed sessions correctly: an old session resumed today
+  // floats up, instead of being stuck at its original startedAt position.
+  items.sort((a, b) => b.mtime - a.mtime)
+  return items.map((x) => x.meta)
 }
 
 async function deleteSession(cwd: string, sessionId: string): Promise<void> {
