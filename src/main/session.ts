@@ -34,7 +34,13 @@ function spawnClaude(
     'stream-json',
     '--verbose',
     '--permission-mode',
-    'bypassPermissions'
+    'bypassPermissions',
+    // honglaude는 AskUserQuestion 옵션 카드 UI를 아직 못 띄워서
+    // -p 모드 SDK가 0.003초 만에 자동 deny → plan agent가 "답이 없음"으로
+    // 오해석하고 임의 디폴트로 진행한다. UI 구현 전까지 비활성해 일반
+    // 텍스트 질문으로 폴백시킨다.
+    '--disallowed-tools',
+    'AskUserQuestion'
   ]
   const args = isResume
     ? [...baseArgs, '--resume', sessionId]
