@@ -289,6 +289,22 @@ function ChatPane({
     }
   }, [messages, status?.thinking])
 
+  // Re-snap when the scroll container itself resizes (height change from sibling
+  // mount/unmount — e.g. UsageBar polling pulls in fresh data and pops in,
+  // shrinking .chat-messages clientHeight). The messages/thinking effect above
+  // doesn't cover this when nothing is streaming.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const obs = new ResizeObserver(() => {
+      if (wasNearBottomRef.current) {
+        el.scrollTop = el.scrollHeight
+      }
+    })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
   const chunkSize = settings.readonlyChunkSize
 
   useEffect(() => {
