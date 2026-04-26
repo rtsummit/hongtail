@@ -223,31 +223,21 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             <span className="settings-label-inline">도구 카드 (Bash/Edit 등) 기본 펼침</span>
           </label>
           <hr className="settings-divider" />
-          <div className="settings-row">
-            <span className="settings-label">새 대화 기본 백엔드</span>
-            <div className="settings-segmented" role="radiogroup">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={settings.defaultBackend === 'app'}
-                className={`settings-segmented-btn${settings.defaultBackend === 'app' ? ' active' : ''}`}
-                onClick={() => onChange({ ...settings, defaultBackend: 'app' })}
-              >
-                앱
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={settings.defaultBackend === 'terminal'}
-                className={`settings-segmented-btn${settings.defaultBackend === 'terminal' ? ' active' : ''}`}
-                onClick={() => onChange({ ...settings, defaultBackend: 'terminal' })}
-              >
-                터미널
-              </button>
-            </div>
-          </div>
+          <label className="settings-row settings-row-inline">
+            <input
+              type="checkbox"
+              checked={settings.defaultBackend === 'terminal'}
+              onChange={(e) =>
+                onChange({
+                  ...settings,
+                  defaultBackend: e.target.checked ? 'terminal' : 'app'
+                })
+              }
+            />
+            <span className="settings-label-inline">대화를 터미널로 열기</span>
+          </label>
           <p className="settings-hint">
-            새 대화 (+ 새로운 대화) 시작 시 사용할 기본 백엔드. 기존 진행 중 대화에는 영향 없음.
+            끄면 앱 모드 (기본). 새 대화 시작 시에만 적용 — 기존 진행 중 대화에는 영향 없음.
           </p>
         </div>
         <footer className="modal-footer">
