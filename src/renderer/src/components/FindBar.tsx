@@ -284,8 +284,17 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
     }
   }
 
+  // Safety net: also handle Esc at the wrapper level so it works no matter
+  // which element inside the bar currently has focus.
+  const handleWrapperKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onClose()
+    }
+  }
+
   return (
-    <div className="find-bar" role="search">
+    <div className="find-bar" role="search" onKeyDown={handleWrapperKeyDown}>
       <input
         ref={inputRef}
         type="text"
@@ -300,6 +309,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         type="button"
         className="find-btn"
         title="이전 (Shift+Enter)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => navigate(-1)}
         disabled={!query.trim() || matchCount === 0}
       >
@@ -309,6 +319,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         type="button"
         className="find-btn"
         title="다음 (Enter)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => navigate(1)}
         disabled={!query.trim() || matchCount === 0}
       >
@@ -318,6 +329,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         type="button"
         className="find-btn close"
         title="닫기 (Esc)"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={onClose}
       >
         ×
