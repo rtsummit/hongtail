@@ -2026,18 +2026,13 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   line-height: 1;
 }
 
-mark.find-highlight {
-  background: rgba(250, 204, 21, 0.4);
-  color: inherit;
-  padding: 0;
-  border-radius: 2px;
+::highlight(find-match) {
+  background-color: rgba(250, 204, 21, 0.4);
 }
 
-mark.find-highlight.active {
-  background: rgba(250, 204, 21, 0.85);
+::highlight(find-match-active) {
+  background-color: rgba(250, 204, 21, 0.9);
   color: #1e1e1e;
-  outline: 1px solid rgba(250, 204, 21, 0.95);
-  outline-offset: 1px;
 }
 
 /* === Modal === */

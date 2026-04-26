@@ -8,160 +8,234 @@ interface Props {
   onClose: () => void
 }
 
-const MARK_CLASS = 'find-highlight'
-const MARK_ACTIVE_CLASS = 'active'
+const HIGHLIGHT_NAME = 'find-match'
+const HIGHLIGHT_ACTIVE_NAME = 'find-match-active'
+
+interface CSSHighlightLike {
+  highlights?: {
+    set: (name: string, highlight: object) => void
+    delete: (name: string) => void
+  }
+}
+
+function getHighlights(): CSSHighlightLike['highlights'] | null {
+  const css = (typeof CSS !== 'undefined' ? (CSS as unknown as CSSHighlightLike) : null)
+  return css?.highlights ?? null
+}
 
 function getChatScroller(): HTMLElement | null {
   return document.querySelector<HTMLElement>('.chat-messages')
 }
 
-function clearMarks(scope: HTMLElement | null): void {
-  if (!scope) return
-  const marks = scope.querySelectorAll<HTMLElement>(`.${MARK_CLASS}`)
-  marks.forEach((m) => {
-    const parent = m.parentNode
-    if (!parent) return
-    while (m.firstChild) parent.insertBefore(m.firstChild, m)
-    parent.removeChild(m)
-  })
-  // Merge adjacent text nodes that the unwrap created.
-  scope.normalize()
+function clearAll(): void {
+  const h = getHighlights()
+  if (!h) return
+  h.delete(HIGHLIGHT_NAME)
+  h.delete(HIGHLIGHT_ACTIVE_NAME)
 }
 
-function applyMarks(scope: HTMLElement | null, query: string): HTMLElement[] {
-  if (!scope || !query) return []
+function findRanges(scope: HTMLElement, query: string): Range[] {
   const lower = query.toLowerCase()
-  const out: HTMLElement[] = []
-  // Collect text nodes first (mutations during iteration would invalidate the walker).
+  const ranges: Range[] = []
   const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       if (!node.nodeValue) return NodeFilter.FILTER_REJECT
       const parent = node.parentElement
       if (!parent) return NodeFilter.FILTER_REJECT
-      // Skip code/pre? Allow — useful to find text inside tool blocks too.
-      // Skip already-marked nodes to avoid double-wrapping on re-runs (defensive).
-      if (parent.classList?.contains(MARK_CLASS)) return NodeFilter.FILTER_REJECT
-      // Skip script/style if any sneak in.
       const tag = parent.tagName
       if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT
       return NodeFilter.FILTER_ACCEPT
     }
   })
-  const nodes: Text[] = []
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    nodes.push(n as Text)
-  }
-  for (const text of nodes) {
+    const text = n as Text
     const value = text.nodeValue ?? ''
     const lowerValue = value.toLowerCase()
     let from = 0
     let idx = lowerValue.indexOf(lower, from)
-    if (idx < 0) continue
-    const parent = text.parentNode
-    if (!parent) continue
-    const frag = document.createDocumentFragment()
     while (idx >= 0) {
-      if (idx > from) frag.appendChild(document.createTextNode(value.slice(from, idx)))
-      const mark = document.createElement('mark')
-      mark.className = MARK_CLASS
-      mark.textContent = value.slice(idx, idx + query.length)
-      frag.appendChild(mark)
-      out.push(mark)
+      const range = document.createRange()
+      range.setStart(text, idx)
+      range.setEnd(text, idx + query.length)
+      ranges.push(range)
       from = idx + query.length
       idx = lowerValue.indexOf(lower, from)
     }
-    if (from < value.length) frag.appendChild(document.createTextNode(value.slice(from)))
-    parent.replaceChild(frag, text)
   }
-  return out
+  return ranges
 }
 
 function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element | null {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [matches, setMatches] = useState<HTMLElement[]>([])
+  const [matchCount, setMatchCount] = useState(0)
+  const rangesRef = useRef<Range[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<number | null>(null)
 
-  // Focus + select all when opened (so re-pressing Ctrl+F focuses the bar).
-  useEffect(() => {
-    if (!open) return
+  const focusInput = useCallback(() => {
     const id = window.setTimeout(() => {
       inputRef.current?.focus()
       inputRef.current?.select()
     }, 0)
     return () => window.clearTimeout(id)
-  }, [open])
+  }, [])
 
-  // Cleanup highlights when closing or unmounting.
+  useEffect(() => {
+    if (!open) return
+    return focusInput()
+  }, [open, focusInput])
+
+  // Cleanup highlights when closed.
   useEffect(() => {
     if (open) return
-    const scroller = getChatScroller()
-    clearMarks(scroller)
+    clearAll()
     if (mode === 'terminal') terminalRef.current?.clear()
-    setMatches([])
+    rangesRef.current = []
+    setMatchCount(0)
     setActive(0)
   }, [open, mode, terminalRef])
 
   useEffect(() => {
     return () => {
       if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
-      clearMarks(getChatScroller())
+      clearAll()
     }
   }, [])
 
-  // Apply mark on query change (debounced).
+  // Recompute matches: called on query change AND on DOM mutations (so streaming
+  // chat content keeps highlights up to date without breaking React reconciliation).
+  const recompute = useCallback(() => {
+    const h = getHighlights()
+    const q = query.trim()
+    if (mode !== 'app') return
+    if (!h) return
+    if (!q) {
+      h.delete(HIGHLIGHT_NAME)
+      h.delete(HIGHLIGHT_ACTIVE_NAME)
+      rangesRef.current = []
+      setMatchCount(0)
+      setActive(-1)
+      return
+    }
+    const scope = getChatScroller()
+    if (!scope) {
+      rangesRef.current = []
+      setMatchCount(0)
+      setActive(-1)
+      return
+    }
+    const ranges = findRanges(scope, q)
+    rangesRef.current = ranges
+    if (ranges.length === 0) {
+      h.delete(HIGHLIGHT_NAME)
+      h.delete(HIGHLIGHT_ACTIVE_NAME)
+      setMatchCount(0)
+      setActive(-1)
+      return
+    }
+    // All matches go into HIGHLIGHT_NAME; active gets pulled out into HIGHLIGHT_ACTIVE_NAME
+    // below by an effect. Construct a Highlight (constructor accepts ranges).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const HighlightCtor = (window as any).Highlight as new (...r: Range[]) => object
+    if (typeof HighlightCtor === 'function') {
+      h.set(HIGHLIGHT_NAME, new HighlightCtor(...ranges))
+    }
+    setMatchCount(ranges.length)
+    setActive((prev) => (prev >= 0 && prev < ranges.length ? prev : 0))
+  }, [query, mode])
+
+  // Re-run on query change with debounce for input responsiveness.
   useEffect(() => {
     if (!open) return
+    if (mode !== 'app') return
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null
-      if (mode === 'app') {
-        const scroller = getChatScroller()
-        clearMarks(scroller)
-        const found = applyMarks(scroller, query.trim())
-        setMatches(found)
-        setActive(found.length > 0 ? 0 : -1)
-      } else {
-        const handle = terminalRef.current
-        if (!handle) return
-        if (!query.trim()) {
-          handle.clear()
-          setMatches([])
-          setActive(-1)
-          return
-        }
-        const ok = handle.findNext(query.trim())
-        // SearchAddon doesn't expose match count.
-        setMatches(ok ? [document.createElement('span')] : [])
-        setActive(ok ? 0 : -1)
-      }
-    }, 250)
+      recompute()
+    }, 200)
     return () => {
       if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
     }
-  }, [query, mode, open, terminalRef])
+  }, [query, open, mode, recompute])
 
-  // Update active mark visual + scroll into view.
+  // Watch DOM mutations under .chat-messages so streaming output keeps marks updated.
+  useEffect(() => {
+    if (!open) return
+    if (mode !== 'app') return
+    if (!query.trim()) return
+    const scope = getChatScroller()
+    if (!scope) return
+    let timer: number | null = null
+    const obs = new MutationObserver(() => {
+      if (timer != null) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        timer = null
+        recompute()
+      }, 150)
+    })
+    obs.observe(scope, { childList: true, subtree: true, characterData: true })
+    return () => {
+      obs.disconnect()
+      if (timer != null) window.clearTimeout(timer)
+    }
+  }, [open, mode, query, recompute])
+
+  // Terminal-mode search runs through xterm SearchAddon (no DOM/highlight API).
+  useEffect(() => {
+    if (!open) return
+    if (mode !== 'terminal') return
+    const handle = terminalRef.current
+    if (!handle) return
+    const q = query.trim()
+    if (!q) {
+      handle.clear()
+      setMatchCount(0)
+      setActive(-1)
+      return
+    }
+    if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
+    debounceRef.current = window.setTimeout(() => {
+      debounceRef.current = null
+      const ok = handle.findNext(q)
+      setMatchCount(ok ? 1 : 0)
+      setActive(ok ? 0 : -1)
+    }, 200)
+    return () => {
+      if (debounceRef.current != null) window.clearTimeout(debounceRef.current)
+    }
+  }, [open, mode, query, terminalRef])
+
+  // Update active highlight + scroll into view (app mode).
   useEffect(() => {
     if (mode !== 'app') return
-    matches.forEach((m, i) => {
-      if (i === active) m.classList.add(MARK_ACTIVE_CLASS)
-      else m.classList.remove(MARK_ACTIVE_CLASS)
-    })
-    if (active >= 0 && matches[active]) {
-      matches[active].scrollIntoView({ block: 'center', behavior: 'auto' })
+    const h = getHighlights()
+    if (!h) return
+    if (active < 0 || active >= rangesRef.current.length) {
+      h.delete(HIGHLIGHT_ACTIVE_NAME)
+      return
     }
-  }, [active, matches, mode])
+    const range = rangesRef.current[active]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const HighlightCtor = (window as any).Highlight as new (...r: Range[]) => object
+    if (typeof HighlightCtor === 'function') {
+      h.set(HIGHLIGHT_ACTIVE_NAME, new HighlightCtor(range))
+    }
+    // Scroll the active match's host element into view.
+    const host =
+      range.startContainer.nodeType === Node.TEXT_NODE
+        ? (range.startContainer.parentElement as HTMLElement | null)
+        : (range.startContainer as HTMLElement)
+    host?.scrollIntoView({ block: 'center', behavior: 'auto' })
+  }, [active, matchCount, mode])
 
-  const total = matches.length
   const navigate = useCallback(
     (delta: number) => {
       if (mode === 'app') {
-        if (total === 0) return
+        if (matchCount === 0) return
         setActive((cur) => {
           const next = cur + delta
-          return ((next % total) + total) % total
+          return ((next % matchCount) + matchCount) % matchCount
         })
       } else {
         const handle = terminalRef.current
@@ -169,19 +243,19 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         const q = query.trim()
         if (!q) return
         const ok = delta > 0 ? handle.findNext(q) : handle.findPrevious(q)
-        setMatches(ok ? [document.createElement('span')] : [])
+        setMatchCount(ok ? 1 : 0)
         setActive(ok ? 0 : -1)
       }
     },
-    [mode, total, terminalRef, query]
+    [mode, matchCount, terminalRef, query]
   )
 
   const counter = useMemo(() => {
     if (!query.trim()) return ''
-    if (total === 0) return '없음'
+    if (matchCount === 0) return '없음'
     if (mode === 'terminal') return active >= 0 ? '찾음' : '없음'
-    return `${active + 1}/${total}`
-  }, [active, total, mode, query])
+    return `${active + 1}/${matchCount}`
+  }, [active, matchCount, mode, query])
 
   if (!open) return null
 
@@ -215,7 +289,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         className="find-btn"
         title="이전 (Shift+Enter)"
         onClick={() => navigate(-1)}
-        disabled={!query.trim() || total === 0}
+        disabled={!query.trim() || matchCount === 0}
       >
         ↑
       </button>
@@ -224,7 +298,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         className="find-btn"
         title="다음 (Enter)"
         onClick={() => navigate(1)}
-        disabled={!query.trim() || total === 0}
+        disabled={!query.trim() || matchCount === 0}
       >
         ↓
       </button>
