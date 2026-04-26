@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AppSettings } from '../settings'
+import type { AppSettings, DefaultBackend } from '../settings'
 import { DEFAULT_SETTINGS } from '../settings'
 
 interface Props {
@@ -223,22 +223,27 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             <span className="settings-label-inline">도구 카드 (Bash/Edit 등) 기본 펼침</span>
           </label>
           <hr className="settings-divider" />
-          <label className="settings-row settings-row-inline">
-            <input
-              type="checkbox"
-              checked={settings.defaultBackend === 'terminal'}
+          <label className="settings-row">
+            <span className="settings-label">새로운 대화 기본 모드</span>
+            <select
+              value={settings.defaultBackend}
               onChange={(e) =>
                 onChange({
                   ...settings,
-                  defaultBackend: e.target.checked ? 'terminal' : 'app'
+                  defaultBackend: e.target.value as DefaultBackend
                 })
               }
-            />
-            <span className="settings-label-inline">새로운 대화를 터미널로 열기</span>
+            >
+              <option value="app">앱 (stream-json, 기본)</option>
+              <option value="interactive">
+                인터랙티브 (PTY + jsonl, 모바일 remote 지원)
+              </option>
+              <option value="terminal">터미널 (PTY + xterm raw)</option>
+            </select>
           </label>
           <p className="settings-hint">
-            끄면 앱 모드 (기본). 새 대화 시작 시에만 적용 — 기존 진행 중 대화에는 영향 없음.
-            이전 대화 resume 은 readonly 화면의 버튼으로 직접 선택.
+            새 대화 시작 시에만 적용 — 기존 진행 중 대화에는 영향 없음. 이전 대화 resume
+            은 readonly 화면의 버튼으로 직접 선택.
           </p>
         </div>
         <footer className="modal-footer">
