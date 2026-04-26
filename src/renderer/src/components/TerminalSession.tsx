@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
@@ -39,6 +39,10 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
   onExitRef.current = onExit
   onReadyRef.current = onReady
 
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
   useImperativeHandle(
     ref,
     () => ({
@@ -47,6 +51,74 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       clear: () => searchRef.current?.clearDecorations()
     }),
     []
+  )
+
+  const handleSend = useCallback(async () => {
+    const text = input
+    if (!text || sending) return
+    setSending(true)
+    try {
+      await window.api.pty.write(sessionId, text + '\n')
+      setInput('')
+    } catch (err) {
+      console.error('terminal send failed:', err)
+    } finally {
+      setSending(false)
+      textareaRef.current?.focus()
+    }
+  }, [input, sending, sessionId])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      void handleSend()
+    }
+  }
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      const images: File[] = []
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const f = item.getAsFile()
+          if (f) images.push(f)
+        }
+      }
+      if (images.length === 0) return
+      e.preventDefault()
+      for (const file of images) {
+        try {
+          const buf = new Uint8Array(await file.arrayBuffer())
+          const path = await window.api.images.save(
+            sessionId,
+            buf,
+            file.type || 'image/png'
+          )
+          // Insert at caret like ChatPane does.
+          const ta = textareaRef.current
+          if (ta) {
+            const start = ta.selectionStart ?? ta.value.length
+            const end = ta.selectionEnd ?? start
+            const insert = `[Image: ${path}]\n`
+            setInput((prev) => prev.slice(0, start) + insert + prev.slice(end))
+            requestAnimationFrame(() => {
+              const node = textareaRef.current
+              if (!node) return
+              const pos = start + insert.length
+              node.focus()
+              node.setSelectionRange(pos, pos)
+            })
+          } else {
+            setInput((prev) => prev + `[Image: ${path}]\n`)
+          }
+        } catch (err) {
+          console.error('terminal image paste failed:', err)
+        }
+      }
+    },
+    [sessionId]
   )
 
   useEffect(() => {
@@ -166,6 +238,30 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       style={{ display: visible ? 'flex' : 'none' }}
     >
       <div ref={containerRef} className="terminal-host-inner" />
+      <div className="terminal-input-wrap">
+        <div className="chat-input">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={(e) => {
+              void handlePaste(e)
+            }}
+            placeholder="입력 (Enter: 전송, Shift+Enter: 줄바꿈, Ctrl+V: 이미지). 터미널 직접 조작은 위 화면 클릭."
+            rows={3}
+          />
+          <button
+            type="button"
+            className="send-btn"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void handleSend()}
+            disabled={!input || sending}
+          >
+            {sending ? '…' : '전송'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 })
