@@ -453,9 +453,22 @@
   animation: live-pulse 2s ease-in-out infinite;
 }
 
+.live-dot.busy {
+  color: #d49a5e;
+  font-size: 10px;
+  flex: 0 0 10px;
+  animation: live-pulse-busy 0.9s ease-in-out infinite;
+  text-shadow: 0 0 6px rgba(212, 154, 94, 0.6);
+}
+
 @keyframes live-pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
+}
+
+@keyframes live-pulse-busy {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
 }
 
 .session-info {

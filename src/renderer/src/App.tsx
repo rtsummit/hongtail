@@ -1013,6 +1013,7 @@ function App(): React.JSX.Element {
         active={active}
         messagesBySession={messagesBySession}
         aliasesBySession={aliasesBySession}
+        statusBySession={statusBySession}
         onAddWorkspace={addWorkspaceDialog}
         onRemoveWorkspace={handleRemoveWorkspace}
         onReorderWorkspaces={handleReorderWorkspaces}

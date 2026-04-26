@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import SessionRow from './SessionRow'
 import SessionTitleArea from './SessionTitleArea'
-import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
+import type {
+  ClaudeSessionMeta,
+  LiveSessionInfo,
+  SelectedSession,
+  SessionStatus
+} from '../types'
 import type { SessionAlias } from '../../../preload/index.d'
 
 interface Props {
@@ -9,6 +14,7 @@ interface Props {
   alias?: string
   liveSessions: LiveSessionInfo[]
   aliasesBySession: Record<string, SessionAlias>
+  statusBySession: Record<string, SessionStatus>
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
@@ -30,6 +36,7 @@ function WorkspaceCard({
   alias,
   liveSessions,
   aliasesBySession,
+  statusBySession,
   selectedId,
   onSelect,
   onStartClaude,
@@ -368,7 +375,10 @@ function WorkspaceCard({
                   })
                 }
               >
-                <span className="live-dot" title={`${s.backend} · live`}>
+                <span
+                  className={`live-dot${statusBySession[s.sessionId]?.thinking ? ' busy' : ''}`}
+                  title={`${s.backend} · ${statusBySession[s.sessionId]?.thinking ? 'working' : 'live'}`}
+                >
                   ●
                 </span>
                 <SessionTitleArea

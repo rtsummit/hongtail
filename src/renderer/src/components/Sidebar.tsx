@@ -5,6 +5,7 @@ import type {
   Block,
   LiveSessionInfo,
   SelectedSession,
+  SessionStatus,
   WorkspaceEntry
 } from '../types'
 import type { SessionAlias } from '../../../preload/index.d'
@@ -21,6 +22,7 @@ interface Props {
   active: Record<string, ActiveLike>
   messagesBySession: Record<string, Block[]>
   aliasesBySession: Record<string, SessionAlias>
+  statusBySession: Record<string, SessionStatus>
   onAddWorkspace: () => void | Promise<void>
   onRemoveWorkspace: (path: string) => void | Promise<void>
   onReorderWorkspaces: (fromPath: string, toPath: string, before: boolean) => void | Promise<void>
@@ -50,6 +52,7 @@ function Sidebar({
   active,
   messagesBySession,
   aliasesBySession,
+  statusBySession,
   onAddWorkspace,
   onRemoveWorkspace,
   onReorderWorkspaces,
@@ -101,6 +104,7 @@ function Sidebar({
             alias={alias}
             liveSessions={liveByWorkspace.get(path) ?? []}
             aliasesBySession={aliasesBySession}
+            statusBySession={statusBySession}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
