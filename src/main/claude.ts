@@ -1,5 +1,11 @@
 import { ipcMain, type WebContents } from 'electron'
-import { promises as fs, createReadStream, watch as fsWatch, type FSWatcher } from 'fs'
+import {
+  promises as fs,
+  createReadStream,
+  mkdir as fsMkdir,
+  watch as fsWatch,
+  type FSWatcher
+} from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
@@ -329,10 +335,22 @@ function stopWatch(key: string): void {
 function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
   const key = watchKey(sender.id, sessionId)
   stopWatch(key)
-  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
+  // 'interactive' 백엔드의 새 세션처럼 jsonl 이 아직 없는 상태에서도 watch 가 가능
+  // 해야 한다. 파일을 직접 watch 하면 ENOENT 로 실패하므로 디렉토리를 watch 하고
+  // filename 으로 필터링한다 — 어차피 fs.watch 가 파일 replace (truncate/recreate)
+  // 시 끊어지는 문제도 디렉토리 watch 가 더 견디므로 양쪽에 robust.
+  const dir = projectDir(cwd)
+  const targetFileName = `${sessionId}.jsonl`
+  try {
+    fsMkdir(dir, { recursive: true }, () => {
+      /* ignore — projectDir 가 이미 있으면 OK, 만들기 실패해도 watch 시도 자체는 진행 */
+    })
+  } catch {
+    /* ignore */
+  }
   let watcher: FSWatcher
   try {
-    watcher = fsWatch(file, { persistent: false })
+    watcher = fsWatch(dir, { persistent: false })
   } catch (err) {
     console.error('watch start failed:', err)
     return
@@ -341,7 +359,11 @@ function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
   watches.set(key, entry)
 
   const channel = `claude:session-changed:${sessionId}`
-  watcher.on('change', () => {
+  watcher.on('change', (_event, filename) => {
+    // 디렉토리에 다른 세션 jsonl 변경도 fire 되므로 우리가 보는 파일만 필터.
+    // Windows/Linux/macOS 모두 non-recursive watch 에선 filename 이 들어오는 게
+    // 일반적이지만, null 이면 (안 들어오면) 보수적으로 fire.
+    if (filename && filename !== targetFileName) return
     if (sender.isDestroyed()) {
       stopWatch(key)
       return
