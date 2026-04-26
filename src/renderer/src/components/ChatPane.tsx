@@ -601,14 +601,14 @@ function ChatPane({
             <button
               type="button"
               className="activate-btn full"
-              onClick={() => onActivate('resume-full')}
+              onClick={() => onActivate('resume-full', 'app')}
             >
               Full로 활성화
             </button>
             <button
               type="button"
               className="activate-btn summary"
-              onClick={() => onActivate('resume-summary')}
+              onClick={() => onActivate('resume-summary', 'app')}
             >
               Summary로 활성화
             </button>
