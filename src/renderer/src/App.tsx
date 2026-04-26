@@ -494,7 +494,10 @@ function App(): React.JSX.Element {
         ...prev,
         [sessionId]: { workspacePath, mode, backend }
       }))
-      if (backend === 'terminal') {
+      if (backend === 'terminal' || backend === 'interactive') {
+        // 'interactive' 백엔드도 PTY 안에서 인터랙티브 claude 를 띄우는 점은
+        // 'terminal' 과 같다. 차이는 chat UI 를 어떻게 그리느냐 — 'terminal' 은
+        // xterm raw, 'interactive' 는 jsonl tail 로 같은 PTY 를 등에 업고 ChatPane 으로.
         setTerminalReady((prev) => ({ ...prev, [sessionId]: false }))
       }
       if (backend === 'app') {
@@ -569,7 +572,7 @@ function App(): React.JSX.Element {
 
       for (const [sessionId, a] of liveInWorkspace) {
         try {
-          if (a.backend === 'terminal') {
+          if (a.backend === 'terminal' || a.backend === 'interactive') {
             await window.api.pty.kill(sessionId)
           } else {
             await window.api.claude.stopSession(sessionId)
@@ -599,7 +602,7 @@ function App(): React.JSX.Element {
       )
       if (!ok) return
       try {
-        if (a.backend === 'terminal') {
+        if (a.backend === 'terminal' || a.backend === 'interactive') {
           await window.api.pty.kill(sessionId)
         } else {
           await window.api.claude.stopSession(sessionId)
@@ -982,10 +985,14 @@ function App(): React.JSX.Element {
       : selected
     : null
 
+  // 'terminal' 과 'interactive' 둘 다 PTY 위에서 인터랙티브 claude 를 띄우므로
+  // TerminalSession 컴포넌트로 mount 한다. 차이는 visible/show 결정 — 'terminal'
+  // 은 xterm 자체가 보이고, 'interactive' 는 hidden 상태로 PTY 만 살아있게 두고
+  // ChatPane 이 jsonl tail 로 같은 세션을 그린다.
   const terminalSessionList = useMemo(
     () =>
       Object.entries(active)
-        .filter(([, a]) => a.backend === 'terminal')
+        .filter(([, a]) => a.backend === 'terminal' || a.backend === 'interactive')
         .map(([sessionId, a]) => ({ sessionId, ...a })),
     [active]
   )
@@ -1007,6 +1014,8 @@ function App(): React.JSX.Element {
   const findMode: 'app' | 'terminal' =
     selected?.backend === 'terminal' && selected.mode !== 'readonly' ? 'terminal' : 'app'
 
+  // 'interactive' 백엔드는 chat UI (ChatPane) 로 그리므로 항상 show.
+  // 'terminal' 백엔드 라이브일 때만 ChatPane 을 hide (xterm 이 그 자리를 차지).
   const showChatPane =
     !selected ||
     selected.backend !== 'terminal' ||
