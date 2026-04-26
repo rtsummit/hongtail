@@ -790,7 +790,13 @@ function App(): React.JSX.Element {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault()
         e.stopPropagation()
-        setFindOpen(true)
+        if (findOpen) {
+          const input = document.querySelector<HTMLInputElement>('.find-bar .find-input')
+          input?.focus()
+          input?.select()
+        } else {
+          setFindOpen(true)
+        }
       } else if (e.key === 'Escape' && findOpen) {
         // Let FindBar's own Escape close it; this is a fallback when bar lacks focus.
         const target = e.target as HTMLElement
