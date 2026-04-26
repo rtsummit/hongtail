@@ -2217,6 +2217,36 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   cursor: pointer;
 }
 
+.settings-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.settings-segmented-btn {
+  padding: 4px 14px;
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-segmented-btn + .settings-segmented-btn {
+  border-left: 1px solid var(--border);
+}
+
+.settings-segmented-btn:hover {
+  background: var(--panel-2);
+}
+
+.settings-segmented-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;

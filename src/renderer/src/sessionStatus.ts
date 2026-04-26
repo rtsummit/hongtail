@@ -84,7 +84,29 @@ export function extractInit(event: unknown): InitInfo | null {
   return { model, permissionMode, contextWindow: parseContextWindowFromModel(model) }
 }
 
-function parseContextWindowFromModel(model: string): number | undefined {
+// Fallback: assistant turn events always carry model on message.model.
+// Used to populate status.model when the system/init was missed
+// (e.g. resume that doesn't re-emit init, or race with subscription setup).
+export function extractAssistantModel(event: unknown): string | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'assistant') return null
+  const msg = e.message as Record<string, unknown> | undefined
+  if (!msg) return null
+  const model = msg.model
+  return typeof model === 'string' ? model : null
+}
+
+// Some claude versions also emit a separate `permission-mode` event
+// (sticky metadata, observed in jsonl). Pick that up too.
+export function extractPermissionModeEvent(event: unknown): string | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'permission-mode') return null
+  return typeof e.permissionMode === 'string' ? e.permissionMode : null
+}
+
+export function parseContextWindowFromModel(model: string): number | undefined {
   const m = model.match(/\[(\d+)([mk])\]$/i)
   if (!m) return undefined
   const n = Number(m[1])

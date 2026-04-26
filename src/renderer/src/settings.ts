@@ -1,9 +1,12 @@
+export type DefaultBackend = 'app' | 'terminal'
+
 export interface AppSettings {
   uiFonts: string[]
   monoFonts: string[]
   fontSize: number
   readonlyChunkSize: number
   toolCardsDefaultOpen: boolean
+  defaultBackend: DefaultBackend
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -11,7 +14,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   monoFonts: [],
   fontSize: 13,
   readonlyChunkSize: 100,
-  toolCardsDefaultOpen: false
+  toolCardsDefaultOpen: false,
+  defaultBackend: 'app'
 }
 
 const KEY = 'hongluade.settings'
@@ -62,7 +66,11 @@ export function loadSettings(): AppSettings {
       toolCardsDefaultOpen:
         typeof parsed.toolCardsDefaultOpen === 'boolean'
           ? parsed.toolCardsDefaultOpen
-          : DEFAULT_SETTINGS.toolCardsDefaultOpen
+          : DEFAULT_SETTINGS.toolCardsDefaultOpen,
+      defaultBackend:
+        parsed.defaultBackend === 'app' || parsed.defaultBackend === 'terminal'
+          ? parsed.defaultBackend
+          : DEFAULT_SETTINGS.defaultBackend
     }
   } catch {
     return { ...DEFAULT_SETTINGS }

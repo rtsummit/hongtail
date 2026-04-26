@@ -7,13 +7,16 @@ import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
 import {
+  extractAssistantModel,
   extractContextTokens,
   extractContextWindowFromResult,
   extractControlResponse,
   extractInit,
+  extractPermissionModeEvent,
   extractRateLimit,
   extractUsage,
   isResultEvent,
+  parseContextWindowFromModel,
   pickVerb
 } from './sessionStatus'
 import {
@@ -34,13 +37,23 @@ function App(): React.JSX.Element {
   const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [aliasesBySession, setAliasesBySession] = useState<Record<string, SessionAlias>>({})
-  const [defaultBackend, setDefaultBackend] = useState<Backend>('app')
+  const [lastActivityBySession, setLastActivityBySession] = useState<Record<string, number>>({})
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem('hongluade.sidebarWidth'))
     return Number.isFinite(stored) && stored >= 180 && stored <= 600 ? stored : 240
   })
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const defaultBackend = settings.defaultBackend
+  const setDefaultBackend = useCallback((b: Backend) => {
+    setSettings((prev) => {
+      if (prev.defaultBackend === b) return prev
+      const next: AppSettings = { ...prev, defaultBackend: b }
+      saveSettings(next)
+      return next
+    })
+  }, [])
 
   const handleSettingsChange = useCallback((next: AppSettings) => {
     setSettings(next)
@@ -133,6 +146,10 @@ function App(): React.JSX.Element {
       ...prev,
       [sessionId]: [...(prev[sessionId] ?? []), ...blocks]
     }))
+    // Any append (including user-text from ChatPane.handleSend) bumps activity.
+    // This makes a freshly sent session jump to the top immediately,
+    // not only when the assistant first responds.
+    setLastActivityBySession((prev) => ({ ...prev, [sessionId]: Date.now() }))
   }, [])
 
   const replaceBlocks = useCallback((sessionId: string, blocks: Block[]) => {
@@ -150,7 +167,10 @@ function App(): React.JSX.Element {
   const handleClaudeEvent = useCallback(
     (sessionId: string, event: unknown) => {
       const parsed = parseClaudeEvent(event)
-      if (parsed.length > 0) appendBlocks(sessionId, parsed)
+      if (parsed.length > 0) {
+        appendBlocks(sessionId, parsed)
+        setLastActivityBySession((prev) => ({ ...prev, [sessionId]: Date.now() }))
+      }
 
       const usage = extractUsage(event)
       if (usage?.outputTokens !== undefined) {
@@ -188,6 +208,36 @@ function App(): React.JSX.Element {
             contextWindow: init.contextWindow ?? prev[sessionId]?.contextWindow
           }
         }))
+      } else {
+        // Fallbacks for the case where the system/init event was missed
+        // (resume mode, subscription race, etc).
+        const assistantModel = extractAssistantModel(event)
+        if (assistantModel) {
+          setStatusBySession((prev) => {
+            if (prev[sessionId]?.model) return prev
+            return {
+              ...prev,
+              [sessionId]: {
+                ...prev[sessionId],
+                thinking: prev[sessionId]?.thinking ?? false,
+                model: assistantModel,
+                contextWindow:
+                  prev[sessionId]?.contextWindow ?? parseContextWindowFromModel(assistantModel)
+              }
+            }
+          })
+        }
+        const pmode = extractPermissionModeEvent(event)
+        if (pmode) {
+          setStatusBySession((prev) => ({
+            ...prev,
+            [sessionId]: {
+              ...prev[sessionId],
+              thinking: prev[sessionId]?.thinking ?? false,
+              permissionMode: pmode
+            }
+          }))
+        }
       }
 
       const ctxTokens = extractContextTokens(event)
@@ -299,6 +349,7 @@ function App(): React.JSX.Element {
         ...prev,
         [sessionId]: { workspacePath, mode, backend }
       }))
+      setLastActivityBySession((prev) => ({ ...prev, [sessionId]: Date.now() }))
       if (backend === 'terminal') {
         setTerminalReady((prev) => ({ ...prev, [sessionId]: false }))
       }
@@ -772,11 +823,10 @@ function App(): React.JSX.Element {
       <Sidebar
         workspaces={workspaces}
         selected={selected}
-        defaultBackend={defaultBackend}
         active={active}
         messagesBySession={messagesBySession}
         aliasesBySession={aliasesBySession}
-        onChangeBackend={setDefaultBackend}
+        lastActivityBySession={lastActivityBySession}
         onAddWorkspace={addWorkspaceDialog}
         onRemoveWorkspace={handleRemoveWorkspace}
         onReorderWorkspaces={handleReorderWorkspaces}

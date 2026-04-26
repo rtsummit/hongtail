@@ -18,11 +18,10 @@ interface ActiveLike {
 interface Props {
   workspaces: WorkspaceEntry[]
   selected: SelectedSession | null
-  defaultBackend: Backend
   active: Record<string, ActiveLike>
   messagesBySession: Record<string, Block[]>
   aliasesBySession: Record<string, SessionAlias>
-  onChangeBackend: (b: Backend) => void
+  lastActivityBySession: Record<string, number>
   onAddWorkspace: () => void | Promise<void>
   onRemoveWorkspace: (path: string) => void | Promise<void>
   onReorderWorkspaces: (fromPath: string, toPath: string, before: boolean) => void | Promise<void>
@@ -49,11 +48,10 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
 function Sidebar({
   workspaces,
   selected,
-  defaultBackend,
   active,
   messagesBySession,
   aliasesBySession,
-  onChangeBackend,
+  lastActivityBySession,
   onAddWorkspace,
   onRemoveWorkspace,
   onReorderWorkspaces,
@@ -88,27 +86,6 @@ function Sidebar({
 
   return (
     <aside className="sidebar">
-      <div className="mode-toggle" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={defaultBackend === 'app'}
-          className={`mode-toggle-btn${defaultBackend === 'app' ? ' active' : ''}`}
-          onClick={() => onChangeBackend('app')}
-        >
-          앱 모드
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={defaultBackend === 'terminal'}
-          className={`mode-toggle-btn${defaultBackend === 'terminal' ? ' active' : ''}`}
-          onClick={() => onChangeBackend('terminal')}
-        >
-          터미널 모드
-        </button>
-      </div>
-
       <button
         type="button"
         className="new-session-btn"
@@ -126,6 +103,7 @@ function Sidebar({
             alias={alias}
             liveSessions={liveByWorkspace.get(path) ?? []}
             aliasesBySession={aliasesBySession}
+            lastActivityBySession={lastActivityBySession}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             onSelect={onSelect}
             onStartClaude={onStartClaude}

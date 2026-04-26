@@ -89,6 +89,27 @@ function TerminalSession({
       void window.api.pty.resize(sessionId, cols, rows)
     })
 
+    // Ctrl+V: read clipboard and inject as terminal input.
+    // Returning false suppresses xterm's default Ctrl+V handling (which would
+    // otherwise emit a literal SYN char, ^V, to the shell).
+    // Ctrl+Shift+C still uses xterm's built-in copy via OS shortcut.
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown') return true
+      if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) {
+        // Don't consume Ctrl+Shift+V — let it through unchanged for xterm/OS to handle.
+        if (e.shiftKey) return true
+        e.preventDefault()
+        void navigator.clipboard
+          .readText()
+          .then((text) => {
+            if (text) void window.api.pty.write(sessionId, text)
+          })
+          .catch((err) => console.error('terminal paste failed:', err))
+        return false
+      }
+      return true
+    })
+
     const onWindowResize = (): void => {
       try {
         fit.fit()

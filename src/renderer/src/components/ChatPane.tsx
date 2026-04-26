@@ -119,12 +119,20 @@ function ChatPane({
 
   shownFromLineRef.current = shownFromLine
 
-  // When the selected session changes, the next message-set should snap to bottom.
-  useEffect(() => {
-    forceScrollBottomRef.current = true
+  // When the selected session changes, snap immediately to bottom.
+  // useLayoutEffect (not useEffect) so it runs before paint — avoids flashing
+  // the cached message-set scrolled to the top before snapping.
+  // Setting wasNearBottomRef=true also makes any post-switch readonly fullReload
+  // (which mutates `messages`) trigger the existing scroll effect to snap again
+  // once the fresh content lands.
+  useLayoutEffect(() => {
     setQuotes([])
     setSlashCtx(null)
     imageCounterRef.current = 0
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+    wasNearBottomRef.current = true
+    forceScrollBottomRef.current = false
   }, [selected?.sessionId])
 
   // Load slash commands for the current workspace.

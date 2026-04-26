@@ -9,6 +9,7 @@ interface Props {
   alias?: string
   liveSessions: LiveSessionInfo[]
   aliasesBySession: Record<string, SessionAlias>
+  lastActivityBySession: Record<string, number>
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
@@ -30,6 +31,7 @@ function WorkspaceCard({
   alias,
   liveSessions,
   aliasesBySession,
+  lastActivityBySession,
   selectedId,
   onSelect,
   onStartClaude,
@@ -128,7 +130,13 @@ function WorkspaceCard({
   }))
   // At most one fresh per workspace (we only allow one at a time).
   const fresh = liveExt.find((s) => !s.graduated) ?? null
-  const graduatedLives = liveExt.filter((s) => s.graduated)
+  const graduatedLives = liveExt
+    .filter((s) => s.graduated)
+    .sort(
+      (a, b) =>
+        (lastActivityBySession[b.sessionId] ?? 0) -
+        (lastActivityBySession[a.sessionId] ?? 0)
+    )
   const filteredPast = (sessions ?? []).filter((s) => !liveIds.has(s.id))
 
   const freshSelected = fresh && selectedId === fresh.sessionId
