@@ -21,7 +21,6 @@ interface Props {
   active: Record<string, ActiveLike>
   messagesBySession: Record<string, Block[]>
   aliasesBySession: Record<string, SessionAlias>
-  lastActivityBySession: Record<string, number>
   onAddWorkspace: () => void | Promise<void>
   onRemoveWorkspace: (path: string) => void | Promise<void>
   onReorderWorkspaces: (fromPath: string, toPath: string, before: boolean) => void | Promise<void>
@@ -51,7 +50,6 @@ function Sidebar({
   active,
   messagesBySession,
   aliasesBySession,
-  lastActivityBySession,
   onAddWorkspace,
   onRemoveWorkspace,
   onReorderWorkspaces,
@@ -103,7 +101,6 @@ function Sidebar({
             alias={alias}
             liveSessions={liveByWorkspace.get(path) ?? []}
             aliasesBySession={aliasesBySession}
-            lastActivityBySession={lastActivityBySession}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             onSelect={onSelect}
             onStartClaude={onStartClaude}

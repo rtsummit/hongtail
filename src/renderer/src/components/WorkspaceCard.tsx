@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import SessionRow from './SessionRow'
 import SessionTitleArea from './SessionTitleArea'
 import type { ClaudeSessionMeta, LiveSessionInfo, SelectedSession } from '../types'
@@ -9,7 +9,6 @@ interface Props {
   alias?: string
   liveSessions: LiveSessionInfo[]
   aliasesBySession: Record<string, SessionAlias>
-  lastActivityBySession: Record<string, number>
   selectedId: string | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
@@ -31,7 +30,6 @@ function WorkspaceCard({
   alias,
   liveSessions,
   aliasesBySession,
-  lastActivityBySession,
   selectedId,
   onSelect,
   onStartClaude,
@@ -130,14 +128,47 @@ function WorkspaceCard({
   }))
   // At most one fresh per workspace (we only allow one at a time).
   const fresh = liveExt.find((s) => !s.graduated) ?? null
-  const graduatedLives = liveExt
-    .filter((s) => s.graduated)
-    .sort(
-      (a, b) =>
-        (lastActivityBySession[b.sessionId] ?? 0) -
-        (lastActivityBySession[a.sessionId] ?? 0)
-    )
+  const graduatedLives = liveExt.filter((s) => s.graduated)
   const filteredPast = (sessions ?? []).filter((s) => !liveIds.has(s.id))
+
+  // Manual session order: new sessions are appended, removed sessions are dropped.
+  const [sessionOrder, setSessionOrder] = useState<string[]>([])
+  const liveKey = graduatedLives.map((s) => s.sessionId).join('|')
+  useEffect(() => {
+    setSessionOrder((prev) => {
+      const currentIds = new Set(graduatedLives.map((s) => s.sessionId))
+      const kept = prev.filter((id) => currentIds.has(id))
+      const appended = graduatedLives.map((s) => s.sessionId).filter((id) => !prev.includes(id))
+      return [...kept, ...appended]
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveKey])
+
+  const orderedLives = useMemo(() => {
+    if (sessionOrder.length === 0) return graduatedLives
+    const byId = new Map(graduatedLives.map((s) => [s.sessionId, s]))
+    return sessionOrder.map((id) => byId.get(id)).filter(Boolean) as typeof graduatedLives
+  }, [sessionOrder, graduatedLives])
+
+  const [draggingSession, setDraggingSession] = useState<string | null>(null)
+  const [sessionDropTarget, setSessionDropTarget] = useState<{
+    id: string
+    before: boolean
+  } | null>(null)
+
+  const handleSessionDrop = useCallback(
+    (targetId: string, before: boolean) => {
+      if (!draggingSession || draggingSession === targetId) return
+      setSessionOrder((prev) => {
+        const without = prev.filter((id) => id !== draggingSession)
+        const idx = without.indexOf(targetId)
+        if (idx === -1) return prev
+        const at = before ? idx : idx + 1
+        return [...without.slice(0, at), draggingSession, ...without.slice(at)]
+      })
+    },
+    [draggingSession]
+  )
 
   const freshSelected = fresh && selectedId === fresh.sessionId
   const newConversationClasses = ['new-conversation']
@@ -267,14 +298,58 @@ function WorkspaceCard({
             )}
           </div>
 
-          {graduatedLives.map((s) => {
+          {orderedLives.map((s) => {
             const baseTitle = s.jsonlTitle ?? s.title
             const aliasEntry = aliasesBySession[s.sessionId]
             const display = aliasEntry?.alias ?? baseTitle
+            const isDraggingThis = draggingSession === s.sessionId
+            const dropPos =
+              sessionDropTarget?.id === s.sessionId ? sessionDropTarget.before : null
+            const cls = [
+              'session live',
+              selectedId === s.sessionId ? 'active' : '',
+              isDraggingThis ? 'session-dragging' : '',
+              dropPos === true ? 'session-drag-over-top' : '',
+              dropPos === false ? 'session-drag-over-bottom' : ''
+            ]
+              .filter(Boolean)
+              .join(' ')
             return (
               <div
                 key={s.sessionId}
-                className={`session live${selectedId === s.sessionId ? ' active' : ''}`}
+                className={cls}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/plain', s.sessionId)
+                  setDraggingSession(s.sessionId)
+                }}
+                onDragEnd={() => {
+                  setDraggingSession(null)
+                  setSessionDropTarget(null)
+                }}
+                onDragOver={(e) => {
+                  if (!draggingSession || draggingSession === s.sessionId) return
+                  e.preventDefault()
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                  const before = e.clientY < rect.top + rect.height / 2
+                  setSessionDropTarget((prev) =>
+                    prev?.id === s.sessionId && prev.before === before
+                      ? prev
+                      : { id: s.sessionId, before }
+                  )
+                }}
+                onDragLeave={() => {
+                  setSessionDropTarget((prev) => (prev?.id === s.sessionId ? null : prev))
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                  const before = e.clientY < rect.top + rect.height / 2
+                  handleSessionDrop(s.sessionId, before)
+                  setDraggingSession(null)
+                  setSessionDropTarget(null)
+                }}
                 onClick={() =>
                   onSelect({
                     workspacePath: path,

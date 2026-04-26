@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import ChatPane from './components/ChatPane'
+import SideChatPanel from './components/SideChatPanel'
 import TerminalSession, { type TerminalSearchHandle } from './components/TerminalSession'
 import SettingsModal from './components/SettingsModal'
 import FindBar from './components/FindBar'
+import { buildBtwSystemPrompt } from './btwPrompt'
 import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
@@ -42,7 +44,6 @@ function App(): React.JSX.Element {
   const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [aliasesBySession, setAliasesBySession] = useState<Record<string, SessionAlias>>({})
-  const [lastActivityBySession, setLastActivityBySession] = useState<Record<string, number>>({})
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem('hongluade.sidebarWidth'))
     return Number.isFinite(stored) && stored >= 180 && stored <= 600 ? stored : 240
@@ -50,6 +51,12 @@ function App(): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
+  const [btwMessagesBySession, setBtwMessagesBySession] = useState<Record<string, Block[]>>({})
+  const [btwThinkingBySession, setBtwThinkingBySession] = useState<Record<string, boolean>>({})
+  const [sideChatCollapsed, setSideChatCollapsed] = useState<boolean>(
+    () => localStorage.getItem('hongluade.sideChatCollapsed') === '1'
+  )
+  const btwSubscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
   const activeTerminalRef = useRef<TerminalSearchHandle | null>(null)
 
@@ -154,10 +161,6 @@ function App(): React.JSX.Element {
       ...prev,
       [sessionId]: [...(prev[sessionId] ?? []), ...blocks]
     }))
-    // Any append (including user-text from ChatPane.handleSend) bumps activity.
-    // This makes a freshly sent session jump to the top immediately,
-    // not only when the assistant first responds.
-    setLastActivityBySession((prev) => ({ ...prev, [sessionId]: Date.now() }))
   }, [])
 
   const replaceBlocks = useCallback((sessionId: string, blocks: Block[]) => {
@@ -177,7 +180,6 @@ function App(): React.JSX.Element {
       const parsed = parseClaudeEvent(event)
       if (parsed.length > 0) {
         appendBlocks(sessionId, parsed)
-        setLastActivityBySession((prev) => ({ ...prev, [sessionId]: Date.now() }))
       }
 
       const usage = extractUsage(event)
@@ -312,6 +314,109 @@ function App(): React.JSX.Element {
     [appendBlocks]
   )
 
+  const handleBtwEvent = useCallback(
+    (ownerId: string, event: unknown) => {
+      const parsed = parseClaudeEvent(event)
+      if (parsed.length > 0) {
+        setBtwMessagesBySession((prev) => ({
+          ...prev,
+          [ownerId]: [...(prev[ownerId] ?? []), ...parsed]
+        }))
+      }
+      const ev = event as { type?: string }
+      if (
+        isResultEvent(event) ||
+        ev?.type === 'closed' ||
+        ev?.type === 'spawn_error'
+      ) {
+        setBtwThinkingBySession((prev) =>
+          prev[ownerId] ? { ...prev, [ownerId]: false } : prev
+        )
+      }
+    },
+    []
+  )
+
+  const ensureBtwSubscription = useCallback(
+    (ownerId: string) => {
+      if (btwSubscriptionsRef.current.has(ownerId)) return
+      const unsub = window.api.btw.onEvent(ownerId, (event) =>
+        handleBtwEvent(ownerId, event)
+      )
+      btwSubscriptionsRef.current.set(ownerId, unsub)
+    },
+    [handleBtwEvent]
+  )
+
+  const handleBtwAsk = useCallback(
+    async (text: string) => {
+      if (!selected) return
+      const ownerId = selected.sessionId
+      ensureBtwSubscription(ownerId)
+      const userBlock: Block = { kind: 'user-text', text }
+      const mainHistorySnap = messagesBySession[ownerId] ?? []
+      const btwHistorySnap = btwMessagesBySession[ownerId] ?? []
+      const systemPrompt = buildBtwSystemPrompt(mainHistorySnap, btwHistorySnap)
+
+      setBtwMessagesBySession((prev) => ({
+        ...prev,
+        [ownerId]: [...(prev[ownerId] ?? []), userBlock]
+      }))
+      setBtwThinkingBySession((prev) => ({ ...prev, [ownerId]: true }))
+
+      try {
+        await window.api.btw.ask({
+          ownerId,
+          workspacePath: selected.workspacePath,
+          systemPrompt,
+          question: text
+        })
+      } catch (err) {
+        setBtwMessagesBySession((prev) => ({
+          ...prev,
+          [ownerId]: [
+            ...(prev[ownerId] ?? []),
+            { kind: 'error', text: `BTW 시작 실패: ${String(err)}` }
+          ]
+        }))
+        setBtwThinkingBySession((prev) => ({ ...prev, [ownerId]: false }))
+      }
+    },
+    [selected, messagesBySession, btwMessagesBySession, ensureBtwSubscription]
+  )
+
+  const handleBtwCancel = useCallback(async () => {
+    if (!selected) return
+    const ownerId = selected.sessionId
+    try {
+      await window.api.btw.cancel(ownerId)
+    } catch (err) {
+      console.error('btw cancel failed:', err)
+    }
+    setBtwThinkingBySession((prev) =>
+      prev[ownerId] ? { ...prev, [ownerId]: false } : prev
+    )
+  }, [selected])
+
+  const handleBtwClear = useCallback(() => {
+    if (!selected) return
+    const ownerId = selected.sessionId
+    setBtwMessagesBySession((prev) => {
+      if (!(ownerId in prev)) return prev
+      const next = { ...prev }
+      delete next[ownerId]
+      return next
+    })
+  }, [selected])
+
+  const handleToggleSideChat = useCallback(() => {
+    setSideChatCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem('hongluade.sideChatCollapsed', next ? '1' : '0')
+      return next
+    })
+  }, [])
+
   const ensureClaudeSubscription = useCallback(
     (sessionId: string) => {
       if (subscriptionsRef.current.has(sessionId)) return
@@ -326,6 +431,21 @@ function App(): React.JSX.Element {
   const startAppLive = useCallback(
     async (sessionId: string, workspacePath: string, mode: ActiveMode) => {
       ensureClaudeSubscription(sessionId)
+      // claude -p emits system/init only on the first turn, so seed the
+      // permission mode now (main/session.ts forces bypassPermissions on spawn)
+      // — model fills in once init arrives; UsageBar shows a "default" placeholder
+      // in the meantime.
+      setStatusBySession((prev) => {
+        if (prev[sessionId]?.permissionMode) return prev
+        return {
+          ...prev,
+          [sessionId]: {
+            ...prev[sessionId],
+            thinking: prev[sessionId]?.thinking ?? false,
+            permissionMode: 'bypassPermissions'
+          }
+        }
+      })
       try {
         await window.api.claude.startSession(
           workspacePath,
@@ -357,7 +477,6 @@ function App(): React.JSX.Element {
         ...prev,
         [sessionId]: { workspacePath, mode, backend }
       }))
-      setLastActivityBySession((prev) => ({ ...prev, [sessionId]: Date.now() }))
       if (backend === 'terminal') {
         setTerminalReady((prev) => ({ ...prev, [sessionId]: false }))
       }
@@ -782,9 +901,12 @@ function App(): React.JSX.Element {
   // Cleanup all subscriptions on unmount
   useEffect(() => {
     const subs = subscriptionsRef.current
+    const btwSubs = btwSubscriptionsRef.current
     return () => {
       for (const unsub of subs.values()) unsub()
       subs.clear()
+      for (const unsub of btwSubs.values()) unsub()
+      btwSubs.clear()
     }
   }, [])
 
@@ -891,7 +1013,6 @@ function App(): React.JSX.Element {
         active={active}
         messagesBySession={messagesBySession}
         aliasesBySession={aliasesBySession}
-        lastActivityBySession={lastActivityBySession}
         onAddWorkspace={addWorkspaceDialog}
         onRemoveWorkspace={handleRemoveWorkspace}
         onReorderWorkspaces={handleReorderWorkspaces}
@@ -959,6 +1080,16 @@ function App(): React.JSX.Element {
           </div>
         )}
       </div>
+      <SideChatPanel
+        enabled={!!selected}
+        messages={selected ? (btwMessagesBySession[selected.sessionId] ?? []) : []}
+        thinking={selected ? !!btwThinkingBySession[selected.sessionId] : false}
+        collapsed={sideChatCollapsed}
+        onToggleCollapse={handleToggleSideChat}
+        onAsk={handleBtwAsk}
+        onCancel={handleBtwCancel}
+        onClear={handleBtwClear}
+      />
       <FindBar
         open={findOpen}
         mode={findMode}
