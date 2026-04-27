@@ -137,11 +137,10 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
     })
 
     // Ctrl+V: read clipboard and inject.
-    // Ctrl+C: 선택된 텍스트가 있으면 클립보드 복사 (Windows cmd 와 같은 패턴),
-    //         없으면 xterm 의 default — \x03 (SIGINT) 을 PTY 에 전달.
-    //         Ctrl+Shift+C 는 그대로 통과 (DevTools 등 별도 단축키).
     // customKeyEventHandler fires inside xterm's own keydown handler, fine for
-    // keys that don't conflict with IME.
+    // keys that don't conflict with IME. Ctrl+C 는 capture-phase hostKeyDown
+    // 에서 더 일찍 가로챈다 — customKeyEventHandler 가 어떤 이유로 우회되는
+    // 케이스에서 신뢰성을 위해.
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true
       if (e.isComposing || e.keyCode === 229) return true
@@ -155,18 +154,6 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
           })
           .catch((err) => console.error('terminal paste failed:', err))
         return false
-      }
-      if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'c' || e.key === 'C')) {
-        if (e.shiftKey) return true
-        const sel = term.getSelection()
-        if (sel) {
-          e.preventDefault()
-          void navigator.clipboard
-            .writeText(sel)
-            .catch((err) => console.error('terminal copy failed:', err))
-          return false
-        }
-        return true
       }
       return true
     })
@@ -189,6 +176,27 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
     //   browser event that xterm subscribes to independently of keydown.
     const hostEl = containerRef.current
     const hostKeyDown = (e: KeyboardEvent): void => {
+      // Ctrl+C — 무조건 복사 모드. 선택 있으면 클립보드에 쓰고, 없으면 그냥
+      // 무시 (SIGINT \x03 도 PTY 에 안 보냄). Ctrl+Shift+C 는 통과 (DevTools).
+      if (
+        e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        !e.shiftKey &&
+        (e.key === 'c' || e.key === 'C')
+      ) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        const term = termRef.current
+        const sel = term?.getSelection()
+        if (sel) {
+          void navigator.clipboard
+            .writeText(sel)
+            .catch((err) => console.error('terminal copy failed:', err))
+        }
+        return
+      }
+
       if (e.key !== 'Enter') return
 
       // Case 1: IME is composing → swallow Enter so xterm doesn't append \r
