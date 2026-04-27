@@ -308,6 +308,27 @@ function App(): React.JSX.Element {
         }
       }
 
+      // assistant chunk 도착 = thinking 진행 중 신호. terminal 백엔드는
+      // ChatPane 을 안 거치므로 onTurnStart 호출이 없어 이게 thinking=true
+      // 의 유일한 트리거. stream-json / interactive 백엔드는 onTurnStart 가
+      // 이미 true 로 set 했으니 idempotent.
+      const ev = event as { type?: string; parent_tool_use_id?: unknown; isSidechain?: unknown }
+      if (
+        ev?.type === 'assistant' &&
+        ev.parent_tool_use_id == null &&
+        ev.isSidechain !== true &&
+        !isAssistantTurnEnd(event)
+      ) {
+        setStatusBySession((prev) => {
+          const cur = prev[sessionId]
+          if (cur?.thinking) return prev
+          return {
+            ...prev,
+            [sessionId]: { ...cur, thinking: true }
+          }
+        })
+      }
+
       // 'interactive' 백엔드는 stream-json result 이벤트가 없으니 assistant
       // record 의 stop_reason='end_turn'/'stop_sequence' 로 turn 종료를 감지.
       // stream-json 모드에서도 결국 result 가 곧 따라오니 idempotent.
@@ -486,6 +507,58 @@ function App(): React.JSX.Element {
     },
     [handleClaudeEvent]
   )
+
+  // 'terminal' 백엔드는 ChatPane 을 안 거치므로 jsonl watch 가 없다 — App 측에서
+  // 직접 watch 등록해 status 만 추출 (사이드바의 thinking dot, model 라벨 등).
+  // messages append 는 안 함 (terminal 은 xterm raw 가 본체).
+  // 'interactive' 는 ChatPane 이 자체 처리하니 여기서 스킵 — 중복 watch 회피.
+  useEffect(() => {
+    const cleanups: Array<() => void> = []
+    for (const [sessionId, a] of Object.entries(active)) {
+      if (a.backend !== 'terminal') continue
+      const wsPath = a.workspacePath
+      let offset = 0
+      let cancelled = false
+
+      const init = async (): Promise<void> => {
+        try {
+          // 마지막 라인 1개만 읽어 현재 offset 잡고 시작 — 과거 이벤트 다시 처리 방지.
+          const tail = await window.api.claude.readSessionTail(wsPath, sessionId, 1)
+          if (cancelled) return
+          offset = tail.newOffset
+          for (const event of tail.events) {
+            handleClaudeEvent(sessionId, event, { appendMessages: false })
+          }
+        } catch (err) {
+          console.error('terminal jsonl init failed:', err)
+        }
+      }
+
+      void init()
+      void window.api.claude.watchSession(wsPath, sessionId)
+      const unsub = window.api.claude.onSessionChanged(sessionId, () => {
+        void window.api.claude.readSessionFrom(wsPath, sessionId, offset).then(
+          ({ events, newOffset, truncated }) => {
+            if (cancelled) return
+            offset = newOffset
+            if (truncated) return
+            for (const event of events) {
+              handleClaudeEvent(sessionId, event, { appendMessages: false })
+            }
+          }
+        )
+      })
+
+      cleanups.push(() => {
+        cancelled = true
+        unsub()
+        void window.api.claude.unwatchSession(sessionId)
+      })
+    }
+    return () => {
+      for (const c of cleanups) c()
+    }
+  }, [active, handleClaudeEvent])
 
   const startAppLive = useCallback(
     async (sessionId: string, workspacePath: string, mode: ActiveMode) => {
