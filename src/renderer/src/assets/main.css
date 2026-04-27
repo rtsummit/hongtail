@@ -99,7 +99,7 @@
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 10px;
   padding: 10px;
   overflow: hidden;
@@ -169,7 +169,6 @@
 .date-filter {
   display: flex;
   gap: 4px;
-  margin: 6px 0 8px;
   padding: 0 2px;
 }
 
