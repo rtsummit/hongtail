@@ -14,6 +14,7 @@ import { registerUsageCacheHandlers } from './usageCache'
 import { registerImageHandlers } from './images'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
+import { startWebServer, stopWebServer } from './web'
 
 const TEST_INSTANCE = process.env.HONGLUADE_TEST === '1'
 const APP_NAME = TEST_INSTANCE ? 'hongluade_test' : 'hongluade'
@@ -104,6 +105,7 @@ app.whenReady().then(() => {
   createWindow()
 
   startRpcServer(() => BrowserWindow.getAllWindows()[0] ?? null)
+  startWebServer()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
@@ -129,6 +131,7 @@ app.on('before-quit', () => {
   killAllBtw()
   killAllPty()
   stopRpcServer()
+  stopWebServer()
 })
 
 // In this file you can include the rest of your app's specific main process
