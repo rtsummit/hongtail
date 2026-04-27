@@ -1,8 +1,9 @@
-import { ipcMain, BrowserWindow, type WebContents } from 'electron'
 import { spawn, type ChildProcess } from 'child_process'
 import { randomUUID } from 'crypto'
 import { createInterface } from 'readline'
 import { refreshUsageCacheIfStale } from './usageCache'
+import { registerInvoke } from './ipc'
+import { broadcast } from './dispatch'
 
 interface Session {
   id: string
@@ -16,16 +17,10 @@ function eventChannel(sessionId: string): string {
   return `claude:event:${sessionId}`
 }
 
-function emit(sender: WebContents, sessionId: string, event: unknown): void {
-  if (sender.isDestroyed()) return
-  sender.send(eventChannel(sessionId), event)
-}
-
 function spawnClaude(
   workspacePath: string,
   sessionId: string,
-  isResume: boolean,
-  sender: WebContents
+  isResume: boolean
 ): ChildProcess {
   const baseArgs = [
     '-p',
@@ -54,34 +49,35 @@ function spawnClaude(
     windowsHide: true
   })
 
+  const channel = eventChannel(sessionId)
   if (child.stdout) {
     const rl = createInterface({ input: child.stdout, crlfDelay: Infinity })
     rl.on('line', (line) => {
       if (!line.trim()) return
       try {
         const event = JSON.parse(line)
-        emit(sender, sessionId, event)
+        broadcast(channel, event)
         const t = (event as { type?: string }).type
         if (t === 'result' || t === 'rate_limit_event') {
           refreshUsageCacheIfStale()
         }
       } catch {
-        emit(sender, sessionId, { type: 'parse_error', raw: line })
+        broadcast(channel, { type: 'parse_error', raw: line })
       }
     })
   }
 
   child.stderr?.on('data', (data) => {
-    emit(sender, sessionId, { type: 'stderr', data: String(data) })
+    broadcast(channel, { type: 'stderr', data: String(data) })
   })
 
   child.on('close', (code) => {
-    emit(sender, sessionId, { type: 'closed', code })
+    broadcast(channel, { type: 'closed', code })
     sessions.delete(sessionId)
   })
 
   child.on('error', (err) => {
-    emit(sender, sessionId, { type: 'spawn_error', error: err.message })
+    broadcast(channel, { type: 'spawn_error', error: err.message })
     sessions.delete(sessionId)
   })
 
@@ -95,8 +91,8 @@ interface StartArgs {
 }
 
 export function registerSessionHandlers(): void {
-  ipcMain.handle('claude:start-session', async (event, args: StartArgs) => {
-    const sender = event.sender
+  registerInvoke('claude:start-session', (rawArgs: unknown) => {
+    const args = rawArgs as StartArgs
     const sessionId = args.sessionId ?? randomUUID()
 
     const existing = sessions.get(sessionId)
@@ -104,43 +100,40 @@ export function registerSessionHandlers(): void {
       return { sessionId, alreadyRunning: true }
     }
 
-    const child = spawnClaude(args.workspacePath, sessionId, args.mode === 'resume', sender)
+    const child = spawnClaude(args.workspacePath, sessionId, args.mode === 'resume')
     sessions.set(sessionId, { id: sessionId, workspacePath: args.workspacePath, child })
     return { sessionId, alreadyRunning: false }
   })
 
-  ipcMain.handle('claude:send-input', async (_, sessionId: string, text: string) => {
-    const session = sessions.get(sessionId)
+  registerInvoke('claude:send-input', (sessionId: unknown, text: unknown) => {
+    const session = sessions.get(String(sessionId))
     if (!session?.child.stdin) {
-      throw new Error(`Session ${sessionId} not running`)
+      throw new Error(`Session ${String(sessionId)} not running`)
     }
     const payload = JSON.stringify({
       type: 'user',
-      message: { role: 'user', content: text }
+      message: { role: 'user', content: String(text) }
     })
     session.child.stdin.write(payload + '\n')
   })
 
-  ipcMain.handle(
-    'claude:control-request',
-    async (_, sessionId: string, request: Record<string, unknown>) => {
-      const session = sessions.get(sessionId)
-      if (!session?.child.stdin) {
-        throw new Error(`Session ${sessionId} not running`)
-      }
-      const requestId = randomUUID()
-      const payload = JSON.stringify({
-        type: 'control_request',
-        request_id: requestId,
-        request
-      })
-      session.child.stdin.write(payload + '\n')
-      return requestId
+  registerInvoke('claude:control-request', (sessionId: unknown, request: unknown) => {
+    const session = sessions.get(String(sessionId))
+    if (!session?.child.stdin) {
+      throw new Error(`Session ${String(sessionId)} not running`)
     }
-  )
+    const requestId = randomUUID()
+    const payload = JSON.stringify({
+      type: 'control_request',
+      request_id: requestId,
+      request
+    })
+    session.child.stdin.write(payload + '\n')
+    return requestId
+  })
 
-  ipcMain.handle('claude:stop-session', async (_, sessionId: string) => {
-    const session = sessions.get(sessionId)
+  registerInvoke('claude:stop-session', (sessionId: unknown) => {
+    const session = sessions.get(String(sessionId))
     if (!session) return
     try {
       session.child.stdin?.end()
@@ -148,12 +141,10 @@ export function registerSessionHandlers(): void {
       /* ignore */
     }
     session.child.kill()
-    sessions.delete(sessionId)
+    sessions.delete(String(sessionId))
   })
 
-  ipcMain.handle('claude:list-running', async () => {
-    return Array.from(sessions.keys())
-  })
+  registerInvoke('claude:list-running', () => Array.from(sessions.keys()))
 }
 
 export function killAllSessions(): void {
@@ -165,10 +156,4 @@ export function killAllSessions(): void {
     }
   }
   sessions.clear()
-}
-
-export function broadcast(event: string, data: unknown): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send(event, data)
-  }
 }

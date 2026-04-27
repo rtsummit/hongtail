@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
 import { homedir } from 'os'
 import { promises as fsp } from 'fs'
 import { join } from 'path'
+import { registerInvoke } from './ipc'
 
 const SAFE_SESSION_ID = /^[A-Za-z0-9._-]+$/
 
@@ -45,10 +45,22 @@ export async function saveImage(
 }
 
 export function registerImageHandlers(): void {
-  ipcMain.handle(
+  // bytes 는 Electron IPC 면 Uint8Array, web 이면 base64 문자열로 들어올 수
+  // 있다 (JSON 으로 바이너리 못 보냄). 후자면 디코드.
+  registerInvoke(
     'images:save',
-    async (_e, sessionId: string, bytes: Uint8Array, mimeType: string) => {
-      return await saveImage(sessionId, bytes, mimeType)
+    (sessionId: unknown, bytes: unknown, mimeType: unknown) => {
+      let buf: Uint8Array
+      if (bytes instanceof Uint8Array) {
+        buf = bytes
+      } else if (typeof bytes === 'string') {
+        buf = Buffer.from(bytes, 'base64')
+      } else if (Array.isArray(bytes)) {
+        buf = Uint8Array.from(bytes as number[])
+      } else {
+        throw new Error('unsupported bytes payload')
+      }
+      return saveImage(String(sessionId), buf, String(mimeType))
     }
   )
 }

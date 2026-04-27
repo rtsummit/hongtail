@@ -1,4 +1,3 @@
-import { ipcMain, type WebContents } from 'electron'
 import { spawn, type ChildProcess } from 'child_process'
 import { createInterface } from 'readline'
 import { promises as fsp } from 'fs'
@@ -6,6 +5,8 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { projectDir } from './claude'
 import { refreshUsageCacheIfStale } from './usageCache'
+import { registerInvoke } from './ipc'
+import { broadcast } from './dispatch'
 
 interface BtwProc {
   child: ChildProcess
@@ -18,11 +19,6 @@ const procs = new Map<string, BtwProc>()
 
 function eventChannel(ownerId: string): string {
   return `btw:event:${ownerId}`
-}
-
-function emit(sender: WebContents, ownerId: string, event: unknown): void {
-  if (sender.isDestroyed()) return
-  sender.send(eventChannel(ownerId), event)
 }
 
 interface AskArgs {
@@ -61,11 +57,7 @@ async function deleteBtwSessionFile(cwd: string, sessionId: string): Promise<voi
 // Windows cmd.exe mangles non-ASCII (Korean) in positional args and has an
 // 8191-char arg limit. We bypass both by writing the system prompt to a temp
 // file (--append-system-prompt-file) and piping the question through stdin.
-function spawnBtw(
-  args: AskArgs,
-  sender: WebContents,
-  promptFile: string
-): ChildProcess {
+function spawnBtw(args: AskArgs, promptFile: string): ChildProcess {
   const cliArgs = [
     '-p',
     '--tools',
@@ -92,6 +84,7 @@ function spawnBtw(
     child.stdin.end()
   }
 
+  const channel = eventChannel(args.ownerId)
   if (child.stdout) {
     const rl = createInterface({ input: child.stdout, crlfDelay: Infinity })
     rl.on('line', (line) => {
@@ -103,19 +96,19 @@ function spawnBtw(
           const proc = procs.get(args.ownerId)
           if (proc && !proc.sessionId) proc.sessionId = sessId
         }
-        emit(sender, args.ownerId, event)
+        broadcast(channel, event)
         const t = (event as { type?: string }).type
         if (t === 'result' || t === 'rate_limit_event') {
           refreshUsageCacheIfStale()
         }
       } catch {
-        emit(sender, args.ownerId, { type: 'parse_error', raw: line })
+        broadcast(channel, { type: 'parse_error', raw: line })
       }
     })
   }
 
   child.stderr?.on('data', (data) => {
-    emit(sender, args.ownerId, { type: 'stderr', data: String(data) })
+    broadcast(channel, { type: 'stderr', data: String(data) })
   })
 
   const cleanup = (): void => {
@@ -128,12 +121,12 @@ function spawnBtw(
   }
 
   child.on('close', (code) => {
-    emit(sender, args.ownerId, { type: 'closed', code })
+    broadcast(channel, { type: 'closed', code })
     cleanup()
   })
 
   child.on('error', (err) => {
-    emit(sender, args.ownerId, { type: 'spawn_error', error: err.message })
+    broadcast(channel, { type: 'spawn_error', error: err.message })
     cleanup()
   })
 
@@ -141,7 +134,8 @@ function spawnBtw(
 }
 
 export function registerBtwHandlers(): void {
-  ipcMain.handle('btw:ask', async (event, args: AskArgs) => {
+  registerInvoke('btw:ask', async (rawArgs: unknown) => {
+    const args = rawArgs as AskArgs
     const existing = procs.get(args.ownerId)
     if (existing) {
       try {
@@ -156,7 +150,7 @@ export function registerBtwHandlers(): void {
       }
     }
     const promptFile = await writePromptFile(args.systemPrompt)
-    const child = spawnBtw(args, event.sender, promptFile)
+    const child = spawnBtw(args, promptFile)
     procs.set(args.ownerId, {
       child,
       cwd: args.workspacePath,
@@ -165,8 +159,8 @@ export function registerBtwHandlers(): void {
     })
   })
 
-  ipcMain.handle('btw:cancel', async (_, ownerId: string) => {
-    const p = procs.get(ownerId)
+  registerInvoke('btw:cancel', (ownerId: unknown) => {
+    const p = procs.get(String(ownerId))
     if (!p) return
     try {
       p.child.kill()
