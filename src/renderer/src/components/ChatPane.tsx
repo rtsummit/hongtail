@@ -63,6 +63,10 @@ interface Props {
   onSetPermissionMode: (sessionId: string, mode: string) => void
   onSetModel: (sessionId: string, model: string) => void
   onInterrupt: (sessionId: string) => void
+  // 'interactive' 백엔드 라이브에서 jsonl tail 로 받은 raw event 들을
+  // 그대로 App 으로 흘려서 status 추출 (UsageBar) 만 돌리게 한다.
+  // readonly 일 때는 호출 안 함 — 라이브 아님.
+  onLiveJsonlEvents?: (sessionId: string, events: unknown[]) => void
 }
 
 function isLiveMode(mode: SessionMode): boolean {
@@ -95,7 +99,8 @@ function ChatPane({
   onTurnStart,
   onSetPermissionMode,
   onSetModel,
-  onInterrupt
+  onInterrupt,
+  onLiveJsonlEvents
 }: Props): React.JSX.Element {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -333,6 +338,9 @@ function ChatPane({
         setShownFromLine(firstShown)
         shownFromLineRef.current = firstShown
         onReplaceBlocks(sessionId, blocks)
+        if (isInteractiveLive && onLiveJsonlEvents) {
+          onLiveJsonlEvents(sessionId, events)
+        }
       } catch (err) {
         if (cancelled) return
         onReplaceBlocks(sessionId, [
@@ -361,6 +369,9 @@ function ChatPane({
         for (const e of events) newBlocks.push(...parseClaudeEvent(e))
         offset = newOffset
         if (newBlocks.length > 0) onAppendBlocks(sessionId, newBlocks)
+        if (isInteractiveLive && onLiveJsonlEvents) {
+          onLiveJsonlEvents(sessionId, events)
+        }
       } catch (err) {
         console.error('incremental read failed:', err)
       }
@@ -377,7 +388,7 @@ function ChatPane({
       unsubscribe()
       void window.api.claude.unwatchSession(sessionId)
     }
-  }, [selected, onReplaceBlocks, onAppendBlocks, chunkSize])
+  }, [selected, onReplaceBlocks, onAppendBlocks, onLiveJsonlEvents, chunkSize])
 
   const loadMore = useCallback(async () => {
     if (loadingMoreRef.current) return

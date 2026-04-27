@@ -178,10 +178,14 @@ function App(): React.JSX.Element {
   }, [])
 
   const handleClaudeEvent = useCallback(
-    (sessionId: string, event: unknown) => {
-      const parsed = parseClaudeEvent(event)
-      if (parsed.length > 0) {
-        appendBlocks(sessionId, parsed)
+    (sessionId: string, event: unknown, options?: { appendMessages?: boolean }) => {
+      // jsonl tail 흐름이 ChatPane 에서 이미 messages 를 onAppendBlocks 로
+      // 그렸을 때 중복 append 방지를 위해 status 추출만 돌리는 옵션.
+      if (options?.appendMessages !== false) {
+        const parsed = parseClaudeEvent(event)
+        if (parsed.length > 0) {
+          appendBlocks(sessionId, parsed)
+        }
       }
 
       const usage = extractUsage(event)
@@ -460,6 +464,19 @@ function App(): React.JSX.Element {
     [handleClaudeEvent]
   )
 
+  // 'interactive' 백엔드의 jsonl tail 흐름이 ChatPane 안에서 일어나지만 status
+  // 추출 (UsageBar 의 model / contextTokens / thinking 종료 등) 은 App 의
+  // setStatusBySession 만 본다. 그래서 ChatPane 이 raw events 배열을 그대로
+  // 흘려주면 여기서 messages append 는 빼고 status 만 처리.
+  const handleLiveJsonlEvents = useCallback(
+    (sessionId: string, events: unknown[]) => {
+      for (const event of events) {
+        handleClaudeEvent(sessionId, event, { appendMessages: false })
+      }
+    },
+    [handleClaudeEvent]
+  )
+
   const startAppLive = useCallback(
     async (sessionId: string, workspacePath: string, mode: ActiveMode) => {
       ensureClaudeSubscription(sessionId)
@@ -734,9 +751,16 @@ function App(): React.JSX.Element {
     async (sessionId: string) => {
       try {
         if (isInteractiveBackend(sessionId)) {
-          // claude TUI 는 ESC 로 진행 중 turn 을 중단. thinking=false 는 곧
-          // jsonl 의 다음 record 로 자연스럽게 끝남 (또는 사용자 다음 입력).
-          await window.api.pty.write(sessionId, '\x1b')
+          // claude TUI 의 인터럽트. ESC 한 번이 input clear 정도로 흡수되는
+          // 케이스가 있어 두 번 보낸다 — 두 번째가 진행 중 turn 의 cancel 로 처리.
+          // 더불어 thinking=false 를 즉시 적용 — 인터럽트가 정상 처리됐다면 잠시
+          // 후 jsonl 에서 검증되고, 안 됐어도 사용자 입장에선 즉시 idle 표시.
+          await window.api.pty.write(sessionId, '\x1b\x1b')
+          setStatusBySession((prev) => {
+            const cur = prev[sessionId]
+            if (!cur || cur.thinking === false) return prev
+            return { ...prev, [sessionId]: { ...cur, thinking: false } }
+          })
           return
         }
         const requestId = await window.api.claude.controlRequest(sessionId, {
@@ -1142,6 +1166,7 @@ function App(): React.JSX.Element {
             onSetPermissionMode={handleSetPermissionMode}
             onSetModel={handleSetModel}
             onInterrupt={handleInterrupt}
+            onLiveJsonlEvents={handleLiveJsonlEvents}
           />
         )}
         {isStartingTerminal && (
