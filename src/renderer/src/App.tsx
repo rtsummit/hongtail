@@ -62,11 +62,15 @@ function App(): React.JSX.Element {
   const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
   const activeTerminalRef = useRef<TerminalSearchHandle | null>(null)
 
-  // Ctrl+Tab 토글용 — 직전 selected 한 개를 기억해서 두 세션 사이 왕복.
-  // prevSelectedRef 는 마지막 렌더 시점의 selected (effect 가 commit 후 갱신),
-  // lastSelectedRef 는 그 이전 selected (= "직전" 세션, Ctrl+Tab 의 jump 목적지).
-  const lastSelectedRef = useRef<SelectedSession | null>(null)
-  const prevSelectedRef = useRef<SelectedSession | null>(null)
+  // Ctrl+Tab MRU cycling — VS Code 패턴.
+  //   mruRef : most-recently-used selected 들의 stack ([0] = 가장 최근).
+  //   cyclingRef / cycleIdxRef : Ctrl 누르고 있는 동안의 cycle 상태. Ctrl 떼는
+  //     순간 현재 위치의 세션이 head 로 확정되며 cycle 종료.
+  //   - Ctrl+Tab        → mru 의 다음 (idx +1) 으로
+  //   - Ctrl+Shift+Tab  → 반대 방향 (idx -1)
+  const mruRef = useRef<SelectedSession[]>([])
+  const cyclingRef = useRef(false)
+  const cycleIdxRef = useRef(0)
 
   const defaultBackend = settings.defaultBackend
   const setDefaultBackend = useCallback((b: Backend) => {
@@ -1029,33 +1033,64 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [findOpen])
 
-  // selected 변경 추적 — render commit 후 fire 라 직전 값을 lastSelectedRef 에 저장.
-  // 같은 sessionId 로의 객체 교체 (status seed 등) 는 토글 대상 아님.
+  // selected 변경 시 MRU 갱신. cycle 중에는 갱신 skip — cycle 끝나는 시점에
+  // 한 번에 정리 (finishCycle).
   useEffect(() => {
-    if (
-      prevSelectedRef.current &&
-      prevSelectedRef.current.sessionId !== selected?.sessionId
-    ) {
-      lastSelectedRef.current = prevSelectedRef.current
-    }
-    prevSelectedRef.current = selected
+    if (cyclingRef.current) return
+    if (!selected) return
+    const cur = selected
+    mruRef.current = [
+      cur,
+      ...mruRef.current.filter((s) => s.sessionId !== cur.sessionId)
+    ]
   }, [selected])
 
-  // Global Ctrl+Tab — 직전 선택 세션으로 점프 (브라우저 탭 토글 패턴).
-  // Shift 여부는 무시 (Ctrl+Tab / Ctrl+Shift+Tab 둘 다 같은 토글).
+  const finishCycle = useCallback(() => {
+    if (!cyclingRef.current) return
+    cyclingRef.current = false
+    cycleIdxRef.current = 0
+    if (selected) {
+      const cur = selected
+      mruRef.current = [
+        cur,
+        ...mruRef.current.filter((s) => s.sessionId !== cur.sessionId)
+      ]
+    }
+  }, [selected])
+
+  // Global Ctrl+Tab MRU cycling.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
+    const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key !== 'Tab' || !e.ctrlKey || e.altKey || e.metaKey) return
       if (e.isComposing || e.keyCode === 229) return
-      const last = lastSelectedRef.current
-      if (!last) return
+      const mru = mruRef.current
+      if (mru.length < 2) return
       e.preventDefault()
-      e.stopPropagation()
-      handleSelect(last)
+      e.stopImmediatePropagation()
+      const dir = e.shiftKey ? -1 : 1
+      if (!cyclingRef.current) {
+        cyclingRef.current = true
+        cycleIdxRef.current = dir > 0 ? 1 : mru.length - 1
+      } else {
+        cycleIdxRef.current =
+          (cycleIdxRef.current + dir + mru.length) % mru.length
+      }
+      const target = mru[cycleIdxRef.current]
+      if (target) handleSelect(target)
     }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [handleSelect])
+    const onKeyUp = (e: KeyboardEvent): void => {
+      if (e.key === 'Control') finishCycle()
+    }
+    const onBlur = (): void => finishCycle()
+    window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('keyup', onKeyUp, true)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('keyup', onKeyUp, true)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [handleSelect, finishCycle])
 
   // Global Shift+Tab to cycle permission mode on the active app session.
   useEffect(() => {
