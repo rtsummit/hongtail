@@ -207,7 +207,23 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
         return
       }
 
-      // Case 2: Shift+Enter (no composition) → send Alt+Enter sequence (\x1b\r)
+      // Case 2: plain Enter while a selection exists → copy + clear selection.
+      // Windows Terminal / PuTTY 패턴: 선택 있을 때 Enter 가 복사로 동작.
+      if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const term = termRef.current
+        const sel = term?.getSelection()
+        if (sel) {
+          e.preventDefault()
+          e.stopImmediatePropagation()
+          void navigator.clipboard
+            .writeText(sel)
+            .catch((err) => console.error('terminal copy failed:', err))
+          term?.clearSelection()
+          return
+        }
+      }
+
+      // Case 3: Shift+Enter (no composition) → send Alt+Enter sequence (\x1b\r)
       // which Ink-based TUIs (claude CLI) interpret as "newline within input"
       // instead of "submit". claude's own VSCode setup uses the same mapping.
       if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
