@@ -46,10 +46,13 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
   return '새로운 대화'
 }
 
-// 날짜 필터: 최근 N일 안에 활동 (jsonl mtime) 한 readonly 세션만 표시.
-// null = 모두 표시. live 세션은 필터 영향 안 받음 (지금 활동 중이라 항상 표시).
+// 사이드바 필터 옵션:
+// - 숫자 (1 / 3 / 7): 최근 N일 안에 활동 (jsonl mtime) 한 readonly 세션만 표시
+// - 'active': readonly 다 숨김. live 세션만 보고 싶을 때
+// - null: 모두 표시
+// live / fresh 세션은 'active' 외 어떤 모드에서도 항상 표시 (지금 활동 중이라).
 const FILTER_KEY = 'hongluade.dateFilter'
-type DateFilter = 1 | 3 | 7 | null
+type DateFilter = 1 | 3 | 7 | 'active' | null
 
 function Sidebar({
   workspaces,
@@ -73,6 +76,7 @@ function Sidebar({
   const [dateFilter, setDateFilter] = useState<DateFilter>(() => {
     const raw = localStorage.getItem(FILTER_KEY)
     if (raw === '1' || raw === '3' || raw === '7') return Number(raw) as 1 | 3 | 7
+    if (raw === 'active') return 'active'
     return null
   })
   const updateDateFilter = (next: DateFilter): void => {
@@ -112,8 +116,8 @@ function Sidebar({
       </button>
 
       <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
-        {([1, 3, 7, null] as const).map((v) => {
-          const label = v == null ? '모두' : `${v}일`
+        {([1, 3, 7, 'active', null] as const).map((v) => {
+          const label = v == null ? '모두' : v === 'active' ? '활성' : `${v}일`
           const active = dateFilter === v
           return (
             <button

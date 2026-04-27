@@ -16,9 +16,12 @@ interface Props {
   aliasesBySession: Record<string, SessionAlias>
   statusBySession: Record<string, SessionStatus>
   selectedId: string | null
-  // 최근 N일 안에 활동한 readonly 세션만 표시. null = 모두.
-  // live 세션과 fresh 는 필터 영향 안 받음.
-  dateFilterDays: 1 | 3 | 7 | null
+  // 사이드바 필터:
+  //   숫자 = 최근 N일 안에 활동한 readonly 세션만 표시
+  //   'active' = readonly 다 숨김 (라이브만)
+  //   null = 모두
+  // live / fresh 는 'active' 외 모드에서 항상 표시.
+  dateFilterDays: 1 | 3 | 7 | 'active' | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
@@ -142,6 +145,7 @@ function WorkspaceCard({
   const graduatedLives = liveExt.filter((s) => s.graduated)
   const filteredPast = (sessions ?? []).filter((s) => {
     if (liveIds.has(s.id)) return false
+    if (dateFilterDays === 'active') return false
     if (dateFilterDays == null) return true
     const cutoff = Date.now() - dateFilterDays * 24 * 60 * 60 * 1000
     return s.lastActivityMs >= cutoff
