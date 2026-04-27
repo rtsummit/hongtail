@@ -1273,8 +1273,8 @@ function App(): React.JSX.Element {
             selected.backend === 'terminal'
           const command =
             t.mode === 'new'
-              ? `claude --session-id ${t.sessionId}`
-              : `claude --resume ${t.sessionId}`
+              ? `claude --permission-mode bypassPermissions --session-id ${t.sessionId}`
+              : `claude --permission-mode bypassPermissions --resume ${t.sessionId}`
           return (
             <TerminalSession
               key={t.sessionId}
