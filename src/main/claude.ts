@@ -8,6 +8,7 @@ import {
 } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
+import { registerInvoke } from './ipc'
 import { createInterface } from 'readline'
 
 export interface ClaudeSessionMeta {
@@ -384,28 +385,30 @@ function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
 }
 
 export function registerClaudeHandlers(): void {
-  ipcMain.handle('claude:list-sessions', async (_, cwd: string) => listSessions(cwd))
-  ipcMain.handle('claude:delete-session', async (_, cwd: string, sessionId: string) => {
-    await deleteSession(cwd, sessionId)
-  })
-  ipcMain.handle('claude:read-session', async (_, cwd: string, sessionId: string) =>
-    readSession(cwd, sessionId)
+  registerInvoke('claude:list-sessions', (cwd: unknown) => listSessions(String(cwd)))
+  registerInvoke('claude:delete-session', (cwd: unknown, sessionId: unknown) =>
+    deleteSession(String(cwd), String(sessionId))
   )
-  ipcMain.handle(
+  registerInvoke('claude:read-session', (cwd: unknown, sessionId: unknown) =>
+    readSession(String(cwd), String(sessionId))
+  )
+  registerInvoke(
     'claude:read-session-from',
-    async (_, cwd: string, sessionId: string, fromOffset: number) =>
-      readSessionFromOffset(cwd, sessionId, fromOffset)
+    (cwd: unknown, sessionId: unknown, fromOffset: unknown) =>
+      readSessionFromOffset(String(cwd), String(sessionId), Number(fromOffset))
   )
-  ipcMain.handle(
+  registerInvoke(
     'claude:read-session-tail',
-    async (_, cwd: string, sessionId: string, tailLines: number) =>
-      readSessionTail(cwd, sessionId, tailLines)
+    (cwd: unknown, sessionId: unknown, tailLines: unknown) =>
+      readSessionTail(String(cwd), String(sessionId), Number(tailLines))
   )
-  ipcMain.handle(
+  registerInvoke(
     'claude:read-session-range',
-    async (_, cwd: string, sessionId: string, startLine: number, endLine: number) =>
-      readSessionRange(cwd, sessionId, startLine, endLine)
+    (cwd: unknown, sessionId: unknown, startLine: unknown, endLine: unknown) =>
+      readSessionRange(String(cwd), String(sessionId), Number(startLine), Number(endLine))
   )
+  // watch / unwatch 는 event.sender 의존 (webContents 별 구독). SSE 채널 forward
+  // 가 추가될 때까지는 ipcMain 만.
   ipcMain.handle('claude:watch-session', (event, cwd: string, sessionId: string) => {
     startWatch(event.sender, cwd, sessionId)
   })
