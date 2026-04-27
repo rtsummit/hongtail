@@ -84,6 +84,38 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
 - 세션 격리 없음 — 모든 클라이언트가 같은 view 를 본다. 이는 multi-device
   (나의 PC + 나의 폰) 가 같은 hongluade 인스턴스에 동시 붙는 의도된 동작.
 
+## 외부 노출
+
+집 밖 모바일에서도 접근하려면 LAN 만으로 부족. 옵션 (PoC 권장 순):
+
+### 1. tailscale (권장)
+zero-trust VPN. hongluade 호스트 PC + 모바일에 tailscale 설치 → 호스트에
+`HONGLUADE_WEB_HOST=127.0.0.1` 그대로 두고 tailscale 의 100.x.x.x 주소로
+모바일에서 접속. tailscale 자체가 인증 + 암호화 종단. 추가 설정 0, 외부에
+포트 안 열려도 된다.
+
+```powershell
+# 호스트 (default 127.0.0.1 binding 그대로)
+$env:HONGLUADE_WEB = "1"
+.\dist\hongluade-0.1.5-portable.exe
+# 모바일 → http://<tailscale-ip>:9879/?t=<token>
+```
+
+다만 default `127.0.0.1` binding 으로는 tailscale 인터페이스 IP 가 안 보임.
+`HONGLUADE_WEB_HOST=0.0.0.0` 또는 tailscale IP 명시 필요.
+
+### 2. cloudflare tunnel
+`cloudflared` 설치 후 `cloudflared tunnel --url http://127.0.0.1:9879`. 임시
+도메인 (또는 자기 도메인 연결) 생성 + 자동 TLS. hongluade 자체는 LAN 노출
+안 해도 됨 — cloudflared 가 outbound 만 사용. 도메인이 인터넷에 노출되어도
+인증 토큰이 있으면 안전 (그래도 토큰 노출 위험은 동일).
+
+### 3. reverse proxy + DDNS
+nginx + Let's Encrypt + 공유기 포트포워딩. 가장 손이 많이 가나 의존 외부
+서비스 0.
+
+PoC 단계 권장: **tailscale**. 외부 포트 노출 없이 내 디바이스만 접근 가능.
+
 ## 관련
 
 - `src/main/web.ts` — HTTP 서버, RPC dispatch, SSE fan-out
