@@ -1,6 +1,7 @@
 import { app, dialog, ipcMain, BrowserWindow } from 'electron'
 import { promises as fs } from 'fs'
 import { join } from 'path'
+import { registerInvoke } from './ipc'
 
 interface WorkspaceEntry {
   path: string
@@ -53,9 +54,9 @@ async function saveWorkspaces(entries: WorkspaceEntry[]): Promise<void> {
 }
 
 export function registerWorkspaceHandlers(): void {
-  ipcMain.handle('workspaces:load', async () => loadWorkspaces())
+  registerInvoke('workspaces:load', () => loadWorkspaces())
 
-  ipcMain.handle('workspaces:save', async (_, entries: unknown) => {
+  registerInvoke('workspaces:save', async (entries: unknown) => {
     if (!Array.isArray(entries)) return
     const normalized: WorkspaceEntry[] = []
     for (const item of entries) {
@@ -65,6 +66,7 @@ export function registerWorkspaceHandlers(): void {
     await saveWorkspaces(normalized)
   })
 
+  // pick-directory 는 OS 다이얼로그라 web 에서는 의미 무. ipcMain 에만.
   ipcMain.handle('workspaces:pick-directory', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     const result = win

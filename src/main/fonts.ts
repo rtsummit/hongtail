@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
 import { execFile } from 'child_process'
+import { registerInvoke } from './ipc'
 
 const FALLBACK_FONTS = [
   'Arial',
@@ -64,5 +64,5 @@ async function listFonts(): Promise<string[]> {
 }
 
 export function registerFontHandlers(): void {
-  ipcMain.handle('fonts:list', async () => listFonts())
+  registerInvoke('fonts:list', () => listFonts())
 }

@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
 import { homedir } from 'os'
 import { promises as fsp } from 'fs'
 import { join, relative, sep } from 'path'
+import { registerInvoke } from './ipc'
 
 export type CommandSource = 'builtin' | 'user' | 'project' | 'plugin'
 
@@ -154,7 +154,7 @@ export async function listSlashCommands(workspacePath?: string): Promise<SlashCo
 }
 
 export function registerSlashCommandHandlers(): void {
-  ipcMain.handle('slash-commands:list', async (_e, workspacePath?: string) => {
-    return listSlashCommands(workspacePath)
-  })
+  registerInvoke('slash-commands:list', (workspacePath?: unknown) =>
+    listSlashCommands(typeof workspacePath === 'string' ? workspacePath : undefined)
+  )
 }

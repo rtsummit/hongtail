@@ -1,8 +1,8 @@
-import { ipcMain } from 'electron'
 import { homedir } from 'os'
 import { promises as fsp } from 'fs'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
+import { registerInvoke } from './ipc'
 
 export interface UsageData {
   planName: string | null
@@ -181,7 +181,5 @@ export function refreshUsageCacheIfStale(): void {
 }
 
 export function registerUsageCacheHandlers(): void {
-  ipcMain.handle('usage:get', async () => {
-    return await readUsage()
-  })
+  registerInvoke('usage:get', () => readUsage())
 }

@@ -1,8 +1,9 @@
-import { app, ipcMain } from 'electron'
+import { app } from 'electron'
 import { promises as fs, createReadStream } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
+import { registerInvoke } from './ipc'
 
 export interface SessionAlias {
   alias: string
@@ -150,11 +151,11 @@ async function syncFromJsonl(
 }
 
 export function registerSessionAliasHandlers(): void {
-  ipcMain.handle('session-aliases:list', async () => loadAll())
-  ipcMain.handle('session-aliases:set', async (_, sessionId: string, alias: string) => {
-    return setAlias(sessionId, alias)
-  })
-  ipcMain.handle('session-aliases:sync', async (_, cwd: string, sessionId: string) => {
-    return syncFromJsonl(cwd, sessionId)
-  })
+  registerInvoke('session-aliases:list', () => loadAll())
+  registerInvoke('session-aliases:set', (sessionId: unknown, alias: unknown) =>
+    setAlias(String(sessionId), String(alias))
+  )
+  registerInvoke('session-aliases:sync', (cwd: unknown, sessionId: unknown) =>
+    syncFromJsonl(String(cwd), String(sessionId))
+  )
 }
