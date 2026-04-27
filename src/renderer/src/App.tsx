@@ -50,6 +50,9 @@ function App(): React.JSX.Element {
     const stored = Number(localStorage.getItem('hongluade.sidebarWidth'))
     return Number.isFinite(stored) && stored >= 180 && stored <= 600 ? stored : 240
   })
+  // 모바일에서만 의미 — 사이드바 toggle. 데스크톱은 CSS 로 항상 보이므로
+  // 이 state 는 무관.
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
@@ -892,6 +895,9 @@ function App(): React.JSX.Element {
 
   const handleSelect = useCallback(
     (s: SelectedSession | null) => {
+      // 모바일에서 세션 선택 시 사이드바 자동 닫힘. 데스크톱은 CSS 가 항상 보이게
+      // 처리하므로 이 state 변화는 무관.
+      setSidebarOpen(false)
       if (!s) {
         setSelected(null)
         return
@@ -1259,7 +1265,22 @@ function App(): React.JSX.Element {
 
   return (
     <ToolDefaultOpenContext.Provider value={settings.toolCardsDefaultOpen}>
-    <div className="app" style={appStyle as React.CSSProperties}>
+    <div
+      className={`app${sidebarOpen ? ' sidebar-open' : ''}`}
+      style={appStyle as React.CSSProperties}
+    >
+      <button
+        type="button"
+        className="mobile-sidebar-toggle"
+        aria-label="사이드바 열기/닫기"
+        onClick={() => setSidebarOpen((v) => !v)}
+      >
+        ☰
+      </button>
+      <div
+        className="mobile-sidebar-backdrop"
+        onClick={() => setSidebarOpen(false)}
+      />
       <Sidebar
         workspaces={workspaces}
         selected={selected}
