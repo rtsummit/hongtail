@@ -1,5 +1,6 @@
-import { ipcMain, type WebContents } from 'electron'
 import * as pty from 'node-pty'
+import { registerInvoke } from './ipc'
+import { broadcast } from './dispatch'
 
 interface PtyEntry {
   proc: pty.IPty
@@ -12,11 +13,6 @@ function eventChannel(sessionId: string): string {
   return `pty:event:${sessionId}`
 }
 
-function emit(sender: WebContents, sessionId: string, event: unknown): void {
-  if (sender.isDestroyed()) return
-  sender.send(eventChannel(sessionId), event)
-}
-
 interface SpawnArgs {
   sessionId: string
   workspacePath: string
@@ -27,8 +23,8 @@ interface SpawnArgs {
 }
 
 export function registerPtyHandlers(): void {
-  ipcMain.handle('pty:spawn', (event, args: SpawnArgs) => {
-    const sender = event.sender
+  registerInvoke('pty:spawn', (rawArgs: unknown) => {
+    const args = rawArgs as SpawnArgs
     const { sessionId, workspacePath, cols, rows, command, delayMs } = args
 
     if (ptys.has(sessionId)) {
@@ -54,9 +50,10 @@ export function registerPtyHandlers(): void {
       env: process.env as Record<string, string>
     })
 
-    proc.onData((data) => emit(sender, sessionId, { type: 'data', data }))
+    const channel = eventChannel(sessionId)
+    proc.onData((data) => broadcast(channel, { type: 'data', data }))
     proc.onExit(({ exitCode }) => {
-      emit(sender, sessionId, { type: 'exit', code: exitCode })
+      broadcast(channel, { type: 'exit', code: exitCode })
       ptys.delete(sessionId)
     })
 
@@ -66,27 +63,27 @@ export function registerPtyHandlers(): void {
     return { alreadyRunning: false }
   })
 
-  ipcMain.handle('pty:write', (_, sessionId: string, data: string) => {
-    ptys.get(sessionId)?.proc.write(data)
+  registerInvoke('pty:write', (sessionId: unknown, data: unknown) => {
+    ptys.get(String(sessionId))?.proc.write(String(data))
   })
 
-  ipcMain.handle('pty:resize', (_, sessionId: string, cols: number, rows: number) => {
+  registerInvoke('pty:resize', (sessionId: unknown, cols: unknown, rows: unknown) => {
     try {
-      ptys.get(sessionId)?.proc.resize(cols, rows)
+      ptys.get(String(sessionId))?.proc.resize(Number(cols), Number(rows))
     } catch {
       /* ignore resize errors */
     }
   })
 
-  ipcMain.handle('pty:kill', (_, sessionId: string) => {
-    const entry = ptys.get(sessionId)
+  registerInvoke('pty:kill', (sessionId: unknown) => {
+    const entry = ptys.get(String(sessionId))
     if (!entry) return
     try {
       entry.proc.kill()
     } catch {
       /* ignore */
     }
-    ptys.delete(sessionId)
+    ptys.delete(String(sessionId))
   })
 }
 
