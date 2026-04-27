@@ -153,8 +153,15 @@ function App(): React.JSX.Element {
   }, [])
 
   const addWorkspaceDialog = useCallback(async () => {
-    const picked = await window.api.workspaces.pickDirectory()
-    if (!picked) return
+    let picked = await window.api.workspaces.pickDirectory()
+    // Web 환경에서는 OS 다이얼로그가 없어 null 이 돌아온다 → 텍스트 입력으로
+    // fallback. 호스트 머신 기준 절대 경로를 받는다.
+    if (!picked) {
+      const typed = window.prompt('워크스페이스 디렉토리 경로 (호스트 PC 기준 절대 경로)')
+      if (!typed) return
+      picked = typed.trim()
+      if (!picked) return
+    }
     if (workspaces.some((w) => w.path === picked)) return
     await persist([{ path: picked }, ...workspaces])
   }, [workspaces, persist])
