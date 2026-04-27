@@ -44,6 +44,23 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // xterm.js 의 textarea 가 Alt+F4 를 ESC+F4 시퀀스로 PTY 에 보내버려 OS 가
+  // 윈도우 닫기를 못 받는 케이스가 있다. before-input-event 는 web content 로
+  // 키가 전달되기 전 단계라 xterm 보다 먼저 발화한다.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    if (
+      input.alt &&
+      !input.control &&
+      !input.meta &&
+      !input.shift &&
+      input.key === 'F4'
+    ) {
+      event.preventDefault()
+      mainWindow.close()
+    }
+  })
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

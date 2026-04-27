@@ -1165,6 +1165,23 @@ function App(): React.JSX.Element {
     }
   }, [handleSelect, finishCycle])
 
+  // Global Ctrl+W to close (stop) the currently-selected live session.
+  // handleStopLive 가 자체적으로 confirm 팝업을 띄운다.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'w' && e.key !== 'W') return
+      if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      if (e.isComposing || e.keyCode === 229) return
+      if (!selected) return
+      if (!active[selected.sessionId]) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      void handleStopLive(selected.sessionId)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [selected, active, handleStopLive])
+
   // Global Shift+Tab to cycle permission mode on the active app session.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
