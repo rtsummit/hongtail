@@ -21,9 +21,19 @@ $env:HONGLUADE_WEB = "1"
 HONGLUADE_WEB=1 npm run start
 ```
 
-띄우면 콘솔에 `[web] http://127.0.0.1:9879` 가 뜬다. 브라우저로 같은 URL 접속.
+띄우면 콘솔에 `[web] http://127.0.0.1:9879/?t=<token>` 가 뜬다. 브라우저로
+**그 URL 그대로** 접속 (`?t=<token>` 포함). 첫 진입 시 토큰을 cookie 에 저장
+하므로 그 다음부턴 `?t=` 없는 URL 도 OK. 다른 디바이스로 이동하면 다시 `?t=`
+URL 로 첫 진입.
 
-`HONGLUADE_WEB_PORT` 로 포트 변경 가능.
+환경변수:
+
+| | 기본값 | 설명 |
+|---|---|---|
+| `HONGLUADE_WEB` | (off) | `1` 일 때만 web 서버 활성 |
+| `HONGLUADE_WEB_PORT` | `9879` | listen 포트 |
+| `HONGLUADE_WEB_HOST` | `127.0.0.1` | binding 주소. LAN 노출하려면 `0.0.0.0` |
+| `HONGLUADE_WEB_TOKEN` | (random) | 인증 토큰. 비우면 시작 시 16bytes hex 자동 생성 |
 
 ## 구조
 
@@ -62,8 +72,13 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
 
 ## 한계 / 보안
 
-- **PoC 단계는 127.0.0.1 only**. LAN 노출은 인증 (별도 commit) 후.
-- 인증 0 — 같은 머신의 다른 프로세스는 무인증 접근 가능. 외부 노출 절대 금지.
+- **인증은 단일 토큰**. 모든 정적 자산 / RPC / SSE 가 토큰 검증을 통과해야
+  응답. 토큰 노출 = 모든 권한 노출. URL 공유 시 `?t=` 부분이 history / 서버
+  로그에 남을 수 있음 — 신뢰 디바이스에서만 사용.
+- LAN 노출 (`HOST=0.0.0.0`) 자체는 가능하지만 **HTTPS 가 아니므로 LAN 안에서도
+  토큰이 평문**. 신뢰 가능한 LAN 에서만 쓰거나 reverse proxy 로 TLS 종단을
+  앞에 두기.
+- 인터넷 노출 옵션은 `## 외부 노출` 절 참고.
 - CSP `default-src 'self'` — 같은 origin 이라 fetch / EventSource 가 통과. 다른
   origin 에서 reverse proxy 거치는 경우 CSP / CORS 재검토 필요.
 - 세션 격리 없음 — 모든 클라이언트가 같은 view 를 본다. 이는 multi-device

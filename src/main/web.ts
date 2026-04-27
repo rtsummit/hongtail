@@ -18,10 +18,18 @@ import {
 } from 'http'
 import { promises as fs } from 'fs'
 import { join, normalize, resolve as resolvePath } from 'path'
+import { randomBytes } from 'crypto'
 import { app } from 'electron'
 
 const ENABLED = process.env.HONGLUADE_WEB === '1'
 const PORT = Number(process.env.HONGLUADE_WEB_PORT ?? 9879)
+const HOST = process.env.HONGLUADE_WEB_HOST ?? '127.0.0.1'
+// 단일 토큰 인증. 환경변수가 비어있으면 시작 시 random 16bytes hex 생성.
+// 토큰은 쿼리 ?t=<token> 으로 처음 진입 시 받아 cookie 로 저장 → 이후 요청은
+// cookie 로 검증.
+const TOKEN = process.env.HONGLUADE_WEB_TOKEN ?? randomBytes(16).toString('hex')
+const COOKIE_NAME = 'hongluade_t'
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
 let server: Server | null = null
 
@@ -189,6 +197,34 @@ function handleEvents(req: IncomingMessage, res: ServerResponse): void {
   })
 }
 
+function readCookie(req: IncomingMessage, name: string): string | null {
+  const header = req.headers.cookie
+  if (!header) return null
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=')
+    if (eq === -1) continue
+    const k = part.slice(0, eq).trim()
+    if (k !== name) continue
+    return decodeURIComponent(part.slice(eq + 1).trim())
+  }
+  return null
+}
+
+// 인증 검증. 쿼리 ?t=<token> 가 맞으면 cookie 설정 + 통과. 아니면 cookie 검사.
+// 통과 못 하면 false 반환 (호출자가 401 응답).
+function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  const url = new URL(req.url ?? '/', 'http://x')
+  const queryToken = url.searchParams.get('t')
+  if (queryToken === TOKEN) {
+    res.setHeader(
+      'Set-Cookie',
+      `${COOKIE_NAME}=${encodeURIComponent(TOKEN)}; Path=/; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`
+    )
+    return true
+  }
+  return readCookie(req, COOKIE_NAME) === TOKEN
+}
+
 export function startWebServer(): void {
   if (!ENABLED) return
   server = createServer(async (req, res) => {
@@ -198,6 +234,12 @@ export function startWebServer(): void {
     if (req.method === 'OPTIONS') {
       res.statusCode = 204
       res.end()
+      return
+    }
+    if (!checkAuth(req, res)) {
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.end('unauthorized — append ?t=<token> on first visit')
       return
     }
     const url = new URL(req.url ?? '/', 'http://x')
@@ -226,8 +268,8 @@ export function startWebServer(): void {
     }
     server = null
   })
-  server.listen(PORT, '127.0.0.1', () => {
-    console.log(`[web] http://127.0.0.1:${PORT}`)
+  server.listen(PORT, HOST, () => {
+    console.log(`[web] http://${HOST}:${PORT}/?t=${TOKEN}`)
   })
 }
 
