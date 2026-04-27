@@ -136,8 +136,12 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       void window.api.pty.resize(sessionId, cols, rows)
     })
 
-    // Ctrl+V: read clipboard and inject. customKeyEventHandler fires inside
-    // xterm's own keydown handler, fine for keys that don't conflict with IME.
+    // Ctrl+V: read clipboard and inject.
+    // Ctrl+C: 선택된 텍스트가 있으면 클립보드 복사 (Windows cmd 와 같은 패턴),
+    //         없으면 xterm 의 default — \x03 (SIGINT) 을 PTY 에 전달.
+    //         Ctrl+Shift+C 는 그대로 통과 (DevTools 등 별도 단축키).
+    // customKeyEventHandler fires inside xterm's own keydown handler, fine for
+    // keys that don't conflict with IME.
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true
       if (e.isComposing || e.keyCode === 229) return true
@@ -151,6 +155,18 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
           })
           .catch((err) => console.error('terminal paste failed:', err))
         return false
+      }
+      if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'c' || e.key === 'C')) {
+        if (e.shiftKey) return true
+        const sel = term.getSelection()
+        if (sel) {
+          e.preventDefault()
+          void navigator.clipboard
+            .writeText(sel)
+            .catch((err) => console.error('terminal copy failed:', err))
+          return false
+        }
+        return true
       }
       return true
     })
