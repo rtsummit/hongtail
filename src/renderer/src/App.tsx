@@ -62,6 +62,12 @@ function App(): React.JSX.Element {
   const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
   const activeTerminalRef = useRef<TerminalSearchHandle | null>(null)
 
+  // Ctrl+Tab 토글용 — 직전 selected 한 개를 기억해서 두 세션 사이 왕복.
+  // prevSelectedRef 는 마지막 렌더 시점의 selected (effect 가 commit 후 갱신),
+  // lastSelectedRef 는 그 이전 selected (= "직전" 세션, Ctrl+Tab 의 jump 목적지).
+  const lastSelectedRef = useRef<SelectedSession | null>(null)
+  const prevSelectedRef = useRef<SelectedSession | null>(null)
+
   const defaultBackend = settings.defaultBackend
   const setDefaultBackend = useCallback((b: Backend) => {
     setSettings((prev) => {
@@ -1022,6 +1028,34 @@ function App(): React.JSX.Element {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [findOpen])
+
+  // selected 변경 추적 — render commit 후 fire 라 직전 값을 lastSelectedRef 에 저장.
+  // 같은 sessionId 로의 객체 교체 (status seed 등) 는 토글 대상 아님.
+  useEffect(() => {
+    if (
+      prevSelectedRef.current &&
+      prevSelectedRef.current.sessionId !== selected?.sessionId
+    ) {
+      lastSelectedRef.current = prevSelectedRef.current
+    }
+    prevSelectedRef.current = selected
+  }, [selected])
+
+  // Global Ctrl+Tab — 직전 선택 세션으로 점프 (브라우저 탭 토글 패턴).
+  // Shift 여부는 무시 (Ctrl+Tab / Ctrl+Shift+Tab 둘 다 같은 토글).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Tab' || !e.ctrlKey || e.altKey || e.metaKey) return
+      if (e.isComposing || e.keyCode === 229) return
+      const last = lastSelectedRef.current
+      if (!last) return
+      e.preventDefault()
+      e.stopPropagation()
+      handleSelect(last)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [handleSelect])
 
   // Global Shift+Tab to cycle permission mode on the active app session.
   useEffect(() => {
