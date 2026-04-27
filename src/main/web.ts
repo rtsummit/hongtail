@@ -42,6 +42,23 @@ export function registerEventSource(topic: string, subscribe: EventSubscribe): v
   eventSources.set(topic, subscribe)
 }
 
+// 동적 topic 용 fan-out 버스. emitSse(topic, event) 가 호출되면 그 topic 을
+// SSE 로 구독하고 있는 모든 클라이언트에 forward. 처음 emit 시 lazy 등록.
+const sseBus = new Map<string, Set<EventEmit>>()
+
+export function emitSse(topic: string, event: unknown): void {
+  let set = sseBus.get(topic)
+  if (!set) {
+    set = new Set()
+    sseBus.set(topic, set)
+    registerEventSource(topic, (emit) => {
+      set!.add(emit)
+      return () => set!.delete(emit)
+    })
+  }
+  for (const emit of set) emit(event)
+}
+
 const STATIC_CONTENT_TYPES: Record<string, string> = {
   html: 'text/html; charset=utf-8',
   js: 'application/javascript; charset=utf-8',

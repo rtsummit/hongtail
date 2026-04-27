@@ -1,4 +1,3 @@
-import { ipcMain, type WebContents } from 'electron'
 import {
   promises as fs,
   createReadStream,
@@ -9,6 +8,7 @@ import {
 import { homedir } from 'os'
 import { join } from 'path'
 import { registerInvoke } from './ipc'
+import { broadcast } from './dispatch'
 import { createInterface } from 'readline'
 
 export interface ClaudeSessionMeta {
@@ -313,18 +313,15 @@ async function readSessionFromOffset(
 
 interface WatchEntry {
   watcher: FSWatcher
-  sender: WebContents
   debounceTimer: NodeJS.Timeout | null
 }
 
+// sessionId 하나당 watcher 하나 (idempotent). 모든 BrowserWindow + web SSE 가 같은
+// 채널을 구독하므로 sender 별로 중복 watcher 를 만들 필요가 없다.
 const watches = new Map<string, WatchEntry>()
 
-function watchKey(senderId: number, sessionId: string): string {
-  return `${senderId}::${sessionId}`
-}
-
-function stopWatch(key: string): void {
-  const entry = watches.get(key)
+function stopWatch(sessionId: string): void {
+  const entry = watches.get(sessionId)
   if (!entry) return
   if (entry.debounceTimer) clearTimeout(entry.debounceTimer)
   try {
@@ -332,12 +329,11 @@ function stopWatch(key: string): void {
   } catch {
     /* ignore */
   }
-  watches.delete(key)
+  watches.delete(sessionId)
 }
 
-function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
-  const key = watchKey(sender.id, sessionId)
-  stopWatch(key)
+function startWatch(cwd: string, sessionId: string): void {
+  if (watches.has(sessionId)) return
   // 'interactive' 백엔드의 새 세션처럼 jsonl 이 아직 없는 상태에서도 watch 가 가능
   // 해야 한다. 파일을 직접 watch 하면 ENOENT 로 실패하므로 디렉토리를 watch 하고
   // filename 으로 필터링한다 — 어차피 fs.watch 가 파일 replace (truncate/recreate)
@@ -358,8 +354,8 @@ function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
     console.error('watch start failed:', err)
     return
   }
-  const entry: WatchEntry = { watcher, sender, debounceTimer: null }
-  watches.set(key, entry)
+  const entry: WatchEntry = { watcher, debounceTimer: null }
+  watches.set(sessionId, entry)
 
   const channel = `claude:session-changed:${sessionId}`
   watcher.on('change', (_event, filename) => {
@@ -367,21 +363,16 @@ function startWatch(sender: WebContents, cwd: string, sessionId: string): void {
     // Windows/Linux/macOS 모두 non-recursive watch 에선 filename 이 들어오는 게
     // 일반적이지만, null 이면 (안 들어오면) 보수적으로 fire.
     if (filename && filename !== targetFileName) return
-    if (sender.isDestroyed()) {
-      stopWatch(key)
-      return
-    }
     if (entry.debounceTimer) clearTimeout(entry.debounceTimer)
     entry.debounceTimer = setTimeout(() => {
       entry.debounceTimer = null
-      if (!sender.isDestroyed()) sender.send(channel)
+      broadcast(channel)
     }, 150)
   })
   watcher.on('error', (err) => {
     console.error('watch error:', err)
-    stopWatch(key)
+    stopWatch(sessionId)
   })
-  sender.once('destroyed', () => stopWatch(key))
 }
 
 export function registerClaudeHandlers(): void {
@@ -407,13 +398,11 @@ export function registerClaudeHandlers(): void {
     (cwd: unknown, sessionId: unknown, startLine: unknown, endLine: unknown) =>
       readSessionRange(String(cwd), String(sessionId), Number(startLine), Number(endLine))
   )
-  // watch / unwatch 는 event.sender 의존 (webContents 별 구독). SSE 채널 forward
-  // 가 추가될 때까지는 ipcMain 만.
-  ipcMain.handle('claude:watch-session', (event, cwd: string, sessionId: string) => {
-    startWatch(event.sender, cwd, sessionId)
+  registerInvoke('claude:watch-session', (cwd: unknown, sessionId: unknown) => {
+    startWatch(String(cwd), String(sessionId))
   })
-  ipcMain.handle('claude:unwatch-session', (event, sessionId: string) => {
-    stopWatch(watchKey(event.sender.id, sessionId))
+  registerInvoke('claude:unwatch-session', (sessionId: unknown) => {
+    stopWatch(String(sessionId))
   })
 }
 
