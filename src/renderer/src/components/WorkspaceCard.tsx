@@ -16,6 +16,9 @@ interface Props {
   aliasesBySession: Record<string, SessionAlias>
   statusBySession: Record<string, SessionStatus>
   selectedId: string | null
+  // 최근 N일 안에 활동한 readonly 세션만 표시. null = 모두.
+  // live 세션과 fresh 는 필터 영향 안 받음.
+  dateFilterDays: 1 | 3 | 7 | null
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
@@ -38,6 +41,7 @@ function WorkspaceCard({
   aliasesBySession,
   statusBySession,
   selectedId,
+  dateFilterDays,
   onSelect,
   onStartClaude,
   onStopLive,
@@ -136,7 +140,12 @@ function WorkspaceCard({
   // At most one fresh per workspace (we only allow one at a time).
   const fresh = liveExt.find((s) => !s.graduated) ?? null
   const graduatedLives = liveExt.filter((s) => s.graduated)
-  const filteredPast = (sessions ?? []).filter((s) => !liveIds.has(s.id))
+  const filteredPast = (sessions ?? []).filter((s) => {
+    if (liveIds.has(s.id)) return false
+    if (dateFilterDays == null) return true
+    const cutoff = Date.now() - dateFilterDays * 24 * 60 * 60 * 1000
+    return s.lastActivityMs >= cutoff
+  })
 
   // Manual session order: new sessions are prepended (newest at top),
   // removed sessions are dropped, manual drag order is preserved.

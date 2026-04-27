@@ -166,6 +166,36 @@
   color: var(--fg-muted);
 }
 
+.date-filter {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 8px;
+  padding: 0 2px;
+}
+
+.date-filter-btn {
+  flex: 1;
+  padding: 4px 0;
+  font-size: 11px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.date-filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.date-filter-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
 .workspace-list {
   overflow-y: auto;
   display: flex;

@@ -14,6 +14,7 @@ export interface ClaudeSessionMeta {
   id: string
   title: string
   startedAt: string
+  lastActivityMs: number
 }
 
 export function encodeCwd(path: string): string {
@@ -103,7 +104,7 @@ async function parseSessionMeta(filePath: string, id: string): Promise<ClaudeSes
   if (!title) {
     title = `Session ${id.slice(0, 8)}`
   }
-  return { id, title, startedAt }
+  return { id, title, startedAt, lastActivityMs: 0 }
 }
 
 async function listSessions(cwd: string): Promise<ClaudeSessionMeta[]> {
@@ -129,6 +130,7 @@ async function listSessions(cwd: string): Promise<ClaudeSessionMeta[]> {
     } catch {
       /* fallback to 0 */
     }
+    meta.lastActivityMs = mtime
     items.push({ meta, mtime })
   }
   // Sort by file mtime descending — most recently used at the top.

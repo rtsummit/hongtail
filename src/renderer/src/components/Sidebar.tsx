@@ -46,6 +46,11 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
   return '새로운 대화'
 }
 
+// 날짜 필터: 최근 N일 안에 활동 (jsonl mtime) 한 readonly 세션만 표시.
+// null = 모두 표시. live 세션은 필터 영향 안 받음 (지금 활동 중이라 항상 표시).
+const FILTER_KEY = 'hongluade.dateFilter'
+type DateFilter = 1 | 3 | 7 | null
+
 function Sidebar({
   workspaces,
   selected,
@@ -65,6 +70,16 @@ function Sidebar({
 }: Props): React.JSX.Element {
   const [draggingPath, setDraggingPath] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<{ path: string; before: boolean } | null>(null)
+  const [dateFilter, setDateFilter] = useState<DateFilter>(() => {
+    const raw = localStorage.getItem(FILTER_KEY)
+    if (raw === '1' || raw === '3' || raw === '7') return Number(raw) as 1 | 3 | 7
+    return null
+  })
+  const updateDateFilter = (next: DateFilter): void => {
+    setDateFilter(next)
+    if (next == null) localStorage.removeItem(FILTER_KEY)
+    else localStorage.setItem(FILTER_KEY, String(next))
+  }
   const liveByWorkspace = new Map<string, LiveSessionInfo[]>()
   for (const [sessionId, a] of Object.entries(active)) {
     const list = liveByWorkspace.get(a.workspacePath) ?? []
@@ -96,6 +111,25 @@ function Sidebar({
         <span>Workspace 추가</span>
       </button>
 
+      <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
+        {([1, 3, 7, null] as const).map((v) => {
+          const label = v == null ? '모두' : `${v}일`
+          const active = dateFilter === v
+          return (
+            <button
+              key={String(v)}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              className={`date-filter-btn${active ? ' active' : ''}`}
+              onClick={() => updateDateFilter(v)}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="workspace-list">
         {workspaces.map(({ path, alias }) => (
           <WorkspaceCard
@@ -106,6 +140,7 @@ function Sidebar({
             aliasesBySession={aliasesBySession}
             statusBySession={statusBySession}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
+            dateFilterDays={dateFilter}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}

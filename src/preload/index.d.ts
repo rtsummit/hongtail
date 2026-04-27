@@ -4,6 +4,8 @@ export interface ClaudeSessionMeta {
   id: string
   title: string
   startedAt: string
+  // 마지막 활동 시점 (jsonl mtime, ms). 날짜 필터에 활용.
+  lastActivityMs: number
 }
 
 export interface WorkspaceEntry {
