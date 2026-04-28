@@ -151,43 +151,30 @@ export function registerRpc(method: string, handler: RpcHandler): void {
 }
 
 type EventEmit = (event: unknown) => void
-type EventSubscribe = (emit: EventEmit) => () => void
-const eventSources = new Map<string, EventSubscribe>()
 
-// topic 에 대한 구독자 함수 — emit 콜백을 받아 unsubscribe 함수를 돌려준다.
-// 한 topic 에 한 subscribe 만. 다중 클라이언트 지원이 필요하면 여기서 fan-out.
-export function registerEventSource(topic: string, subscribe: EventSubscribe): void {
-  eventSources.set(topic, subscribe)
-}
-
-// 동적 topic 용 fan-out 버스. emitSse(topic, event) 가 호출되면 그 topic 을
-// SSE 로 구독하고 있는 모든 클라이언트에 forward. 처음 emit 시 lazy 등록.
+// 동적 topic 용 fan-out 버스. emitSse(topic, event) 와 SSE handler 의 subscribe
+// 양쪽이 같은 sseBus 에 lazy 추가. 어느 쪽이 먼저 들어오든 상관 없음.
 //
-// 첫 subscriber 가 EventSource connection 을 여는 데 한두 RTT 필요한데,
-// 그 사이에 emit 된 이벤트가 손실되면 클라이언트가 첫 신호를 놓쳐 hang
-// (예: PTY spawn 직후 첫 data 가 spinner 를 풀어주는데 그게 누락).
+// 첫 subscriber 가 EventSource connection 을 여는 데 한두 RTT 필요한데, 그
+// 사이에 emit 된 이벤트가 손실되면 클라이언트가 첫 신호를 놓쳐 hang (예:
+// PTY spawn 직후 첫 data 가 spinner 를 풀어주는데 그게 누락).
 // 해결: subscriber 가 0 일 때 emit 은 ring buffer 에 쌓아두고, 첫 subscriber
 // 가 붙는 순간 flush. 한 topic 당 BUFFER_LIMIT 까지만 보존.
 const sseBus = new Map<string, Set<EventEmit>>()
 const sseBuffer = new Map<string, unknown[]>()
 const SSE_BUFFER_LIMIT = 1000
 
-export function emitSse(topic: string, event: unknown): void {
+function busSet(topic: string): Set<EventEmit> {
   let set = sseBus.get(topic)
   if (!set) {
     set = new Set()
     sseBus.set(topic, set)
-    registerEventSource(topic, (emit) => {
-      // 첫 connection 시 buffered 부터 flush.
-      const buffered = sseBuffer.get(topic)
-      if (buffered) {
-        for (const e of buffered) emit(e)
-        sseBuffer.delete(topic)
-      }
-      set!.add(emit)
-      return () => set!.delete(emit)
-    })
   }
+  return set
+}
+
+export function emitSse(topic: string, event: unknown): void {
+  const set = busSet(topic)
   if (set.size > 0) {
     for (const emit of set) emit(event)
     return
@@ -199,6 +186,18 @@ export function emitSse(topic: string, event: unknown): void {
   }
   buf.push(event)
   if (buf.length > SSE_BUFFER_LIMIT) buf.shift()
+}
+
+function attachSseEmitter(topic: string, emit: EventEmit): () => void {
+  const set = busSet(topic)
+  // 첫 connection 시 buffered 부터 flush.
+  const buffered = sseBuffer.get(topic)
+  if (buffered) {
+    for (const e of buffered) emit(e)
+    sseBuffer.delete(topic)
+  }
+  set.add(emit)
+  return () => set.delete(emit)
 }
 
 const STATIC_CONTENT_TYPES: Record<string, string> = {
@@ -305,12 +304,8 @@ function handleEvents(req: IncomingMessage, res: ServerResponse): void {
     res.end('topic required')
     return
   }
-  const subscribe = eventSources.get(topic)
-  if (!subscribe) {
-    res.statusCode = 404
-    res.end(`unknown topic: ${topic}`)
-    return
-  }
+  // 모든 topic 은 동적. emit 측이 아직 한 번도 호출되지 않은 topic 도 OK —
+  // 그냥 빈 set 에 emitter 추가해두고 나중에 emit 되면 forward.
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
   res.setHeader('Cache-Control', 'no-cache, no-transform')
   res.setHeader('Connection', 'keep-alive')
@@ -321,12 +316,12 @@ function handleEvents(req: IncomingMessage, res: ServerResponse): void {
     if (res.writableEnded) return
     res.write(`data: ${JSON.stringify(event)}\n\n`)
   }
-  const unsubscribe = subscribe(emit)
+  const detach = attachSseEmitter(topic, emit)
   req.on('close', () => {
     try {
-      unsubscribe()
+      detach()
     } catch (err) {
-      console.error('[web] unsubscribe failed:', err)
+      console.error('[web] detach failed:', err)
     }
   })
 }
