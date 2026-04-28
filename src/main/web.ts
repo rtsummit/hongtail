@@ -24,12 +24,50 @@ import { app } from 'electron'
 const ENABLED = process.env.HONGLUADE_WEB === '1'
 const PORT = Number(process.env.HONGLUADE_WEB_PORT ?? 9879)
 const HOST = process.env.HONGLUADE_WEB_HOST ?? '127.0.0.1'
-// 단일 토큰 인증. 환경변수가 비어있으면 시작 시 random 16bytes hex 생성.
-// 토큰은 쿼리 ?t=<token> 으로 처음 진입 시 받아 cookie 로 저장 → 이후 요청은
-// cookie 로 검증.
-const TOKEN = process.env.HONGLUADE_WEB_TOKEN ?? randomBytes(16).toString('hex')
-const COOKIE_NAME = 'hongluade_t'
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
+// 비밀번호 로그인. env 가 없으면 시작 시 random 8자리 영숫자 생성 + 콘솔 출력.
+const PASSWORD = process.env.HONGLUADE_WEB_PASSWORD ?? randomPassword()
+const COOKIE_NAME = 'hongluade_s'
+const SESSION_MAX_AGE_SEC = 60 * 60 * 24 // 24h 절대 만료
+
+function randomPassword(): string {
+  // 영숫자 8자리 — 토큰처럼 길지 않고 사람이 읽을 만한 길이.
+  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const buf = randomBytes(8)
+  let out = ''
+  for (let i = 0; i < buf.length; i++) out += ALPHABET[buf[i] % ALPHABET.length]
+  return out
+}
+
+interface Session {
+  token: string
+  issuedAt: number
+  expiresAt: number
+}
+// server-side 세션 저장소. cookie 의 token 으로 lookup.
+const sessions = new Map<string, Session>()
+
+function issueSession(): Session {
+  const token = randomBytes(32).toString('hex')
+  const now = Date.now()
+  const session: Session = {
+    token,
+    issuedAt: now,
+    expiresAt: now + SESSION_MAX_AGE_SEC * 1000
+  }
+  sessions.set(token, session)
+  return session
+}
+
+function lookupSession(token: string | null): Session | null {
+  if (!token) return null
+  const s = sessions.get(token)
+  if (!s) return null
+  if (Date.now() >= s.expiresAt) {
+    sessions.delete(token)
+    return null
+  }
+  return s
+}
 
 let server: Server | null = null
 
@@ -210,19 +248,88 @@ function readCookie(req: IncomingMessage, name: string): string | null {
   return null
 }
 
-// 인증 검증. 쿼리 ?t=<token> 가 맞으면 cookie 설정 + 통과. 아니면 cookie 검사.
-// 통과 못 하면 false 반환 (호출자가 401 응답).
-function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
-  const url = new URL(req.url ?? '/', 'http://x')
-  const queryToken = url.searchParams.get('t')
-  if (queryToken === TOKEN) {
-    res.setHeader(
-      'Set-Cookie',
-      `${COOKIE_NAME}=${encodeURIComponent(TOKEN)}; Path=/; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`
-    )
-    return true
+// 인증 검증 — cookie 의 세션 토큰을 lookup. 통과 못 하면 false (호출자가 응답).
+function checkAuth(req: IncomingMessage): boolean {
+  return lookupSession(readCookie(req, COOKIE_NAME)) !== null
+}
+
+function setSessionCookie(res: ServerResponse, session: Session): void {
+  // PoC: HTTPS 가 아닐 수 있어 Secure 는 일단 미설정. HTTPS 적용 commit 에서 켬.
+  // HttpOnly 로 JS 가 cookie 못 읽게.
+  res.setHeader(
+    'Set-Cookie',
+    `${COOKIE_NAME}=${encodeURIComponent(session.token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SEC}`
+  )
+}
+
+function clearSessionCookie(res: ServerResponse): void {
+  res.setHeader(
+    'Set-Cookie',
+    `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+  )
+}
+
+const LOGIN_HTML = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>hongluade · 로그인</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{height:100%;margin:0;background:#1e1e1e;color:#d4d4d4;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+form{background:#2a2a2a;padding:24px;border-radius:8px;min-width:280px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+h1{margin:0 0 16px;font-size:18px;font-weight:500}
+input{width:100%;box-sizing:border-box;padding:10px;background:#1e1e1e;border:1px solid #444;border-radius:4px;color:#d4d4d4;font-size:14px}
+input:focus{outline:none;border-color:#0a84ff}
+button{width:100%;margin-top:12px;padding:10px;background:#0a84ff;border:none;border-radius:4px;color:#fff;font-size:14px;cursor:pointer}
+button:hover{background:#0a74e0}
+.err{margin-top:8px;color:#ff6b6b;font-size:13px;min-height:18px}
+</style></head><body>
+<form method="POST" action="/login">
+  <h1>hongluade</h1>
+  <input type="password" name="password" placeholder="비밀번호" autofocus required>
+  <button type="submit">로그인</button>
+  <div class="err">__ERR__</div>
+</form>
+</body></html>`
+
+function serveLoginPage(res: ServerResponse, error: string = ''): void {
+  res.statusCode = 200
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.end(LOGIN_HTML.replace('__ERR__', error))
+}
+
+async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
+  return new Promise((resolve, reject) => {
+    let buf = ''
+    req.on('data', (c: Buffer | string) => {
+      buf += typeof c === 'string' ? c : c.toString('utf8')
+    })
+    req.on('end', () => resolve(new URLSearchParams(buf)))
+    req.on('error', reject)
+  })
+}
+
+async function handleLoginPost(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  const form = await readForm(req)
+  const password = form.get('password') ?? ''
+  if (password !== PASSWORD) {
+    serveLoginPage(res, '비밀번호가 틀렸습니다')
+    return
   }
-  return readCookie(req, COOKIE_NAME) === TOKEN
+  const session = issueSession()
+  setSessionCookie(res, session)
+  res.statusCode = 302
+  res.setHeader('Location', '/')
+  res.end()
+}
+
+function handleLogout(res: ServerResponse): void {
+  clearSessionCookie(res)
+  res.statusCode = 302
+  res.setHeader('Location', '/login')
+  res.end()
 }
 
 export function startWebServer(): void {
@@ -236,13 +343,37 @@ export function startWebServer(): void {
       res.end()
       return
     }
-    if (!checkAuth(req, res)) {
-      res.statusCode = 401
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end('unauthorized — append ?t=<token> on first visit')
+    const url = new URL(req.url ?? '/', 'http://x')
+
+    // 인증 불필요 라우트
+    if (req.method === 'GET' && url.pathname === '/login') {
+      serveLoginPage(res)
       return
     }
-    const url = new URL(req.url ?? '/', 'http://x')
+    if (req.method === 'POST' && url.pathname === '/login') {
+      await handleLoginPost(req, res)
+      return
+    }
+    if (req.method === 'GET' && url.pathname === '/logout') {
+      handleLogout(res)
+      return
+    }
+
+    // 그 외는 모두 세션 검증
+    if (!checkAuth(req)) {
+      // 정적 / 그 외 GET 은 로그인 페이지로 redirect, RPC/SSE 는 401 JSON
+      if (req.method === 'GET' && url.pathname !== '/rpc' && url.pathname !== '/events') {
+        res.statusCode = 302
+        res.setHeader('Location', '/login')
+        res.end()
+        return
+      }
+      res.statusCode = 401
+      res.setHeader('Content-Type', 'application/json')
+      res.end(JSON.stringify({ error: 'unauthorized' }))
+      return
+    }
+
     if (req.method === 'POST' && url.pathname === '/rpc') {
       await handleRpc(req, res)
       return
@@ -269,7 +400,10 @@ export function startWebServer(): void {
     server = null
   })
   server.listen(PORT, HOST, () => {
-    console.log(`[web] http://${HOST}:${PORT}/?t=${TOKEN}`)
+    console.log(`[web] http://${HOST}:${PORT}/login`)
+    if (!process.env.HONGLUADE_WEB_PASSWORD) {
+      console.log(`[web] auto-generated password: ${PASSWORD}`)
+    }
   })
 }
 
