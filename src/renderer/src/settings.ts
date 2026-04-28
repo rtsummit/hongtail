@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultBackend: 'app'
 }
 
-const KEY = 'hongluade.settings'
+const KEY = 'hongtail.settings'
 
 function asStringArray(v: unknown): string[] {
   if (!Array.isArray(v)) return []

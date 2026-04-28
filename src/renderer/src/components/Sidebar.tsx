@@ -53,7 +53,7 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
 // - 'active': readonly 다 숨김. live 세션만 보고 싶을 때
 // - null: 모두 표시
 // live / fresh 세션은 'active' 외 어떤 모드에서도 항상 표시 (지금 활동 중이라).
-const FILTER_KEY = 'hongluade.dateFilter'
+const FILTER_KEY = 'hongtail.dateFilter'
 type DateFilter = 1 | 3 | 7 | 'active' | null
 
 function Sidebar({

@@ -29,5 +29,5 @@ export function setupLogging(): void {
   log.errorHandler.startCatching()
   log.eventLogger.startLogging()
 
-  log.info('--- hongluade starting (logs at:', logsDir, ') ---')
+  log.info('--- hongtail starting (logs at:', logsDir, ') ---')
 }

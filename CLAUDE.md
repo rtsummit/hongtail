@@ -1,4 +1,4 @@
-# hongluade
+# hongtail
 
 Claude Code CLI 헤드리스를 데스크톱에서 챗 UI 로 감싼 Electron 앱 (React + TypeScript).
 한 워크스페이스 안에 여러 Claude 세션·BTW 사이드 챗·터미널을 띄워 쓰는 게 목적.
@@ -53,7 +53,7 @@ src/renderer/src/
 |---|---|
 | stream-json 채널·control_request·인터럽트·이미지 첨부 | `docs/sendinput-flow.md` |
 | 인터랙티브 백엔드 jsonl tail 채택 근거 | `docs/interactive-jsonl-tail.md` |
-| 모바일 remote 가 hongluade 세션을 못 보는 이유 | `docs/remote-control.md` |
+| 모바일 remote 가 hongtail 세션을 못 보는 이유 | `docs/remote-control.md` |
 | BTW 사이드 챗 아키텍처·세션 leak 방지·인코딩 hazard | `docs/btw-side-chat.md` |
 | Ctrl+F (Custom Highlight API + xterm SearchAddon) | `docs/find.md` |
 | `claude --resume` 호환성 | `docs/cli-resume.md` |
@@ -75,16 +75,16 @@ npm run build:win:portable
 
 `is.dev` 일 때만 `127.0.0.1:9876` (test 인스턴스: `9877`) 에 HTTP 엔드포인트가 뜸.
 `/state`, `/messages/:sid`, `/sessions/start|select|send|control|wait-result`, `/screenshot`, `/quit`.
-`HONGLUADE_RPC_EVAL=1` 이면 `/eval` 도 노출. 라우팅은 `src/main/rpc.ts`, 실제 동작은 `src/renderer/src/rpcBridge.ts` 의 `window.__rpc.*`.
+`HONGTAIL_RPC_EVAL=1` 이면 `/eval` 도 노출. 라우팅은 `src/main/rpc.ts`, 실제 동작은 `src/renderer/src/rpcBridge.ts` 의 `window.__rpc.*`.
 
 ## 별도 인스턴스 (병행 dev)
 
-`HONGLUADE_TEST=1 npm run dev` 로 띄우면 process.title=`hongluade_test`, jsonl 파일 leak 안 섞이고 RPC 포트 9877 사용. 자동 검증·실험용.
+`HONGTAIL_TEST=1 npm run dev` 로 띄우면 process.title=`hongtail_test`, jsonl 파일 leak 안 섞이고 RPC 포트 9877 사용. 자동 검증·실험용.
 
 ## 관습 / 주의
 
 - 자식 stdin 에 보낼 라인은 끝에 `\n` 필수. Windows shell 우회: 한글·긴 문자열은 stdin/임시파일로 보냄 — positional argument 금지 (`docs/btw-side-chat.md` 의 인코딩 hazard 참조).
 - user message echo 는 자식이 안 해 줌 → ChatPane 의 `handleSend` 가 IPC 호출과 동시에 직접 Block 을 push.
 - 인터럽트는 ChatPane ◼ (`control_request interrupt` — 세션 살림) vs Sidebar ◼ (`stopSession` — child kill, 라이브 종료) 두 종류.
-- session id 는 hongluade 가 `randomUUID()` 로 발급해 spawn args 의 `--session-id` / `--resume` 로 전달, IPC 채널 키와 jsonl 추적 키로 동시에 사용.
+- session id 는 hongtail 가 `randomUUID()` 로 발급해 spawn args 의 `--session-id` / `--resume` 로 전달, IPC 채널 키와 jsonl 추적 키로 동시에 사용.
 - `~/.claude/projects/...` 의 jsonl 인코딩 규칙은 `encodeCwd` (`[^a-zA-Z0-9.-]` → `-`). claude CLI 와 동일.

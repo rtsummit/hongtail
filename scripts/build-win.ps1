@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  hongluade Windows build helper.
+  hongtail Windows build helper.
 
 .PARAMETER Target
   portable / setup / both. Default: portable.

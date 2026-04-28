@@ -1,6 +1,6 @@
 // 웹 모드 설정. app.getPath('userData')/web-settings.json 에 저장.
-// 환경변수 (HONGLUADE_WEB, HONGLUADE_WEB_PORT, HONGLUADE_WEB_HOST,
-// HONGLUADE_WEB_TLS_CERT, HONGLUADE_WEB_TLS_KEY) 는 같은 키가 있으면 file
+// 환경변수 (HONGTAIL_WEB, HONGTAIL_WEB_PORT, HONGTAIL_WEB_HOST,
+// HONGTAIL_WEB_TLS_CERT, HONGTAIL_WEB_TLS_KEY) 는 같은 키가 있으면 file
 // 보다 우선. 운영자가 강제 설정하고 싶을 때 사용.
 import { promises as fs } from 'fs'
 import { join } from 'path'

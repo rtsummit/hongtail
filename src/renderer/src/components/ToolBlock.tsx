@@ -322,7 +322,7 @@ function buildSideBySideDiff(oldText: string, newText: string, contextLines = 2)
 }
 
 type DiffMode = 'unified' | 'side'
-const DIFF_MODE_KEY = 'hongluade.diffMode'
+const DIFF_MODE_KEY = 'hongtail.diffMode'
 
 function loadDiffMode(): DiffMode {
   return localStorage.getItem(DIFF_MODE_KEY) === 'side' ? 'side' : 'unified'

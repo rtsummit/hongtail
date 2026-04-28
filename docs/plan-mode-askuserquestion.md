@@ -75,13 +75,13 @@ const baseArgs = [
 
 ### 검증 (재현 가능)
 
-dev 테스트 인스턴스(`HONGLUADE_TEST=1 npm run dev` → port 9877) 에서:
+dev 테스트 인스턴스(`HONGTAIL_TEST=1 npm run dev` → port 9877) 에서:
 
 ```bash
 # 새 세션 + plan-style 프롬프트
 SID=$(curl -s -X POST http://127.0.0.1:9877/sessions/start \
   -H "Content-Type: application/json" \
-  -d '{"workspacePath":"C:/Workspace/hongluade","backend":"app","mode":"new"}' \
+  -d '{"workspacePath":"C:/Workspace/hongtail","backend":"app","mode":"new"}' \
   | jq -r .sessionId)
 
 curl -s -X POST http://127.0.0.1:9877/sessions/send \

@@ -1,5 +1,5 @@
-appId: com.rtsummit.hongluade
-productName: hongluade
+appId: com.rtsummit.hongtail
+productName: hongtail
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: hongluade
+  executableName: hongtail
   target:
     - portable
 portable:

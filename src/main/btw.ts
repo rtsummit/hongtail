@@ -31,7 +31,7 @@ interface AskArgs {
 async function writePromptFile(systemPrompt: string): Promise<string> {
   const file = join(
     tmpdir(),
-    `hongluade-btw-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+    `hongtail-btw-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
   )
   await fsp.writeFile(file, systemPrompt, 'utf8')
   return file

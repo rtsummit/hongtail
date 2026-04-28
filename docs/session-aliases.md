@@ -2,7 +2,7 @@
 
 Last Updated: 2026-04-26
 
-각 대화 (Claude Code 세션) 에 hongluade 가 자체적으로 부여하는 별칭. 워크스페이스 alias 와 별개의 키-값 저장소이며, sessionId 단위로 관리된다.
+각 대화 (Claude Code 세션) 에 hongtail 가 자체적으로 부여하는 별칭. 워크스페이스 alias 와 별개의 키-값 저장소이며, sessionId 단위로 관리된다.
 
 ## 한 줄 요약
 
@@ -10,7 +10,7 @@ Last Updated: 2026-04-26
 
 ## 저장
 
-- **위치**: `app.getPath('userData')/session-aliases.json` (Windows: `%APPDATA%\hongluade-tmp\session-aliases.json`)
+- **위치**: `app.getPath('userData')/session-aliases.json` (Windows: `%APPDATA%\hongtail\session-aliases.json`)
 - **스키마**:
   ```json
   {
@@ -60,8 +60,8 @@ ISO 8601 timestamp 는 lexicographic 비교가 시간 순서와 일치하므로 
 
 이 규칙 덕에:
 
-- 사용자가 hongluade 에서 별칭을 지은 뒤 claude CLI 에서 `/rename` 했을 때, **claude 의 rename 이 더 최근이면 자동 import** 됨 (의도: 같은 세션을 두 도구에서 열어도 최신 의사결정이 따라감)
-- 거꾸로 hongluade 에서 별칭 갱신했고 claude 에서 더 옛날에 한 번 `/rename` 했을 뿐이면 **사용자 별칭이 지켜짐**
+- 사용자가 hongtail 에서 별칭을 지은 뒤 claude CLI 에서 `/rename` 했을 때, **claude 의 rename 이 더 최근이면 자동 import** 됨 (의도: 같은 세션을 두 도구에서 열어도 최신 의사결정이 따라감)
+- 거꾸로 hongtail 에서 별칭 갱신했고 claude 에서 더 옛날에 한 번 `/rename` 했을 뿐이면 **사용자 별칭이 지켜짐**
 
 ## 표시 우선순위
 
@@ -87,5 +87,5 @@ UI 에서 세션 title 을 결정할 때:
 ## 한계 / 향후
 
 - **풀 스캔 비용**: 매 readonly 선택마다 jsonl 전체를 한 번 읽는다. 큰 jsonl (수 MB) 에서 노이즈가 될 수 있음. 첫 매칭 후 끝까지 가는 이유는 다중 `/rename` 의 마지막 값을 잡기 위함. mtime + size 를 키로 캐싱하면 회피 가능.
-- **live 모드 자동 import 미지원**: 현재 sync 는 readonly 진입 시점에만. live 세션에서 사용자가 (터미널 모드 claude 의 TUI 등으로) `/rename` 하면 jsonl 에는 들어가지만 hongluade 별칭은 자동 갱신되지 않음. JSONL watcher 의 incremental read 에서 rename 이벤트를 잡아 sync 하는 식으로 확장 가능.
+- **live 모드 자동 import 미지원**: 현재 sync 는 readonly 진입 시점에만. live 세션에서 사용자가 (터미널 모드 claude 의 TUI 등으로) `/rename` 하면 jsonl 에는 들어가지만 hongtail 별칭은 자동 갱신되지 않음. JSONL watcher 의 incremental read 에서 rename 이벤트를 잡아 sync 하는 식으로 확장 가능.
 - **삭제 동기화 없음**: 세션 jsonl 자체를 지워도 alias 엔트리는 남는다. 큰 문제는 아니지만 (다음 sync 호출 시 그 세션이 안 열릴 뿐) deleteSession 흐름에 정리 호출을 끼울 만함.

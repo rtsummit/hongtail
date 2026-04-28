@@ -1,5 +1,5 @@
-// Web 모드 — HONGLUADE_WEB=1 일 때만 활성. Electron 의 BrowserWindow 와는
-// 별개로 HTTP 서버를 띄워 외부 브라우저(=모바일 / 다른 PC)에서 hongluade UI
+// Web 모드 — HONGTAIL_WEB=1 일 때만 활성. Electron 의 BrowserWindow 와는
+// 별개로 HTTP 서버를 띄워 외부 브라우저(=모바일 / 다른 PC)에서 hongtail UI
 // 를 로드할 수 있게 한다.
 //
 // 통신 채널:
@@ -25,7 +25,7 @@ import { WEB_HOST, type WebSettings } from './webSettings'
 
 // 비밀번호 단독 인증. credentials 는 GUI 의 웹 설정에서 user 가 직접 set.
 // 미설정 상태에서는 로그인 자체 거부. 사용자명은 없음.
-const COOKIE_NAME = 'hongluade_s'
+const COOKIE_NAME = 'hongtail_s'
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 // 24h 절대 만료
 const SESSION_IDLE_MS = 30 * 60 * 1000 // 30분 idle 만료
 
@@ -371,10 +371,10 @@ button:hover{background:#0a74e0}
 </style>`
 
 const LOGIN_HTML = `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><title>hongluade · 로그인</title>
+<html lang="ko"><head><meta charset="utf-8"><title>hongtail · 로그인</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">${FORM_STYLE}</head><body>
 <form method="POST" action="/login">
-  <h1>hongluade</h1>
+  <h1>hongtail</h1>
   <input type="password" name="password" placeholder="비밀번호" autofocus required autocomplete="current-password">
   <button type="submit">로그인</button>
   <div class="err">__ERR__</div>
@@ -382,11 +382,11 @@ const LOGIN_HTML = `<!doctype html>
 </body></html>`
 
 const NOT_CONFIGURED_HTML = `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><title>hongluade · 설정 필요</title>
+<html lang="ko"><head><meta charset="utf-8"><title>hongtail · 설정 필요</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">${FORM_STYLE}</head><body>
 <form onsubmit="return false">
   <h1>설정 필요</h1>
-  <div class="note">웹 모드 비밀번호가 설정되지 않았습니다. hongluade 데스크톱 앱의 설정 → 웹 모드 에서 비밀번호를 먼저 설정하세요.</div>
+  <div class="note">웹 모드 비밀번호가 설정되지 않았습니다. hongtail 데스크톱 앱의 설정 → 웹 모드 에서 비밀번호를 먼저 설정하세요.</div>
 </form>
 </body></html>`
 

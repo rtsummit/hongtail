@@ -6,7 +6,7 @@ Last Updated: 2026-04-27
 
 ## 배경
 
-`remote-control.md` 의 B안 (PTY + 인터랙티브 모드) 으로 가면 hongluade 가 지금 쓰는 stream-json 채널이 사라진다. 인터랙티브 모드의 통신 채널은 PTY 의 TTY 하나뿐 (`peerProtocol` 은 session 메타에 박히는 버전 상수일 뿐 별도 IPC 가 아님).
+`remote-control.md` 의 B안 (PTY + 인터랙티브 모드) 으로 가면 hongtail 가 지금 쓰는 stream-json 채널이 사라진다. 인터랙티브 모드의 통신 채널은 PTY 의 TTY 하나뿐 (`peerProtocol` 은 session 메타에 박히는 버전 상수일 뿐 별도 IPC 가 아님).
 
 그 위에서 chat UI 를 그리려면 두 후보 — **(이 문서) 옵션 1: PTY 출력 raw ANSI 를 우리가 직접 파싱** vs **옵션 4: jsonl tail watch**.
 

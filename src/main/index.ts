@@ -18,8 +18,8 @@ import { startWebServer, stopWebServer, setPassword, isPasswordSet } from './web
 import { loadWebSettings, saveWebSettings } from './webSettings'
 import { registerInvoke } from './ipc'
 
-const TEST_INSTANCE = process.env.HONGLUADE_TEST === '1'
-const APP_NAME = TEST_INSTANCE ? 'hongluade_test' : 'hongluade'
+const TEST_INSTANCE = process.env.HONGTAIL_TEST === '1'
+const APP_NAME = TEST_INSTANCE ? 'hongtail_test' : 'hongtail'
 process.title = APP_NAME
 
 function createWindow(): void {

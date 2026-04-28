@@ -47,7 +47,7 @@ function App(): React.JSX.Element {
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [aliasesBySession, setAliasesBySession] = useState<Record<string, SessionAlias>>({})
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
-    const stored = Number(localStorage.getItem('hongluade.sidebarWidth'))
+    const stored = Number(localStorage.getItem('hongtail.sidebarWidth'))
     return Number.isFinite(stored) && stored >= 180 && stored <= 600 ? stored : 240
   })
   // 모바일에서만 의미 — 사이드바 toggle. 데스크톱은 CSS 로 항상 보이므로
@@ -59,7 +59,7 @@ function App(): React.JSX.Element {
   const [btwMessagesBySession, setBtwMessagesBySession] = useState<Record<string, Block[]>>({})
   const [btwThinkingBySession, setBtwThinkingBySession] = useState<Record<string, boolean>>({})
   const [sideChatCollapsed, setSideChatCollapsed] = useState<boolean>(
-    () => localStorage.getItem('hongluade.sideChatCollapsed') === '1'
+    () => localStorage.getItem('hongtail.sideChatCollapsed') === '1'
   )
   const btwSubscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
@@ -114,7 +114,7 @@ function App(): React.JSX.Element {
           600,
           Math.max(180, startWidth + (ev.clientX - startX))
         )
-        localStorage.setItem('hongluade.sidebarWidth', String(finalWidth))
+        localStorage.setItem('hongtail.sidebarWidth', String(finalWidth))
       }
       target.addEventListener('pointermove', move)
       target.addEventListener('pointerup', up)
@@ -498,7 +498,7 @@ function App(): React.JSX.Element {
   const handleToggleSideChat = useCallback(() => {
     setSideChatCollapsed((prev) => {
       const next = !prev
-      localStorage.setItem('hongluade.sideChatCollapsed', next ? '1' : '0')
+      localStorage.setItem('hongtail.sideChatCollapsed', next ? '1' : '0')
       return next
     })
   }, [])
