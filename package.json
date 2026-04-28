@@ -1,6 +1,6 @@
 {
   "name": "hongtail",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Claude Code 헤드리스 기반 데스크톱 채팅 UI",
   "main": "./out/main/index.js",
   "author": "rtsummit",
