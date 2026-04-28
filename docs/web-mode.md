@@ -12,7 +12,7 @@ PowerShell:
 
 ```powershell
 $env:HONGLUADE_WEB = "1"
-.\dist\hongluade-0.1.5-portable.exe
+.\dist\hongluade-0.1.6-portable.exe
 ```
 
 또는 dev 모드:
@@ -21,10 +21,20 @@ $env:HONGLUADE_WEB = "1"
 HONGLUADE_WEB=1 npm run start
 ```
 
-띄우면 콘솔에 `[web] http://127.0.0.1:9879/?t=<token>` 가 뜬다. 브라우저로
-**그 URL 그대로** 접속 (`?t=<token>` 포함). 첫 진입 시 토큰을 cookie 에 저장
-하므로 그 다음부턴 `?t=` 없는 URL 도 OK. 다른 디바이스로 이동하면 다시 `?t=`
-URL 로 첫 진입.
+띄우면 콘솔에 `[web] http://127.0.0.1:9879/login` 이 뜬다. 브라우저로 접속.
+
+**첫 로그인**: 사용자명 `rtsummit`, 초기 비밀번호 `abutton`. 로그인 직후 비밀
+번호 변경 페이지로 강제 redirect 된다. 8자 이상 + 초기값과 다른 새 비밀번호
+설정 후 main UI 진입.
+
+이후 로그인은 변경한 비밀번호 사용. credentials 는 `app.getPath('userData')/
+web-credentials.json` (Windows: `%APPDATA%/hongluade/web-credentials.json`) 에
+salt + sha256 hash 로 저장.
+
+세션 cookie (`hongluade_s`):
+- HttpOnly + SameSite=Strict, HTTPS 모드면 Secure
+- 절대 만료 24h, idle 만료 30분
+- `/logout` 으로 즉시 만료
 
 환경변수:
 
@@ -33,7 +43,8 @@ URL 로 첫 진입.
 | `HONGLUADE_WEB` | (off) | `1` 일 때만 web 서버 활성 |
 | `HONGLUADE_WEB_PORT` | `9879` | listen 포트 |
 | `HONGLUADE_WEB_HOST` | `127.0.0.1` | binding 주소. LAN 노출하려면 `0.0.0.0` |
-| `HONGLUADE_WEB_TOKEN` | (random) | 인증 토큰. 비우면 시작 시 16bytes hex 자동 생성 |
+| `HONGLUADE_WEB_TLS_CERT` | — | HTTPS 활성화용 PEM 인증서 파일 경로 |
+| `HONGLUADE_WEB_TLS_KEY` | — | HTTPS 활성화용 PEM 키 파일 경로 |
 
 ## 구조
 
@@ -72,12 +83,12 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
 
 ## 한계 / 보안
 
-- **인증은 단일 토큰**. 모든 정적 자산 / RPC / SSE 가 토큰 검증을 통과해야
-  응답. 토큰 노출 = 모든 권한 노출. URL 공유 시 `?t=` 부분이 history / 서버
-  로그에 남을 수 있음 — 신뢰 디바이스에서만 사용.
-- LAN 노출 (`HOST=0.0.0.0`) 자체는 가능하지만 **HTTPS 가 아니므로 LAN 안에서도
-  토큰이 평문**. 신뢰 가능한 LAN 에서만 쓰거나 reverse proxy 로 TLS 종단을
-  앞에 두기.
+- **인증은 단일 사용자 + 비밀번호 + cookie 세션**. 비밀번호는 sha256+salt
+  로 저장 (PoC — bcrypt 미적용). 노출되면 모든 권한 노출.
+- HTTPS 가 아니면 비밀번호 / 세션 cookie 가 평문 채널에 흐름. LAN 안에서도
+  악의적 same-network 공격 가능. 진짜 외부 노출 시에는 **반드시 HTTPS**:
+  - 자체 종단: `HONGLUADE_WEB_TLS_CERT` + `HONGLUADE_WEB_TLS_KEY` 에 PEM 경로
+  - 외부 종단: cloudflare tunnel / nginx + Let's Encrypt (`## 외부 노출`)
 - 인터넷 노출 옵션은 `## 외부 노출` 절 참고.
 - CSP `default-src 'self'` — 같은 origin 이라 fetch / EventSource 가 통과. 다른
   origin 에서 reverse proxy 거치는 경우 CSP / CORS 재검토 필요.
