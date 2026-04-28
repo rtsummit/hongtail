@@ -11,12 +11,13 @@
 // 등록은 시작 후 어느 시점에든 가능하며, 핸들러가 없는 method 호출은 404.
 // PoC 단계에서는 127.0.0.1 만 binding (LAN 노출은 인증 추가 후 별도 commit).
 import {
-  createServer,
+  createServer as createHttpServer,
   type IncomingMessage,
   type Server,
   type ServerResponse
 } from 'http'
-import { promises as fs } from 'fs'
+import { createServer as createHttpsServer } from 'https'
+import { promises as fs, readFileSync } from 'fs'
 import { join, normalize, resolve as resolvePath } from 'path'
 import { randomBytes } from 'crypto'
 import { app } from 'electron'
@@ -24,6 +25,10 @@ import { app } from 'electron'
 const ENABLED = process.env.HONGLUADE_WEB === '1'
 const PORT = Number(process.env.HONGLUADE_WEB_PORT ?? 9879)
 const HOST = process.env.HONGLUADE_WEB_HOST ?? '127.0.0.1'
+// HTTPS — cert/key PEM 파일 경로를 둘 다 주면 HTTPS 활성. 둘 중 하나만이면
+// HTTP 로 fallback. self-signed 자동 생성은 의존성 추가라 미룸.
+const TLS_CERT_PATH = process.env.HONGLUADE_WEB_TLS_CERT
+const TLS_KEY_PATH = process.env.HONGLUADE_WEB_TLS_KEY
 // 비밀번호 로그인. env 가 없으면 시작 시 random 8자리 영숫자 생성 + 콘솔 출력.
 const PASSWORD = process.env.HONGLUADE_WEB_PASSWORD ?? randomPassword()
 const COOKIE_NAME = 'hongluade_s'
@@ -271,19 +276,22 @@ function checkAuth(req: IncomingMessage): boolean {
   return lookupAndTouch(readCookie(req, COOKIE_NAME)) !== null
 }
 
+// HTTPS 모드면 Secure 플래그를 켜서 cookie 가 평문 채널에 안 실리게.
+let cookieSecure = false
+
 function setSessionCookie(res: ServerResponse, session: Session): void {
-  // PoC: HTTPS 가 아닐 수 있어 Secure 는 일단 미설정. HTTPS 적용 commit 에서 켬.
-  // HttpOnly 로 JS 가 cookie 못 읽게.
+  const secure = cookieSecure ? '; Secure' : ''
   res.setHeader(
     'Set-Cookie',
-    `${COOKIE_NAME}=${encodeURIComponent(session.token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SEC}`
+    `${COOKIE_NAME}=${encodeURIComponent(session.token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SEC}${secure}`
   )
 }
 
 function clearSessionCookie(res: ServerResponse): void {
+  const secure = cookieSecure ? '; Secure' : ''
   res.setHeader(
     'Set-Cookie',
-    `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+    `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`
   )
 }
 
@@ -352,7 +360,28 @@ function handleLogout(res: ServerResponse): void {
 
 export function startWebServer(): void {
   if (!ENABLED) return
-  server = createServer(async (req, res) => {
+  let useHttps = false
+  let tlsOptions: { cert: Buffer; key: Buffer } | null = null
+  if (TLS_CERT_PATH && TLS_KEY_PATH) {
+    try {
+      tlsOptions = {
+        cert: readFileSync(TLS_CERT_PATH),
+        key: readFileSync(TLS_KEY_PATH)
+      }
+      useHttps = true
+      cookieSecure = true
+    } catch (err) {
+      console.error(
+        '[web] TLS cert/key read failed — falling back to HTTP:',
+        err
+      )
+    }
+  }
+
+  const handler = async (
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -406,7 +435,12 @@ export function startWebServer(): void {
     }
     res.statusCode = 405
     res.end()
-  })
+  }
+
+  server = useHttps && tlsOptions
+    ? createHttpsServer(tlsOptions, handler)
+    : createHttpServer(handler)
+
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
       console.warn(
@@ -418,7 +452,8 @@ export function startWebServer(): void {
     server = null
   })
   server.listen(PORT, HOST, () => {
-    console.log(`[web] http://${HOST}:${PORT}/login`)
+    const scheme = useHttps ? 'https' : 'http'
+    console.log(`[web] ${scheme}://${HOST}:${PORT}/login`)
     if (!process.env.HONGLUADE_WEB_PASSWORD) {
       console.log(`[web] auto-generated password: ${PASSWORD}`)
     }
