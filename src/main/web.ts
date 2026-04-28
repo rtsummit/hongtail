@@ -28,6 +28,7 @@ const HOST = process.env.HONGLUADE_WEB_HOST ?? '127.0.0.1'
 const PASSWORD = process.env.HONGLUADE_WEB_PASSWORD ?? randomPassword()
 const COOKIE_NAME = 'hongluade_s'
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 // 24h 절대 만료
+const SESSION_IDLE_MS = 30 * 60 * 1000 // 30분 idle 만료
 
 function randomPassword(): string {
   // 영숫자 8자리 — 토큰처럼 길지 않고 사람이 읽을 만한 길이.
@@ -42,6 +43,7 @@ interface Session {
   token: string
   issuedAt: number
   expiresAt: number
+  lastSeen: number
 }
 // server-side 세션 저장소. cookie 의 token 으로 lookup.
 const sessions = new Map<string, Session>()
@@ -52,22 +54,37 @@ function issueSession(): Session {
   const session: Session = {
     token,
     issuedAt: now,
-    expiresAt: now + SESSION_MAX_AGE_SEC * 1000
+    expiresAt: now + SESSION_MAX_AGE_SEC * 1000,
+    lastSeen: now
   }
   sessions.set(token, session)
   return session
 }
 
-function lookupSession(token: string | null): Session | null {
+// 세션 lookup + touch. 절대 만료 또는 idle 만료 시 무효화.
+// 통과 시 lastSeen 갱신해 다음 idle 윈도우 reset.
+function lookupAndTouch(token: string | null): Session | null {
   if (!token) return null
   const s = sessions.get(token)
   if (!s) return null
-  if (Date.now() >= s.expiresAt) {
+  const now = Date.now()
+  if (now >= s.expiresAt || now - s.lastSeen > SESSION_IDLE_MS) {
     sessions.delete(token)
     return null
   }
+  s.lastSeen = now
   return s
 }
+
+// 주기적 GC — 만료된 세션을 메모리에서 청소. 1시간마다.
+setInterval(() => {
+  const now = Date.now()
+  for (const [token, s] of sessions) {
+    if (now >= s.expiresAt || now - s.lastSeen > SESSION_IDLE_MS) {
+      sessions.delete(token)
+    }
+  }
+}, 60 * 60 * 1000).unref?.()
 
 let server: Server | null = null
 
@@ -248,9 +265,10 @@ function readCookie(req: IncomingMessage, name: string): string | null {
   return null
 }
 
-// 인증 검증 — cookie 의 세션 토큰을 lookup. 통과 못 하면 false (호출자가 응답).
+// 인증 검증 — cookie 의 세션 토큰을 lookup + touch (idle 윈도우 reset).
+// 통과 못 하면 false (호출자가 응답).
 function checkAuth(req: IncomingMessage): boolean {
-  return lookupSession(readCookie(req, COOKIE_NAME)) !== null
+  return lookupAndTouch(readCookie(req, COOKIE_NAME)) !== null
 }
 
 function setSessionCookie(res: ServerResponse, session: Session): void {
