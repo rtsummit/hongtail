@@ -162,7 +162,15 @@ export function registerEventSource(topic: string, subscribe: EventSubscribe): v
 
 // 동적 topic 용 fan-out 버스. emitSse(topic, event) 가 호출되면 그 topic 을
 // SSE 로 구독하고 있는 모든 클라이언트에 forward. 처음 emit 시 lazy 등록.
+//
+// 첫 subscriber 가 EventSource connection 을 여는 데 한두 RTT 필요한데,
+// 그 사이에 emit 된 이벤트가 손실되면 클라이언트가 첫 신호를 놓쳐 hang
+// (예: PTY spawn 직후 첫 data 가 spinner 를 풀어주는데 그게 누락).
+// 해결: subscriber 가 0 일 때 emit 은 ring buffer 에 쌓아두고, 첫 subscriber
+// 가 붙는 순간 flush. 한 topic 당 BUFFER_LIMIT 까지만 보존.
 const sseBus = new Map<string, Set<EventEmit>>()
+const sseBuffer = new Map<string, unknown[]>()
+const SSE_BUFFER_LIMIT = 1000
 
 export function emitSse(topic: string, event: unknown): void {
   let set = sseBus.get(topic)
@@ -170,11 +178,27 @@ export function emitSse(topic: string, event: unknown): void {
     set = new Set()
     sseBus.set(topic, set)
     registerEventSource(topic, (emit) => {
+      // 첫 connection 시 buffered 부터 flush.
+      const buffered = sseBuffer.get(topic)
+      if (buffered) {
+        for (const e of buffered) emit(e)
+        sseBuffer.delete(topic)
+      }
       set!.add(emit)
       return () => set!.delete(emit)
     })
   }
-  for (const emit of set) emit(event)
+  if (set.size > 0) {
+    for (const emit of set) emit(event)
+    return
+  }
+  let buf = sseBuffer.get(topic)
+  if (!buf) {
+    buf = []
+    sseBuffer.set(topic, buf)
+  }
+  buf.push(event)
+  if (buf.length > SSE_BUFFER_LIMIT) buf.shift()
 }
 
 const STATIC_CONTENT_TYPES: Record<string, string> = {
