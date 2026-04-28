@@ -125,6 +125,10 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
   const [loadingFonts, setLoadingFonts] = useState(false)
   const [web, setWeb] = useState<WebSettings | null>(null)
   const [webError, setWebError] = useState<string>('')
+  const [hasPassword, setHasPassword] = useState<boolean>(false)
+  const [pwDraft, setPwDraft] = useState<string>('')
+  const [pwConfirm, setPwConfirm] = useState<string>('')
+  const [pwMessage, setPwMessage] = useState<string>('')
 
   useEffect(() => {
     if (!open) return
@@ -149,7 +153,37 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
         console.error('load web settings failed:', err)
         setWeb(null)
       })
+    void window.api.web
+      .hasPassword()
+      .then(setHasPassword)
+      .catch(() => setHasPassword(false))
+    setPwDraft('')
+    setPwConfirm('')
+    setPwMessage('')
   }, [open])
+
+  const submitPassword = (): void => {
+    setPwMessage('')
+    if (pwDraft.length < 8) {
+      setPwMessage('비밀번호는 8자 이상이어야 합니다')
+      return
+    }
+    if (pwDraft !== pwConfirm) {
+      setPwMessage('두 비밀번호가 일치하지 않습니다')
+      return
+    }
+    void window.api.web
+      .setPassword(pwDraft)
+      .then(() => {
+        setHasPassword(true)
+        setPwDraft('')
+        setPwConfirm('')
+        setPwMessage('변경됨. 모든 기존 세션 무효화.')
+      })
+      .catch((err) => {
+        setPwMessage(String(err))
+      })
+  }
 
   const updateWeb = (patch: Partial<WebSettings>): void => {
     if (!web) return
@@ -277,6 +311,34 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             <>
               <hr className="settings-divider" />
               <h3 className="settings-section-title">웹 모드</h3>
+              <div className="settings-row">
+                <span className="settings-label">
+                  비밀번호 {hasPassword ? '(설정됨)' : '— 미설정'}
+                </span>
+                <input
+                  type="password"
+                  value={pwDraft}
+                  onChange={(e) => setPwDraft(e.target.value)}
+                  placeholder="새 비밀번호 (8자 이상)"
+                  autoComplete="new-password"
+                />
+                <input
+                  type="password"
+                  value={pwConfirm}
+                  onChange={(e) => setPwConfirm(e.target.value)}
+                  placeholder="비밀번호 확인"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="settings-tls-btn"
+                  onClick={submitPassword}
+                  disabled={!pwDraft || !pwConfirm}
+                >
+                  {hasPassword ? '변경' : '설정'}
+                </button>
+                {pwMessage && <p className="settings-hint">{pwMessage}</p>}
+              </div>
               <label className="settings-row settings-row-inline">
                 <input
                   type="checkbox"

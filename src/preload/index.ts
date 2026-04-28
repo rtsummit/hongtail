@@ -115,7 +115,9 @@ const api = {
     getSettings: () => ipcRenderer.invoke('web:settings:get'),
     setSettings: (next: Record<string, unknown>) =>
       ipcRenderer.invoke('web:settings:set', next),
-    pickTlsFile: (): Promise<string | null> => ipcRenderer.invoke('web:pick-tls-file')
+    pickTlsFile: (): Promise<string | null> => ipcRenderer.invoke('web:pick-tls-file'),
+    hasPassword: (): Promise<boolean> => ipcRenderer.invoke('web:has-password'),
+    setPassword: (newPassword: string) => ipcRenderer.invoke('web:set-password', newPassword)
   },
   pty: {
     spawn: (args: {

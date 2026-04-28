@@ -23,11 +23,8 @@ import { randomBytes, createHash } from 'crypto'
 import { app } from 'electron'
 import { WEB_HOST, type WebSettings } from './webSettings'
 
-// 단일 사용자 계정. username 은 hardcoded — 그 외 username 으로 들어오면 거부.
-const ALLOWED_USERNAME = 'rtsummit'
-// 초기 비밀번호. credentials 파일이 없을 때만 사용된다 (mustChangePassword=true).
-const INITIAL_PASSWORD = 'abutton'
-
+// 비밀번호 단독 인증. credentials 는 GUI 의 웹 설정에서 user 가 직접 set.
+// 미설정 상태에서는 로그인 자체 거부. 사용자명은 없음.
 const COOKIE_NAME = 'hongluade_s'
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 // 24h 절대 만료
 const SESSION_IDLE_MS = 30 * 60 * 1000 // 30분 idle 만료
@@ -41,10 +38,8 @@ function hashPassword(password: string, salt: string): string {
 }
 
 interface Credentials {
-  username: string
-  salt: string
-  passwordHash: string
-  mustChangePassword: boolean
+  salt: string | null
+  passwordHash: string | null
 }
 
 function credentialsFile(): string {
@@ -57,30 +52,15 @@ function loadCredentialsSync(): Credentials {
     const raw = readFileSync(file, 'utf-8')
     const parsed = JSON.parse(raw) as Partial<Credentials>
     if (
-      typeof parsed.username === 'string' &&
       typeof parsed.salt === 'string' &&
       typeof parsed.passwordHash === 'string'
     ) {
-      return {
-        username: parsed.username,
-        salt: parsed.salt,
-        passwordHash: parsed.passwordHash,
-        mustChangePassword: !!parsed.mustChangePassword
-      }
+      return { salt: parsed.salt, passwordHash: parsed.passwordHash }
     }
   } catch {
-    /* 파일 없거나 깨짐 — default 로 초기화 */
+    /* 파일 없거나 깨짐 — 미설정 상태로 시작 */
   }
-  // default — 첫 시작.
-  const salt = randomBytes(16).toString('hex')
-  const cred: Credentials = {
-    username: ALLOWED_USERNAME,
-    salt,
-    passwordHash: hashPassword(INITIAL_PASSWORD, salt),
-    mustChangePassword: true
-  }
-  saveCredentialsSync(cred)
-  return cred
+  return { salt: null, passwordHash: null }
 }
 
 function saveCredentialsSync(cred: Credentials): void {
@@ -93,6 +73,18 @@ function saveCredentialsSync(cred: Credentials): void {
 }
 
 let credentials = loadCredentialsSync()
+
+export function isPasswordSet(): boolean {
+  return !!(credentials.salt && credentials.passwordHash)
+}
+
+export function setPassword(newPassword: string): void {
+  const salt = randomBytes(16).toString('hex')
+  credentials = { salt, passwordHash: hashPassword(newPassword, salt) }
+  saveCredentialsSync(credentials)
+  // 비밀번호 변경 시 모든 기존 세션 무효화.
+  sessions.clear()
+}
 
 interface Session {
   token: string
@@ -383,38 +375,29 @@ const LOGIN_HTML = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">${FORM_STYLE}</head><body>
 <form method="POST" action="/login">
   <h1>hongluade</h1>
-  <input type="text" name="username" placeholder="사용자명" autofocus required autocomplete="username">
-  <input type="password" name="password" placeholder="비밀번호" required autocomplete="current-password">
+  <input type="password" name="password" placeholder="비밀번호" autofocus required autocomplete="current-password">
   <button type="submit">로그인</button>
   <div class="err">__ERR__</div>
 </form>
 </body></html>`
 
-const CHANGE_PASSWORD_HTML = `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><title>hongluade · 비밀번호 변경</title>
+const NOT_CONFIGURED_HTML = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>hongluade · 설정 필요</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">${FORM_STYLE}</head><body>
-<form method="POST" action="/change-password">
-  <h1>비밀번호 변경</h1>
-  <div class="note">__NOTE__초기 비밀번호를 사용 중입니다. 새 비밀번호로 변경하세요.</div>
-  <input type="password" name="newPassword" placeholder="새 비밀번호 (8자 이상)" autofocus required minlength="8" autocomplete="new-password">
-  <input type="password" name="confirmPassword" placeholder="새 비밀번호 확인" required minlength="8" autocomplete="new-password">
-  <button type="submit">변경</button>
-  <div class="err">__ERR__</div>
+<form onsubmit="return false">
+  <h1>설정 필요</h1>
+  <div class="note">웹 모드 비밀번호가 설정되지 않았습니다. hongluade 데스크톱 앱의 설정 → 웹 모드 에서 비밀번호를 먼저 설정하세요.</div>
 </form>
 </body></html>`
 
 function serveLoginPage(res: ServerResponse, error: string = ''): void {
   res.statusCode = 200
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  if (!isPasswordSet()) {
+    res.end(NOT_CONFIGURED_HTML)
+    return
+  }
   res.end(LOGIN_HTML.replace('__ERR__', error))
-}
-
-function serveChangePasswordPage(res: ServerResponse, error: string = '', note: string = ''): void {
-  res.statusCode = 200
-  res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  res.end(
-    CHANGE_PASSWORD_HTML.replace('__ERR__', error).replace('__NOTE__', note)
-  )
 }
 
 async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
@@ -433,50 +416,17 @@ async function handleLoginPost(
   res: ServerResponse
 ): Promise<void> {
   const form = await readForm(req)
-  const username = (form.get('username') ?? '').trim()
   const password = form.get('password') ?? ''
   if (
-    username !== credentials.username ||
+    !credentials.salt ||
+    !credentials.passwordHash ||
     hashPassword(password, credentials.salt) !== credentials.passwordHash
   ) {
-    serveLoginPage(res, '사용자명 또는 비밀번호가 틀렸습니다')
+    serveLoginPage(res, '비밀번호가 틀렸습니다')
     return
   }
   const session = issueSession()
   setSessionCookie(res, session)
-  res.statusCode = 302
-  // 첫 로그인 (초기 비밀번호 사용 중) 이면 변경 페이지로 강제 redirect.
-  res.setHeader('Location', credentials.mustChangePassword ? '/change-password' : '/')
-  res.end()
-}
-
-async function handleChangePasswordPost(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<void> {
-  const form = await readForm(req)
-  const next = form.get('newPassword') ?? ''
-  const confirm = form.get('confirmPassword') ?? ''
-  if (next.length < 8) {
-    serveChangePasswordPage(res, '비밀번호는 8자 이상이어야 합니다')
-    return
-  }
-  if (next !== confirm) {
-    serveChangePasswordPage(res, '두 비밀번호가 일치하지 않습니다')
-    return
-  }
-  if (next === INITIAL_PASSWORD) {
-    serveChangePasswordPage(res, '초기 비밀번호와 다른 값을 사용하세요')
-    return
-  }
-  const salt = randomBytes(16).toString('hex')
-  credentials = {
-    username: credentials.username,
-    salt,
-    passwordHash: hashPassword(next, salt),
-    mustChangePassword: false
-  }
-  saveCredentialsSync(credentials)
   res.statusCode = 302
   res.setHeader('Location', '/')
   res.end()
@@ -558,37 +508,6 @@ export function startWebServer(settings: WebSettings): void {
       return
     }
 
-    // 인증된 상태이지만 비밀번호 변경이 필요한 경우 — 정적 GET 은 변경 페이지로
-    // 강제, RPC/SSE 는 403 (UI 가 강제 페이지로 가서 RPC 호출이 무의미).
-    if (credentials.mustChangePassword) {
-      if (req.method === 'GET' && url.pathname === '/change-password') {
-        serveChangePasswordPage(res)
-        return
-      }
-      if (req.method === 'POST' && url.pathname === '/change-password') {
-        await handleChangePasswordPost(req, res)
-        return
-      }
-      if (req.method === 'GET' && url.pathname !== '/rpc' && url.pathname !== '/events') {
-        res.statusCode = 302
-        res.setHeader('Location', '/change-password')
-        res.end()
-        return
-      }
-      res.statusCode = 403
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify({ error: 'must change password first' }))
-      return
-    }
-    // 변경 강제가 끝난 뒤에도 사용자가 명시적으로 변경하고 싶을 수 있다.
-    if (req.method === 'GET' && url.pathname === '/change-password') {
-      serveChangePasswordPage(res)
-      return
-    }
-    if (req.method === 'POST' && url.pathname === '/change-password') {
-      await handleChangePasswordPost(req, res)
-      return
-    }
 
     if (req.method === 'POST' && url.pathname === '/rpc') {
       await handleRpc(req, res)
@@ -623,9 +542,8 @@ export function startWebServer(settings: WebSettings): void {
   server.listen(activePort, WEB_HOST, () => {
     const scheme = useHttps ? 'https' : 'http'
     console.log(`[web] ${scheme}://${WEB_HOST}:${activePort}/login`)
-    console.log(`[web] login: ${credentials.username}`)
-    if (credentials.mustChangePassword) {
-      console.log(`[web] initial password: ${INITIAL_PASSWORD} — 첫 로그인 후 변경 강제`)
+    if (!isPasswordSet()) {
+      console.log('[web] 비밀번호 미설정 — 설정 → 웹 모드 에서 먼저 set 해야 로그인 가능')
     }
   })
 }

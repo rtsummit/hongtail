@@ -14,7 +14,7 @@ import { registerUsageCacheHandlers } from './usageCache'
 import { registerImageHandlers } from './images'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
-import { startWebServer, stopWebServer } from './web'
+import { startWebServer, stopWebServer, setPassword, isPasswordSet } from './web'
 import { loadWebSettings, saveWebSettings } from './webSettings'
 import { registerInvoke } from './ipc'
 
@@ -111,6 +111,14 @@ app.whenReady().then(() => {
     const settings = await loadWebSettings()
     startWebServer(settings)
   })()
+  registerInvoke('web:has-password', () => isPasswordSet())
+  registerInvoke('web:set-password', (newPassword: unknown) => {
+    const pw = String(newPassword ?? '')
+    if (pw.length < 8) throw new Error('비밀번호는 8자 이상이어야 합니다')
+    setPassword(pw)
+    return { ok: true }
+  })
+
   registerInvoke('web:settings:get', () => loadWebSettings())
   registerInvoke('web:settings:set', async (next: unknown) => {
     const settings = await loadWebSettings()

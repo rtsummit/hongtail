@@ -135,6 +135,8 @@ export interface ExposedApi {
     getSettings: () => Promise<WebSettings>
     setSettings: (next: Partial<WebSettings>) => Promise<WebSettings>
     pickTlsFile: () => Promise<string | null>
+    hasPassword: () => Promise<boolean>
+    setPassword: (newPassword: string) => Promise<{ ok: true }>
   }
 }
 
