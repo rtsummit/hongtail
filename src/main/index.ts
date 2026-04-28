@@ -15,7 +15,7 @@ import { registerImageHandlers } from './images'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
 import { startWebServer, stopWebServer } from './web'
-import { loadWebSettings, saveWebSettings, applyEnvOverrides } from './webSettings'
+import { loadWebSettings, saveWebSettings } from './webSettings'
 import { registerInvoke } from './ipc'
 
 const TEST_INSTANCE = process.env.HONGLUADE_TEST === '1'
@@ -109,14 +109,16 @@ app.whenReady().then(() => {
   startRpcServer(() => BrowserWindow.getAllWindows()[0] ?? null)
   void (async () => {
     const settings = await loadWebSettings()
-    startWebServer(applyEnvOverrides(settings))
+    startWebServer(settings)
   })()
   registerInvoke('web:settings:get', () => loadWebSettings())
   registerInvoke('web:settings:set', async (next: unknown) => {
     const settings = await loadWebSettings()
     const merged = { ...settings, ...(next as object) }
     await saveWebSettings(merged)
-    startWebServer(applyEnvOverrides(merged))
+    // env override 는 startup 시에만 적용. 사용자가 GUI 로 끄면 env 가
+    // 켜져있어도 그대로 끔 (사용자 의도 우선).
+    startWebServer(merged)
     return merged
   })
 

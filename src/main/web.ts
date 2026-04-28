@@ -636,6 +636,11 @@ export function startWebServer(settings: WebSettings): void {
 }
 
 export function stopWebServer(): void {
-  server?.close()
+  if (!server) return
+  server.close()
+  // close() 만으로는 살아있는 SSE long-poll 이 자연 종료까지 대기. 즉 GUI 에서
+  // 끈 직후에도 기존 브라우저 탭이 그대로 보이는 문제. closeAllConnections 로
+  // 모든 활성 connection 즉시 절단 (Node 18.2+).
+  server.closeAllConnections?.()
   server = null
 }

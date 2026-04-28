@@ -56,16 +56,3 @@ export async function loadWebSettings(): Promise<WebSettings> {
 export async function saveWebSettings(next: WebSettings): Promise<void> {
   await fs.writeFile(settingsFile(), JSON.stringify(normalize(next), null, 2), 'utf-8')
 }
-
-// env 우선 적용. file 의 settings 위에 env 값을 덮어씀. 운영자가 명시 강제할
-// 때만 사용 — 일반 사용자는 GUI 의 설정만 만져야 함.
-export function applyEnvOverrides(s: WebSettings): WebSettings {
-  const out = { ...s }
-  if (process.env.HONGLUADE_WEB === '1') out.enabled = true
-  if (process.env.HONGLUADE_WEB === '0') out.enabled = false
-  const portEnv = Number(process.env.HONGLUADE_WEB_PORT)
-  if (Number.isFinite(portEnv) && portEnv > 0 && portEnv < 65536) out.port = portEnv
-  if (process.env.HONGLUADE_WEB_TLS_CERT) out.tlsCertPath = process.env.HONGLUADE_WEB_TLS_CERT
-  if (process.env.HONGLUADE_WEB_TLS_KEY) out.tlsKeyPath = process.env.HONGLUADE_WEB_TLS_KEY
-  return out
-}
