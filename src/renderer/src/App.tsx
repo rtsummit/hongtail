@@ -32,7 +32,7 @@ import {
   type RpcWaiterEntry
 } from './rpcBridge'
 import type { Backend, Block, SelectedSession, SessionStatus, WorkspaceEntry } from './types'
-import type { SessionAlias } from '../../preload/index.d'
+import type { ActiveSessionMeta, SessionAlias } from '../../preload/index.d'
 
 // Shift+Tab 으로 사이클링되는 permission mode 들. Claude Code CLI 와 동일하게
 // bypassPermissions / auto 는 우발 진입 방지를 위해 사이클에서 제외 — 메뉴로만 진입.
@@ -126,6 +126,50 @@ function App(): React.JSX.Element {
     void window.api.sessionAliases.list().then((map) => {
       setAliasesBySession(map ?? {})
     })
+  }, [])
+
+  // Multi-client 동기화 — 다른 client (Electron / 외부 web) 가 시작/종료한
+  // 세션도 자기 active 에 반영. main 의 sessionRegistry broadcast 를 listen.
+  useEffect(() => {
+    let cancelled = false
+    const upsert = (meta: ActiveSessionMeta): void => {
+      setActive((prev) => {
+        if (prev[meta.sessionId]) return prev
+        const mode: ActiveMode =
+          meta.mode === 'new'
+            ? 'new'
+            : meta.mode === 'resume-summary'
+              ? 'resume-summary'
+              : 'resume-full'
+        return {
+          ...prev,
+          [meta.sessionId]: {
+            workspacePath: meta.workspacePath,
+            backend: meta.backend,
+            mode
+          }
+        }
+      })
+    }
+    const remove = (sid: string): void => {
+      setActive((prev) => {
+        if (!prev[sid]) return prev
+        const next = { ...prev }
+        delete next[sid]
+        return next
+      })
+    }
+    void window.api.sessions.listActive().then((list) => {
+      if (cancelled) return
+      for (const meta of list) upsert(meta)
+    })
+    const offStarted = window.api.sessions.onStarted((meta) => upsert(meta))
+    const offEnded = window.api.sessions.onEnded((sid) => remove(sid))
+    return () => {
+      cancelled = true
+      offStarted()
+      offEnded()
+    }
   }, [])
 
   useEffect(() => {
@@ -1336,6 +1380,8 @@ function App(): React.JSX.Element {
               visible={visible && terminalReady[t.sessionId] !== false}
               onExit={(code) => handleTerminalExit(t.sessionId, code)}
               onReady={() => handleTerminalReady(t.sessionId)}
+              backend={t.backend === 'interactive' ? 'interactive' : 'terminal'}
+              mode={t.mode}
             />
           )
         })}

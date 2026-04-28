@@ -23,6 +23,9 @@ interface Props {
   visible: boolean
   onExit: (code: number | null) => void
   onReady?: () => void
+  // 동기화용 — main 이 sessionRegistry 에 announce 할 때 그대로 사용.
+  backend?: 'terminal' | 'interactive'
+  mode?: 'new' | 'resume-full' | 'resume-summary'
 }
 
 interface PtyEvent {
@@ -32,7 +35,7 @@ interface PtyEvent {
 }
 
 const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function TerminalSession(
-  { sessionId, workspacePath, initialCommand, visible, onExit, onReady },
+  { sessionId, workspacePath, initialCommand, visible, onExit, onReady, backend, mode },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -126,7 +129,9 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       workspacePath,
       cols: term.cols,
       rows: term.rows,
-      command: initialCommand
+      command: initialCommand,
+      backend,
+      mode
     })
 
     term.onData((data) => {

@@ -4,6 +4,7 @@ import { createInterface } from 'readline'
 import { refreshUsageCacheIfStale } from './usageCache'
 import { registerInvoke } from './ipc'
 import { broadcast } from './dispatch'
+import { announceStart, announceEnd } from './sessionRegistry'
 
 interface Session {
   id: string
@@ -74,11 +75,13 @@ function spawnClaude(
   child.on('close', (code) => {
     broadcast(channel, { type: 'closed', code })
     sessions.delete(sessionId)
+    announceEnd(sessionId)
   })
 
   child.on('error', (err) => {
     broadcast(channel, { type: 'spawn_error', error: err.message })
     sessions.delete(sessionId)
+    announceEnd(sessionId)
   })
 
   return child
@@ -102,6 +105,12 @@ export function registerSessionHandlers(): void {
 
     const child = spawnClaude(args.workspacePath, sessionId, args.mode === 'resume')
     sessions.set(sessionId, { id: sessionId, workspacePath: args.workspacePath, child })
+    announceStart({
+      sessionId,
+      workspacePath: args.workspacePath,
+      backend: 'app',
+      mode: args.mode
+    })
     return { sessionId, alreadyRunning: false }
   })
 
@@ -133,7 +142,8 @@ export function registerSessionHandlers(): void {
   })
 
   registerInvoke('claude:stop-session', (sessionId: unknown) => {
-    const session = sessions.get(String(sessionId))
+    const id = String(sessionId)
+    const session = sessions.get(id)
     if (!session) return
     try {
       session.child.stdin?.end()
@@ -141,7 +151,8 @@ export function registerSessionHandlers(): void {
       /* ignore */
     }
     session.child.kill()
-    sessions.delete(String(sessionId))
+    sessions.delete(id)
+    announceEnd(id)
   })
 
   registerInvoke('claude:list-running', () => Array.from(sessions.keys()))
