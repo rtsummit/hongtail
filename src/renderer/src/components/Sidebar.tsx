@@ -23,6 +23,8 @@ interface Props {
   messagesBySession: Record<string, Block[]>
   aliasesBySession: Record<string, SessionAlias>
   statusBySession: Record<string, SessionStatus>
+  // 다른 client 의 session 시작/종료 알림 — 변경 시 WorkspaceCard refresh.
+  refreshTick: number
   onAddWorkspace: () => void | Promise<void>
   onRemoveWorkspace: (path: string) => void | Promise<void>
   onReorderWorkspaces: (fromPath: string, toPath: string, before: boolean) => void | Promise<void>
@@ -61,6 +63,7 @@ function Sidebar({
   messagesBySession,
   aliasesBySession,
   statusBySession,
+  refreshTick,
   onAddWorkspace,
   onRemoveWorkspace,
   onReorderWorkspaces,
@@ -145,6 +148,7 @@ function Sidebar({
             statusBySession={statusBySession}
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             dateFilterDays={dateFilter}
+            refreshTick={refreshTick}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}

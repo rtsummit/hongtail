@@ -32,7 +32,7 @@ import {
   type RpcWaiterEntry
 } from './rpcBridge'
 import type { Backend, Block, SelectedSession, SessionStatus, WorkspaceEntry } from './types'
-import type { ActiveSessionMeta, SessionAlias } from '../../preload/index.d'
+import type { SessionAlias } from '../../preload/index.d'
 
 // Shift+Tab 으로 사이클링되는 permission mode 들. Claude Code CLI 와 동일하게
 // bypassPermissions / auto 는 우발 진입 방지를 위해 사이클에서 제외 — 메뉴로만 진입.
@@ -128,45 +128,16 @@ function App(): React.JSX.Element {
     })
   }, [])
 
-  // Multi-client 동기화 — 다른 client (Electron / 외부 web) 가 시작/종료한
-  // 세션도 자기 active 에 반영. main 의 sessionRegistry broadcast 를 listen.
+  // Multi-client 알림 — 다른 client 가 시작/종료한 세션은 자기 active 에 추가
+  // 안 함 (그건 그 client 만의 live). 다만 jsonl 이 새로 생겼을 가능성이 있으므로
+  // sidebar 의 session list 를 refresh trigger 만 해서 readonly entry 로 잡히게.
+  // 자기 client 가 직접 start 한 세션은 이미 active 에 있으므로 trigger 무관.
+  const [sidebarRefreshTick, setSidebarRefreshTick] = useState(0)
   useEffect(() => {
-    let cancelled = false
-    const upsert = (meta: ActiveSessionMeta): void => {
-      setActive((prev) => {
-        if (prev[meta.sessionId]) return prev
-        const mode: ActiveMode =
-          meta.mode === 'new'
-            ? 'new'
-            : meta.mode === 'resume-summary'
-              ? 'resume-summary'
-              : 'resume-full'
-        return {
-          ...prev,
-          [meta.sessionId]: {
-            workspacePath: meta.workspacePath,
-            backend: meta.backend,
-            mode
-          }
-        }
-      })
-    }
-    const remove = (sid: string): void => {
-      setActive((prev) => {
-        if (!prev[sid]) return prev
-        const next = { ...prev }
-        delete next[sid]
-        return next
-      })
-    }
-    void window.api.sessions.listActive().then((list) => {
-      if (cancelled) return
-      for (const meta of list) upsert(meta)
-    })
-    const offStarted = window.api.sessions.onStarted((meta) => upsert(meta))
-    const offEnded = window.api.sessions.onEnded((sid) => remove(sid))
+    const bump = (): void => setSidebarRefreshTick((n) => n + 1)
+    const offStarted = window.api.sessions.onStarted(bump)
+    const offEnded = window.api.sessions.onEnded(bump)
     return () => {
-      cancelled = true
       offStarted()
       offEnded()
     }
@@ -1339,6 +1310,7 @@ function App(): React.JSX.Element {
         messagesBySession={messagesBySession}
         aliasesBySession={aliasesBySession}
         statusBySession={statusBySession}
+        refreshTick={sidebarRefreshTick}
         onAddWorkspace={addWorkspaceDialog}
         onRemoveWorkspace={handleRemoveWorkspace}
         onReorderWorkspaces={handleReorderWorkspaces}

@@ -22,6 +22,8 @@ interface Props {
   //   null = 모두
   // live / fresh 는 'active' 외 모드에서 항상 표시.
   dateFilterDays: 1 | 3 | 7 | 'active' | null
+  // 다른 client 가 세션 시작/종료한 신호. 변경 시 listSessions 재호출.
+  refreshTick: number
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
@@ -45,6 +47,7 @@ function WorkspaceCard({
   statusBySession,
   selectedId,
   dateFilterDays,
+  refreshTick,
   onSelect,
   onStartClaude,
   onStopLive,
@@ -107,6 +110,15 @@ function WorkspaceCard({
     const id = window.setTimeout(() => void refresh(), 2000)
     return () => window.clearTimeout(id)
   }, [liveSessions.length, refresh])
+
+  // 다른 client 가 세션 시작/종료한 신호 (refreshTick) 변경 시. 즉시 + 2초 뒤
+  // 한 번 더 (인터랙티브 신규 세션은 jsonl 가 spawn 직후 약간 지연되어 생김).
+  useEffect(() => {
+    if (refreshTick === 0) return
+    void refresh()
+    const id = window.setTimeout(() => void refresh(), 2000)
+    return () => window.clearTimeout(id)
+  }, [refreshTick, refresh])
 
   const handleNewConversation = useCallback(() => {
     void onStartClaude(path)
