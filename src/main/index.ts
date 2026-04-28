@@ -17,7 +17,6 @@ import { startRpcServer, stopRpcServer } from './rpc'
 import { startWebServer, stopWebServer } from './web'
 import { loadWebSettings, saveWebSettings } from './webSettings'
 import { registerInvoke } from './ipc'
-import { listActive } from './sessionRegistry'
 
 const TEST_INSTANCE = process.env.HONGLUADE_TEST === '1'
 const APP_NAME = TEST_INSTANCE ? 'hongluade_test' : 'hongluade'
@@ -112,8 +111,6 @@ app.whenReady().then(() => {
     const settings = await loadWebSettings()
     startWebServer(settings)
   })()
-  registerInvoke('sessions:list-active', () => listActive())
-
   registerInvoke('web:settings:get', () => loadWebSettings())
   registerInvoke('web:settings:set', async (next: unknown) => {
     const settings = await loadWebSettings()

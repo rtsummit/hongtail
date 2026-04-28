@@ -118,16 +118,6 @@ export const webApi: ExposedApi = {
     // 웹에서는 OS 다이얼로그 X — 텍스트 입력 prompt 로 fallback.
     pickTlsFile: () => Promise.resolve(window.prompt('TLS 파일 경로 (호스트 PC 기준 절대 경로)') || null)
   },
-  sessions: {
-    listActive: () => rpc('sessions:list-active', []),
-    onStarted: (cb) =>
-      subscribe('session:started', (e) => cb(e as never)),
-    onEnded: (cb) =>
-      subscribe('session:ended', (e) => {
-        const sid = (e as { sessionId?: string })?.sessionId
-        if (sid) cb(sid)
-      })
-  },
   pty: {
     spawn: (args) => rpc('pty:spawn', [args]),
     write: (sid, data) => rpc('pty:write', [sid, data]),

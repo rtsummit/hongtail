@@ -117,24 +117,6 @@ const api = {
       ipcRenderer.invoke('web:settings:set', next),
     pickTlsFile: (): Promise<string | null> => ipcRenderer.invoke('web:pick-tls-file')
   },
-  sessions: {
-    listActive: () => ipcRenderer.invoke('sessions:list-active'),
-    onStarted: (callback: (meta: unknown) => void): (() => void) => {
-      const handler = (_: IpcRendererEvent, meta: unknown): void => callback(meta)
-      ipcRenderer.on('session:started', handler)
-      return (): void => {
-        ipcRenderer.off('session:started', handler)
-      }
-    },
-    onEnded: (callback: (sessionId: string) => void): (() => void) => {
-      const handler = (_: IpcRendererEvent, payload: { sessionId: string }): void =>
-        callback(payload.sessionId)
-      ipcRenderer.on('session:ended', handler)
-      return (): void => {
-        ipcRenderer.off('session:ended', handler)
-      }
-    }
-  },
   pty: {
     spawn: (args: {
       sessionId: string

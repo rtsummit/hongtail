@@ -1,7 +1,6 @@
 import * as pty from 'node-pty'
 import { registerInvoke } from './ipc'
 import { broadcast } from './dispatch'
-import { announceStart, announceEnd, type SessionMode } from './sessionRegistry'
 
 interface PtyEntry {
   proc: pty.IPty
@@ -21,14 +20,13 @@ interface SpawnArgs {
   rows: number
   command?: string
   delayMs?: number
-  backend?: 'terminal' | 'interactive'
-  mode?: SessionMode
 }
 
 export function registerPtyHandlers(): void {
   registerInvoke('pty:spawn', (rawArgs: unknown) => {
     const args = rawArgs as SpawnArgs
     const { sessionId, workspacePath, cols, rows, command, delayMs } = args
+    void delayMs
 
     if (ptys.has(sessionId)) {
       return { alreadyRunning: true }
@@ -58,18 +56,9 @@ export function registerPtyHandlers(): void {
     proc.onExit(({ exitCode }) => {
       broadcast(channel, { type: 'exit', code: exitCode })
       ptys.delete(sessionId)
-      announceEnd(sessionId)
     })
 
     ptys.set(sessionId, { proc, workspacePath })
-    announceStart({
-      sessionId,
-      workspacePath,
-      backend: args.backend ?? 'terminal',
-      mode: args.mode ?? 'new'
-    })
-
-    void delayMs
     return { alreadyRunning: false }
   })
 
@@ -95,7 +84,6 @@ export function registerPtyHandlers(): void {
       /* ignore */
     }
     ptys.delete(id)
-    announceEnd(id)
   })
 }
 

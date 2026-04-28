@@ -128,19 +128,13 @@ function App(): React.JSX.Element {
     })
   }, [])
 
-  // Multi-client 알림 — 다른 client 가 시작/종료한 세션은 자기 active 에 추가
-  // 안 함 (그건 그 client 만의 live). 다만 jsonl 이 새로 생겼을 가능성이 있으므로
-  // sidebar 의 session list 를 refresh trigger 만 해서 readonly entry 로 잡히게.
-  // 자기 client 가 직접 start 한 세션은 이미 active 에 있으므로 trigger 무관.
+  // Multi-client 동기화 — 5초마다 sidebar 의 session list refresh. 다른 client
+  // 가 시작/종료한 세션은 jsonl 이 생기는 시점에 자동으로 readonly entry 로
+  // 잡힘. SSE / subscribe 흐름 없이 단순 polling.
   const [sidebarRefreshTick, setSidebarRefreshTick] = useState(0)
   useEffect(() => {
-    const bump = (): void => setSidebarRefreshTick((n) => n + 1)
-    const offStarted = window.api.sessions.onStarted(bump)
-    const offEnded = window.api.sessions.onEnded(bump)
-    return () => {
-      offStarted()
-      offEnded()
-    }
+    const id = window.setInterval(() => setSidebarRefreshTick((n) => n + 1), 5000)
+    return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -1352,8 +1346,6 @@ function App(): React.JSX.Element {
               visible={visible && terminalReady[t.sessionId] !== false}
               onExit={(code) => handleTerminalExit(t.sessionId, code)}
               onReady={() => handleTerminalReady(t.sessionId)}
-              backend={t.backend === 'interactive' ? 'interactive' : 'terminal'}
-              mode={t.mode}
             />
           )
         })}

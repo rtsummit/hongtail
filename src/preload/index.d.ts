@@ -36,13 +36,6 @@ export interface UsageData {
   apiError?: string
 }
 
-export interface ActiveSessionMeta {
-  sessionId: string
-  workspacePath: string
-  backend: 'app' | 'terminal' | 'interactive'
-  mode: 'new' | 'resume-full' | 'resume-summary' | 'resume'
-}
-
 export interface WebSettings {
   enabled: boolean
   port: number
@@ -57,10 +50,6 @@ export interface PtySpawnArgs {
   rows: number
   command?: string
   delayMs?: number
-  // 'terminal' (xterm raw) 또는 'interactive' (jsonl tail) — 다른 client 와의
-  // 동기화용. main 의 announce 가 그대로 broadcast.
-  backend?: 'terminal' | 'interactive'
-  mode?: 'new' | 'resume-full' | 'resume-summary' | 'resume'
 }
 
 export interface ExposedApi {
@@ -146,11 +135,6 @@ export interface ExposedApi {
     getSettings: () => Promise<WebSettings>
     setSettings: (next: Partial<WebSettings>) => Promise<WebSettings>
     pickTlsFile: () => Promise<string | null>
-  }
-  sessions: {
-    listActive: () => Promise<ActiveSessionMeta[]>
-    onStarted: (callback: (meta: ActiveSessionMeta) => void) => () => void
-    onEnded: (callback: (sessionId: string) => void) => () => void
   }
 }
 
