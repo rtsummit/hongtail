@@ -114,7 +114,8 @@ const api = {
   web: {
     getSettings: () => ipcRenderer.invoke('web:settings:get'),
     setSettings: (next: Record<string, unknown>) =>
-      ipcRenderer.invoke('web:settings:set', next)
+      ipcRenderer.invoke('web:settings:set', next),
+    pickTlsFile: (): Promise<string | null> => ipcRenderer.invoke('web:pick-tls-file')
   },
   pty: {
     spawn: (args: {

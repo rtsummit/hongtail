@@ -21,7 +21,7 @@ import { promises as fs, readFileSync, writeFileSync } from 'fs'
 import { join, normalize, resolve as resolvePath } from 'path'
 import { randomBytes, createHash } from 'crypto'
 import { app } from 'electron'
-import type { WebSettings } from './webSettings'
+import { WEB_HOST, type WebSettings } from './webSettings'
 
 // 단일 사용자 계정. username 은 hardcoded — 그 외 username 으로 들어오면 거부.
 const ALLOWED_USERNAME = 'rtsummit'
@@ -471,14 +471,12 @@ function handleLogout(res: ServerResponse): void {
 }
 
 let activePort = 0
-let activeHost = ''
 
 export function startWebServer(settings: WebSettings): void {
   // Idempotent — 이미 살아있으면 stop 후 재시작.
   if (server) stopWebServer()
   if (!settings.enabled) return
   activePort = settings.port
-  activeHost = settings.host
   let useHttps = false
   let tlsOptions: { cert: Buffer; key: Buffer } | null = null
   cookieSecure = false
@@ -603,9 +601,9 @@ export function startWebServer(settings: WebSettings): void {
     }
     server = null
   })
-  server.listen(activePort, activeHost, () => {
+  server.listen(activePort, WEB_HOST, () => {
     const scheme = useHttps ? 'https' : 'http'
-    console.log(`[web] ${scheme}://${activeHost}:${activePort}/login`)
+    console.log(`[web] ${scheme}://${WEB_HOST}:${activePort}/login`)
     console.log(`[web] login: ${credentials.username}`)
     if (credentials.mustChangePassword) {
       console.log(`[web] initial password: ${INITIAL_PASSWORD} — 첫 로그인 후 변경 강제`)

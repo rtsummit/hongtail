@@ -303,39 +303,64 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
                   }}
                 />
               </label>
-              <label className="settings-row">
-                <span className="settings-label">호스트 (LAN/외부 노출 시 0.0.0.0)</span>
-                <input
-                  type="text"
-                  value={web.host}
-                  onChange={(e) => updateWeb({ host: e.target.value })}
-                  placeholder="127.0.0.1"
-                />
-              </label>
-              <label className="settings-row">
+              <div className="settings-row">
                 <span className="settings-label">TLS 인증서 (.pem) — 비우면 HTTP</span>
-                <input
-                  type="text"
-                  value={web.tlsCertPath ?? ''}
-                  onChange={(e) =>
-                    updateWeb({ tlsCertPath: e.target.value.trim() || null })
-                  }
-                  placeholder="C:\\path\\cert.pem"
-                />
-              </label>
-              <label className="settings-row">
+                <div className="settings-tls-row">
+                  <span className="settings-tls-path" title={web.tlsCertPath ?? ''}>
+                    {web.tlsCertPath || '(없음)'}
+                  </span>
+                  <button
+                    type="button"
+                    className="settings-tls-btn"
+                    onClick={() =>
+                      void window.api.web.pickTlsFile().then((p) => {
+                        if (p) updateWeb({ tlsCertPath: p })
+                      })
+                    }
+                  >
+                    선택…
+                  </button>
+                  {web.tlsCertPath && (
+                    <button
+                      type="button"
+                      className="settings-tls-btn"
+                      onClick={() => updateWeb({ tlsCertPath: null })}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="settings-row">
                 <span className="settings-label">TLS 키 (.pem)</span>
-                <input
-                  type="text"
-                  value={web.tlsKeyPath ?? ''}
-                  onChange={(e) =>
-                    updateWeb({ tlsKeyPath: e.target.value.trim() || null })
-                  }
-                  placeholder="C:\\path\\key.pem"
-                />
-              </label>
+                <div className="settings-tls-row">
+                  <span className="settings-tls-path" title={web.tlsKeyPath ?? ''}>
+                    {web.tlsKeyPath || '(없음)'}
+                  </span>
+                  <button
+                    type="button"
+                    className="settings-tls-btn"
+                    onClick={() =>
+                      void window.api.web.pickTlsFile().then((p) => {
+                        if (p) updateWeb({ tlsKeyPath: p })
+                      })
+                    }
+                  >
+                    선택…
+                  </button>
+                  {web.tlsKeyPath && (
+                    <button
+                      type="button"
+                      className="settings-tls-btn"
+                      onClick={() => updateWeb({ tlsKeyPath: null })}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
               <p className="settings-hint">
-                cert + key 두 경로가 모두 채워지면 자동으로 HTTPS. 변경 시 즉시
+                cert + key 두 파일을 모두 지정하면 자동으로 HTTPS. 변경 시 즉시
                 서버 재시작. 활성 상태에서 포트 변경 시에도 같은 포트로 listen
                 중이면 EADDRINUSE 로 비활성될 수 있으니 잠시 후 다시 켜기.
               </p>

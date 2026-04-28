@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -118,6 +118,23 @@ app.whenReady().then(() => {
     await saveWebSettings(merged)
     startWebServer(applyEnvOverrides(merged))
     return merged
+  })
+
+  // TLS cert/key 파일 선택 다이얼로그. 웹에서는 OS 다이얼로그가 없어 의미 무 →
+  // ipcMain 에만 등록. webShim 은 prompt 로 fallback.
+  ipcMain.handle('web:pick-tls-file', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const opts = {
+      title: 'TLS 파일 선택 (.pem / .crt / .key)',
+      filters: [
+        { name: 'PEM / CRT / KEY', extensions: ['pem', 'crt', 'key'] },
+        { name: '모든 파일', extensions: ['*'] }
+      ],
+      properties: ['openFile' as const]
+    }
+    const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
   })
 
   app.on('activate', function () {

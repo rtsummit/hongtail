@@ -39,7 +39,6 @@ export interface UsageData {
 export interface WebSettings {
   enabled: boolean
   port: number
-  host: string
   tlsCertPath: string | null
   tlsKeyPath: string | null
 }
@@ -135,6 +134,7 @@ export interface ExposedApi {
   web: {
     getSettings: () => Promise<WebSettings>
     setSettings: (next: Partial<WebSettings>) => Promise<WebSettings>
+    pickTlsFile: () => Promise<string | null>
   }
 }
 

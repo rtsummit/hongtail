@@ -114,7 +114,9 @@ export const webApi: ExposedApi = {
   },
   web: {
     getSettings: () => rpc('web:settings:get', []),
-    setSettings: (next) => rpc('web:settings:set', [next])
+    setSettings: (next) => rpc('web:settings:set', [next]),
+    // 웹에서는 OS 다이얼로그 X — 텍스트 입력 prompt 로 fallback.
+    pickTlsFile: () => Promise.resolve(window.prompt('TLS 파일 경로 (호스트 PC 기준 절대 경로)') || null)
   },
   pty: {
     spawn: (args) => rpc('pty:spawn', [args]),
