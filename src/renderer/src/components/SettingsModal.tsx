@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AppSettings, DefaultBackend } from '../settings'
 import { DEFAULT_SETTINGS } from '../settings'
+import type { WebSettings } from '../../../preload/index.d'
 
 interface Props {
   open: boolean
@@ -122,6 +123,8 @@ function FontStackEditor({
 function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.Element | null {
   const [available, setAvailable] = useState<string[]>([])
   const [loadingFonts, setLoadingFonts] = useState(false)
+  const [web, setWeb] = useState<WebSettings | null>(null)
+  const [webError, setWebError] = useState<string>('')
 
   useEffect(() => {
     if (!open) return
@@ -136,6 +139,31 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
       })
       .finally(() => setLoadingFonts(false))
   }, [open, available.length])
+
+  useEffect(() => {
+    if (!open) return
+    void window.api.web
+      .getSettings()
+      .then((s) => setWeb(s))
+      .catch((err) => {
+        console.error('load web settings failed:', err)
+        setWeb(null)
+      })
+  }, [open])
+
+  const updateWeb = (patch: Partial<WebSettings>): void => {
+    if (!web) return
+    const next = { ...web, ...patch }
+    setWeb(next)
+    setWebError('')
+    void window.api.web
+      .setSettings(patch)
+      .then((applied) => setWeb(applied))
+      .catch((err) => {
+        console.error('save web settings failed:', err)
+        setWebError(String(err))
+      })
+  }
 
   if (!open) return null
 
@@ -245,6 +273,75 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             새 대화 시작 시에만 적용 — 기존 진행 중 대화에는 영향 없음. 이전 대화 resume
             은 readonly 화면의 버튼으로 직접 선택.
           </p>
+          {web && (
+            <>
+              <hr className="settings-divider" />
+              <h3 className="settings-section-title">웹 모드</h3>
+              <label className="settings-row settings-row-inline">
+                <input
+                  type="checkbox"
+                  checked={web.enabled}
+                  onChange={(e) => updateWeb({ enabled: e.target.checked })}
+                />
+                <span className="settings-label-inline">
+                  웹 서버 활성화 (외부 브라우저 / 모바일에서 접속)
+                </span>
+              </label>
+              <label className="settings-row">
+                <span className="settings-label">포트</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={65535}
+                  step={1}
+                  value={web.port}
+                  onChange={(e) => {
+                    const n = Math.round(Number(e.target.value))
+                    if (Number.isFinite(n) && n > 0 && n < 65536) {
+                      updateWeb({ port: n })
+                    }
+                  }}
+                />
+              </label>
+              <label className="settings-row">
+                <span className="settings-label">호스트 (LAN/외부 노출 시 0.0.0.0)</span>
+                <input
+                  type="text"
+                  value={web.host}
+                  onChange={(e) => updateWeb({ host: e.target.value })}
+                  placeholder="127.0.0.1"
+                />
+              </label>
+              <label className="settings-row">
+                <span className="settings-label">TLS 인증서 (.pem) — 비우면 HTTP</span>
+                <input
+                  type="text"
+                  value={web.tlsCertPath ?? ''}
+                  onChange={(e) =>
+                    updateWeb({ tlsCertPath: e.target.value.trim() || null })
+                  }
+                  placeholder="C:\\path\\cert.pem"
+                />
+              </label>
+              <label className="settings-row">
+                <span className="settings-label">TLS 키 (.pem)</span>
+                <input
+                  type="text"
+                  value={web.tlsKeyPath ?? ''}
+                  onChange={(e) =>
+                    updateWeb({ tlsKeyPath: e.target.value.trim() || null })
+                  }
+                  placeholder="C:\\path\\key.pem"
+                />
+              </label>
+              <p className="settings-hint">
+                cert + key 두 경로가 모두 채워지면 자동으로 HTTPS. 변경 시 즉시
+                서버 재시작. 활성 상태에서 포트 변경 시에도 같은 포트로 listen
+                중이면 EADDRINUSE 로 비활성될 수 있으니 잠시 후 다시 켜기.
+              </p>
+              {webError && <p className="settings-hint" style={{ color: '#ff6b6b' }}>{webError}</p>}
+            </>
+          )}
         </div>
         <footer className="modal-footer">
           <button type="button" className="modal-btn secondary" onClick={reset}>

@@ -2347,6 +2347,15 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   line-height: 1.5;
 }
 
+.settings-section-title {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .settings-divider {
   border: none;
   border-top: 1px solid var(--border);
