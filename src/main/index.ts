@@ -15,6 +15,8 @@ import { registerImageHandlers } from './images'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
 import { startWebServer, stopWebServer } from './web'
+import { loadWebSettings, saveWebSettings, applyEnvOverrides } from './webSettings'
+import { registerInvoke } from './ipc'
 
 const TEST_INSTANCE = process.env.HONGLUADE_TEST === '1'
 const APP_NAME = TEST_INSTANCE ? 'hongluade_test' : 'hongluade'
@@ -105,7 +107,18 @@ app.whenReady().then(() => {
   createWindow()
 
   startRpcServer(() => BrowserWindow.getAllWindows()[0] ?? null)
-  startWebServer()
+  void (async () => {
+    const settings = await loadWebSettings()
+    startWebServer(applyEnvOverrides(settings))
+  })()
+  registerInvoke('web:settings:get', () => loadWebSettings())
+  registerInvoke('web:settings:set', async (next: unknown) => {
+    const settings = await loadWebSettings()
+    const merged = { ...settings, ...(next as object) }
+    await saveWebSettings(merged)
+    startWebServer(applyEnvOverrides(merged))
+    return merged
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

@@ -111,6 +111,11 @@ const api = {
       }
     }
   },
+  web: {
+    getSettings: () => ipcRenderer.invoke('web:settings:get'),
+    setSettings: (next: Record<string, unknown>) =>
+      ipcRenderer.invoke('web:settings:set', next)
+  },
   pty: {
     spawn: (args: {
       sessionId: string

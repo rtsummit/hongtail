@@ -21,14 +21,7 @@ import { promises as fs, readFileSync, writeFileSync } from 'fs'
 import { join, normalize, resolve as resolvePath } from 'path'
 import { randomBytes, createHash } from 'crypto'
 import { app } from 'electron'
-
-const ENABLED = process.env.HONGLUADE_WEB === '1'
-const PORT = Number(process.env.HONGLUADE_WEB_PORT ?? 9879)
-const HOST = process.env.HONGLUADE_WEB_HOST ?? '127.0.0.1'
-// HTTPS — cert/key PEM 파일 경로를 둘 다 주면 HTTPS 활성. 둘 중 하나만이면
-// HTTP 로 fallback. self-signed 자동 생성은 의존성 추가라 미룸.
-const TLS_CERT_PATH = process.env.HONGLUADE_WEB_TLS_CERT
-const TLS_KEY_PATH = process.env.HONGLUADE_WEB_TLS_KEY
+import type { WebSettings } from './webSettings'
 
 // 단일 사용자 계정. username 은 hardcoded — 그 외 username 으로 들어오면 거부.
 const ALLOWED_USERNAME = 'rtsummit'
@@ -477,15 +470,23 @@ function handleLogout(res: ServerResponse): void {
   res.end()
 }
 
-export function startWebServer(): void {
-  if (!ENABLED) return
+let activePort = 0
+let activeHost = ''
+
+export function startWebServer(settings: WebSettings): void {
+  // Idempotent — 이미 살아있으면 stop 후 재시작.
+  if (server) stopWebServer()
+  if (!settings.enabled) return
+  activePort = settings.port
+  activeHost = settings.host
   let useHttps = false
   let tlsOptions: { cert: Buffer; key: Buffer } | null = null
-  if (TLS_CERT_PATH && TLS_KEY_PATH) {
+  cookieSecure = false
+  if (settings.tlsCertPath && settings.tlsKeyPath) {
     try {
       tlsOptions = {
-        cert: readFileSync(TLS_CERT_PATH),
-        key: readFileSync(TLS_KEY_PATH)
+        cert: readFileSync(settings.tlsCertPath),
+        key: readFileSync(settings.tlsKeyPath)
       }
       useHttps = true
       cookieSecure = true
@@ -595,16 +596,16 @@ export function startWebServer(): void {
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
       console.warn(
-        `[web] port ${PORT} already in use — web server disabled (set HONGLUADE_WEB_PORT)`
+        `[web] port ${activePort} already in use — web server disabled`
       )
     } else {
       console.error('[web] server error:', err)
     }
     server = null
   })
-  server.listen(PORT, HOST, () => {
+  server.listen(activePort, activeHost, () => {
     const scheme = useHttps ? 'https' : 'http'
-    console.log(`[web] ${scheme}://${HOST}:${PORT}/login`)
+    console.log(`[web] ${scheme}://${activeHost}:${activePort}/login`)
     console.log(`[web] login: ${credentials.username}`)
     if (credentials.mustChangePassword) {
       console.log(`[web] initial password: ${INITIAL_PASSWORD} — 첫 로그인 후 변경 강제`)

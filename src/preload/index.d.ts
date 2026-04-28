@@ -36,6 +36,14 @@ export interface UsageData {
   apiError?: string
 }
 
+export interface WebSettings {
+  enabled: boolean
+  port: number
+  host: string
+  tlsCertPath: string | null
+  tlsKeyPath: string | null
+}
+
 export interface PtySpawnArgs {
   sessionId: string
   workspacePath: string
@@ -123,6 +131,10 @@ export interface ExposedApi {
     }) => Promise<void>
     cancel: (ownerId: string) => Promise<void>
     onEvent: (ownerId: string, callback: (event: unknown) => void) => () => void
+  }
+  web: {
+    getSettings: () => Promise<WebSettings>
+    setSettings: (next: Partial<WebSettings>) => Promise<WebSettings>
   }
 }
 

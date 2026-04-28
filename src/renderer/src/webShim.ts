@@ -112,6 +112,10 @@ export const webApi: ExposedApi = {
     set: (sid, alias) => rpc('session-aliases:set', [sid, alias]),
     sync: (cwd, sid) => rpc('session-aliases:sync', [cwd, sid])
   },
+  web: {
+    getSettings: () => rpc('web:settings:get', []),
+    setSettings: (next) => rpc('web:settings:set', [next])
+  },
   pty: {
     spawn: (args) => rpc('pty:spawn', [args]),
     write: (sid, data) => rpc('pty:write', [sid, data]),
