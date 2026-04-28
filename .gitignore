@@ -9,3 +9,6 @@ logs
 
 # Claude Code state
 .claude/
+
+# Web 모드 self-signed 인증서 (개인 환경별로 생성)
+certs/

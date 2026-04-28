@@ -95,6 +95,45 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
 - 세션 격리 없음 — 모든 클라이언트가 같은 view 를 본다. 이는 multi-device
   (나의 PC + 나의 폰) 가 같은 hongluade 인스턴스에 동시 붙는 의도된 동작.
 
+## HTTPS — self-signed 인증서
+
+LAN / 외부 노출 시 비밀번호와 세션 cookie 가 평문으로 흐르지 않도록 HTTPS
+권장. 자체 종단을 위한 self-signed 인증서 생성:
+
+```bash
+# 한 번만. SAN 에 자기 PC 의 LAN IP 도 포함
+mkdir -p certs
+MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout certs/key.pem -out certs/cert.pem -days 1825 \
+  -subj "/CN=hongluade" \
+  -addext "subjectAltName=DNS:localhost,DNS:hongluade.local,IP:127.0.0.1,IP:::1,IP:192.168.0.14"
+```
+
+(`MSYS_NO_PATHCONV` 는 git bash 의 path 변환 회피용. PowerShell / wsl 에서는
+불필요.) `certs/` 는 `.gitignore` 처리.
+
+활성화:
+
+```powershell
+$env:HONGLUADE_WEB="1"
+$env:HONGLUADE_WEB_TLS_CERT="C:\Workspace\hongluade\certs\cert.pem"
+$env:HONGLUADE_WEB_TLS_KEY="C:\Workspace\hongluade\certs\key.pem"
+$env:HONGLUADE_WEB_HOST="0.0.0.0"
+npm run start
+```
+
+콘솔 출력이 `[web] https://0.0.0.0:9879/login` 으로 바뀌면 적용됨. cookie 에
+`Secure` 플래그도 자동 켜짐.
+
+**브라우저 신뢰**:
+- PC: 첫 진입 시 "안전하지 않은 사이트" 경고 → "고급" → "계속" 클릭. 또는
+  `cert.pem` 을 OS 의 신뢰할 수 있는 root CA 저장소에 추가하면 경고 사라짐
+  (Windows: `certmgr` → 신뢰할 수 있는 루트 인증 기관 → 가져오기).
+- 모바일: `cert.pem` 을 디바이스에 옮긴 후 OS 인증서 설정에서 "신뢰할 수
+  있는 인증서" 로 추가. iOS 는 추가 후 "설정 → 일반 → 정보 → 인증서 신뢰
+  설정" 에서 켜야 fully trusted.
+- 안 따라하면 매 접속마다 경고 통과 필요.
+
 ## 외부 노출
 
 집 밖 모바일에서도 접근하려면 LAN 만으로 부족. 옵션 (PoC 권장 순):
