@@ -1,9 +1,26 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { randomUUID } from 'crypto'
 import { createInterface } from 'readline'
+import { appendFileSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
 import { refreshUsageCacheIfStale } from './usageCache'
 import { registerInvoke } from './ipc'
 import { broadcast } from './dispatch'
+
+// Phase 0 probe — host-confirm-ui 브랜치 한정. control_request / control_response 라인을 raw 로
+// 덤프해 wire format 확인. probe 끝나면 제거.
+const PROBE_LOG = join(tmpdir(), 'hongtail-control-probe.log')
+function probeLog(direction: 'in' | 'out', sessionId: string, line: string): void {
+  try {
+    appendFileSync(
+      PROBE_LOG,
+      `[${new Date().toISOString()}] ${direction} sid=${sessionId.slice(0, 8)} ${line}\n`
+    )
+  } catch {
+    /* ignore */
+  }
+}
 
 interface Session {
   id: string
@@ -30,13 +47,9 @@ function spawnClaude(
     'stream-json',
     '--verbose',
     '--permission-mode',
-    'bypassPermissions',
-    // honglaude는 AskUserQuestion 옵션 카드 UI를 아직 못 띄워서
-    // -p 모드 SDK가 0.003초 만에 자동 deny → plan agent가 "답이 없음"으로
-    // 오해석하고 임의 디폴트로 진행한다. UI 구현 전까지 비활성해 일반
-    // 텍스트 질문으로 폴백시킨다.
-    '--disallowed-tools',
-    'AskUserQuestion'
+    'bypassPermissions'
+    // (Phase 0 probe) --disallowed-tools AskUserQuestion 임시 제거 — control_request 흐름을
+    // 그대로 받아 wire format 캡처. probe 끝나면 호스트 UI 가 처리하도록 영구 제거.
   ]
   const args = isResume
     ? [...baseArgs, '--resume', sessionId]
@@ -56,8 +69,11 @@ function spawnClaude(
       if (!line.trim()) return
       try {
         const event = JSON.parse(line)
-        broadcast(channel, event)
         const t = (event as { type?: string }).type
+        if (t === 'control_request' || t === 'control_response') {
+          probeLog('in', sessionId, line)
+        }
+        broadcast(channel, event)
         if (t === 'result' || t === 'rate_limit_event') {
           refreshUsageCacheIfStale()
         }
