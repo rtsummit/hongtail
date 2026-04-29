@@ -1,6 +1,8 @@
 import { memo, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Highlight, themes } from 'prism-react-renderer'
+import type { Language } from 'prism-react-renderer'
 import ToolBlock from './ToolBlock'
 import type { Block } from '../types'
 
@@ -60,6 +62,41 @@ function pairToolBlocks(blocks: Block[]): RenderItem[] {
   return out
 }
 
+interface CodeProps {
+  className?: string
+  children?: React.ReactNode
+}
+
+function MarkdownCode({ className, children, ...rest }: CodeProps): React.JSX.Element {
+  const match = /language-([\w+#-]+)/.exec(className ?? '')
+  const lang = match?.[1] as Language | undefined
+  if (!lang) {
+    return <code className={className} {...rest}>{children}</code>
+  }
+  const code = String(children).replace(/\n$/, '')
+  return (
+    <Highlight code={code} language={lang} theme={themes.vsDark}>
+      {({ tokens, getLineProps, getTokenProps }) => (
+        <code className={className}>
+          {tokens.map((line, i) => (
+            <div key={i} {...getLineProps({ line })}>
+              {line.length === 0 ? (
+                <span> </span>
+              ) : (
+                line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
+              )}
+            </div>
+          ))}
+        </code>
+      )}
+    </Highlight>
+  )
+}
+
+const markdownComponents = {
+  code: MarkdownCode
+}
+
 function MessageList({ blocks }: Props): React.JSX.Element {
   const items = useMemo(() => pairToolBlocks(blocks), [blocks])
   return (
@@ -86,7 +123,9 @@ const ItemView = memo(function ItemView({ item }: { item: RenderItem }): React.J
       return (
         <div className="bubble assistant">
           <div className="bubble-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.text}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {item.text}
+            </ReactMarkdown>
           </div>
         </div>
       )

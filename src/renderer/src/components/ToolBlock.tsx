@@ -1,6 +1,10 @@
-import { useContext, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { diffLines } from 'diff'
+import { Highlight, themes } from 'prism-react-renderer'
+import type { Language } from 'prism-react-renderer'
 import { ToolDefaultOpenContext } from '../toolContext'
+import { detectLanguage } from '../langDetect'
+import { HighlightedLine } from './CodeBlock'
 import type { Block } from '../types'
 
 type ToolUseBlock = Extract<Block, { kind: 'tool-use' }>
@@ -34,6 +38,7 @@ interface GrepInput {
   pattern?: string
   path?: string
   glob?: string
+  '-i'?: boolean
 }
 interface GlobInput {
   pattern?: string
@@ -162,7 +167,7 @@ function BashCard({ input, result }: { input: BashInput; result?: ToolResultBloc
       : undefined
   const body = (
     <>
-      {cmd && <pre className="tool-cmd">{cmd}</pre>}
+      {cmd && <HighlightedCode code={cmd} language="bash" className="tool-cmd" />}
       {result && text && <pre className="tool-out-text">{text}</pre>}
     </>
   )
@@ -179,20 +184,43 @@ function BashCard({ input, result }: { input: BashInput; result?: ToolResultBloc
   )
 }
 
+interface NumberedLine {
+  num: string
+  code: string
+}
+
+function parseCatN(text: string): NumberedLine[] {
+  const raw = text.split('\n')
+  // Drop a single trailing empty line caused by a terminating newline.
+  if (raw.length > 0 && raw[raw.length - 1] === '') raw.pop()
+  return raw.map((line) => {
+    const m = /^(\s*\d+)\t(.*)$/.exec(line)
+    if (m) return { num: m[1].trim(), code: m[2] }
+    return { num: '', code: line }
+  })
+}
+
 function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBlock }): React.JSX.Element {
   const text = resultText(result)
-  const lines = text ? countLines(text) : 0
+  const lineCount = text ? countLines(text) : 0
   const filePath = input.file_path ?? ''
   const range = input.offset
-    ? `:${input.offset}–${input.offset + (input.limit ?? lines) - 1}`
+    ? `:${input.offset}–${input.offset + (input.limit ?? lineCount) - 1}`
     : input.limit
       ? `:≤${input.limit}`
       : ''
   const args = `${shortenPath(filePath)}${range}`
-  const summary = result?.isError ? '오류' : `${lines} 줄 읽음`
+  const summary = result?.isError
+    ? '오류'
+    : result?.isError === false || result
+      ? `${lineCount} 줄 읽음`
+      : undefined
+  const isError = result?.isError
   const body =
-    text && (text.length > 0)
-      ? <pre className="tool-out-text">{text}</pre>
+    text && text.length > 0
+      ? isError
+        ? <pre className="tool-out-text">{text}</pre>
+        : <ReadBody filePath={filePath} text={text} />
       : null
   return (
     <ToolRow
@@ -201,9 +229,41 @@ function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBloc
       args={args}
       argsTitle={filePath}
       summary={summary}
-      isError={result?.isError}
+      isError={isError}
       body={body}
     />
+  )
+}
+
+function ReadBody({ filePath, text }: { filePath: string; text: string }): React.JSX.Element {
+  const language = detectLanguage(filePath)
+  const lines = useMemo(() => parseCatN(text), [text])
+  const code = useMemo(() => lines.map((l) => l.code).join('\n'), [lines])
+  const lang: Language = language ?? 'markup'
+  return (
+    <pre className="tool-out-text tool-out-code">
+      <Highlight code={code} language={lang} theme={themes.vsDark}>
+        {({ tokens, getLineProps, getTokenProps }) => (
+          <>
+            {tokens.map((line, i) => {
+              const lineProps = getLineProps({ line })
+              return (
+                <div key={i} {...lineProps} className={`code-line ${lineProps.className ?? ''}`}>
+                  <span className="code-gutter">{lines[i]?.num ?? ''}</span>
+                  <span className="code-content">
+                    {line.length === 0 ? (
+                      <span> </span>
+                    ) : (
+                      line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
+                    )}
+                  </span>
+                </div>
+              )
+            })}
+          </>
+        )}
+      </Highlight>
+    </pre>
   )
 }
 
@@ -335,10 +395,12 @@ function saveDiffMode(m: DiffMode): void {
 function DiffBody({
   oldText,
   newText,
+  language,
   onExpand
 }: {
   oldText: string
   newText: string
+  language: Language | null
   onExpand?: () => void
 }): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>(() => loadDiffMode())
@@ -376,7 +438,7 @@ function DiffBody({
         )}
       </div>
       {mode === 'side' ? (
-        <SideBySideDiff oldText={oldText} newText={newText} />
+        <SideBySideDiff oldText={oldText} newText={newText} language={language} />
       ) : (
         <pre className="tool-diff">
           {unified.map((d, i) => (
@@ -385,7 +447,9 @@ function DiffBody({
               className={`diff-line ${d.marker === '+' ? 'add' : d.marker === '-' ? 'del' : 'ctx'}`}
             >
               <span className="diff-marker">{d.marker}</span>
-              <span className="diff-text">{d.text || ' '}</span>
+              <span className="diff-text">
+                {d.text ? <HighlightedLine code={d.text} language={language} /> : ' '}
+              </span>
             </div>
           ))}
         </pre>
@@ -397,11 +461,13 @@ function DiffBody({
 function DiffModal({
   oldText,
   newText,
+  language,
   title,
   onClose
 }: {
   oldText: string
   newText: string
+  language: Language | null
   title: string
   onClose: () => void
 }): React.JSX.Element {
@@ -422,7 +488,7 @@ function DiffModal({
           </button>
         </header>
         <div className="modal-body diff-modal-body">
-          <DiffBody oldText={oldText} newText={newText} />
+          <DiffBody oldText={oldText} newText={newText} language={language} />
         </div>
       </div>
     </div>
@@ -431,10 +497,12 @@ function DiffModal({
 
 function SideBySideDiff({
   oldText,
-  newText
+  newText,
+  language
 }: {
   oldText: string
   newText: string
+  language: Language | null
 }): React.JSX.Element {
   const rows = buildSideBySideDiff(oldText, newText)
   return (
@@ -453,7 +521,13 @@ function SideBySideDiff({
               {row.left ? (
                 <>
                   <span className="diff-marker">{row.left.marker}</span>
-                  <span className="diff-text">{row.left.text || ' '}</span>
+                  <span className="diff-text">
+                    {row.left.text ? (
+                      <HighlightedLine code={row.left.text} language={language} />
+                    ) : (
+                      ' '
+                    )}
+                  </span>
                 </>
               ) : null}
             </div>
@@ -463,7 +537,13 @@ function SideBySideDiff({
               {row.right ? (
                 <>
                   <span className="diff-marker">{row.right.marker}</span>
-                  <span className="diff-text">{row.right.text || ' '}</span>
+                  <span className="diff-text">
+                    {row.right.text ? (
+                      <HighlightedLine code={row.right.text} language={language} />
+                    ) : (
+                      ' '
+                    )}
+                  </span>
                 </>
               ) : null}
             </div>
@@ -479,6 +559,7 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
   const args = `${shortenPath(filePath)}${input.replace_all ? ' (all)' : ''}`
   const oldText = input.old_string ?? ''
   const newText = input.new_string ?? ''
+  const language = detectLanguage(filePath)
   const unified = buildUnifiedDiff(oldText, newText)
   const added = unified.filter((d) => d.marker === '+').length
   const removed = unified.filter((d) => d.marker === '-').length
@@ -489,6 +570,7 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
       <DiffBody
         oldText={oldText}
         newText={newText}
+        language={language}
         onExpand={() => setModalOpen(true)}
       />
       {result?.isError && <pre className="tool-out-text">{resultText(result)}</pre>}
@@ -509,6 +591,7 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
         <DiffModal
           oldText={oldText}
           newText={newText}
+          language={language}
           title={filePath}
           onClose={() => setModalOpen(false)}
         />
@@ -525,7 +608,7 @@ function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBl
   const summary = result?.isError ? '오류' : `${lines} 줄 작성`
   const body = content ? (
     <>
-      <pre className="tool-cmd">{content}</pre>
+      <HighlightedCode code={content} language={detectLanguage(filePath)} className="tool-cmd" />
       {result?.isError && <pre className="tool-out-text">{resultText(result)}</pre>}
     </>
   ) : result?.isError ? (
@@ -544,12 +627,47 @@ function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBl
   )
 }
 
+function HighlightedCode({
+  code,
+  language,
+  className
+}: {
+  code: string
+  language: Language | null
+  className: string
+}): React.JSX.Element {
+  const lang: Language = language ?? 'markup'
+  return (
+    <pre className={className}>
+      <Highlight code={code} language={lang} theme={themes.vsDark}>
+        {({ tokens, getLineProps, getTokenProps }) => (
+          <>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {line.length === 0 ? (
+                  <span> </span>
+                ) : (
+                  line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
+                )}
+              </div>
+            ))}
+          </>
+        )}
+      </Highlight>
+    </pre>
+  )
+}
+
 function GrepCard({ input, result }: { input: GrepInput; result?: ToolResultBlock }): React.JSX.Element {
   const text = resultText(result)
   const lines = text ? countLines(text) : 0
   const args = `${input.pattern ?? ''}${input.glob ? ` · ${input.glob}` : ''}${input.path ? ` · ${shortenPath(input.path)}` : ''}`
   const summary = result?.isError ? '오류' : text ? `${lines} 결과` : '결과 없음'
-  const body = text ? <pre className="tool-out-text">{text}</pre> : null
+  const body = text ? (
+    <pre className="tool-out-text">
+      <GrepHighlightedText text={text} pattern={input.pattern} caseInsensitive={input['-i']} />
+    </pre>
+  ) : null
   return (
     <ToolRow
       toolClass="grep"
@@ -560,6 +678,46 @@ function GrepCard({ input, result }: { input: GrepInput; result?: ToolResultBloc
       body={body}
     />
   )
+}
+
+function compileGrepRegex(pattern: string | undefined, caseInsensitive?: boolean): RegExp | null {
+  if (!pattern) return null
+  try {
+    return new RegExp(pattern, caseInsensitive ? 'gi' : 'g')
+  } catch {
+    return null
+  }
+}
+
+function GrepHighlightedText({
+  text,
+  pattern,
+  caseInsensitive
+}: {
+  text: string
+  pattern?: string
+  caseInsensitive?: boolean
+}): React.JSX.Element {
+  const re = useMemo(() => compileGrepRegex(pattern, caseInsensitive), [pattern, caseInsensitive])
+  if (!re) return <>{text}</>
+  const out: React.ReactNode[] = []
+  let last = 0
+  let key = 0
+  // matchAll does not mutate the regex; safe to reuse the memoized RegExp.
+  for (const m of text.matchAll(re)) {
+    const idx = m.index ?? 0
+    if (idx > last) out.push(text.slice(last, idx))
+    if (m[0].length > 0) {
+      out.push(
+        <mark key={key++} className="grep-match">
+          {m[0]}
+        </mark>
+      )
+    }
+    last = idx + m[0].length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return <>{out}</>
 }
 
 function GlobCard({ input, result }: { input: GlobInput; result?: ToolResultBlock }): React.JSX.Element {
@@ -627,17 +785,16 @@ function FallbackCard({ use, result }: Props): React.JSX.Element {
     }
   }
   const summary = result?.isError ? '오류' : result ? '결과 있음' : undefined
+  const inputJson = (() => {
+    try {
+      return JSON.stringify(use.input, null, 2)
+    } catch {
+      return String(use.input)
+    }
+  })()
   const body = (
     <>
-      <pre className="tool-cmd">
-        {(() => {
-          try {
-            return JSON.stringify(use.input, null, 2)
-          } catch {
-            return String(use.input)
-          }
-        })()}
-      </pre>
+      <HighlightedCode code={inputJson} language="json" className="tool-cmd" />
       {result && text && <pre className="tool-out-text">{text}</pre>}
     </>
   )
