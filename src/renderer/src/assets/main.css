@@ -1141,8 +1141,8 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .modal-wide {
-  width: min(90vw, 1200px);
-  height: min(85vh, 900px);
+  width: 95vw;
+  height: 95vh;
   min-width: 400px;
   min-height: 300px;
   max-width: 95vw;
