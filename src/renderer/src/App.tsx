@@ -1041,6 +1041,7 @@ function App(): React.JSX.Element {
     setStatusBySession((prev) => ({
       ...prev,
       [sessionId]: {
+        ...prev[sessionId],
         thinking: true,
         turnStart: Date.now(),
         verb: pickVerb(),
