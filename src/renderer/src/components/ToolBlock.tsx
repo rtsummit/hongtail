@@ -327,9 +327,34 @@ function selectKeptIndices(entries: DiffEntry[], contextLines = 2): Set<number> 
   return keep
 }
 
+// 보이는(=keep) 줄 사이에 공통으로 깔린 leading whitespace 만 깎음. 들여쓰기 구조는
+// 유지되지만 가로 폭이 줄어 diff 가독성이 좋아진다. 빈/공백-only 줄은 prefix 계산에서 제외.
+function stripCommonIndent(entries: DiffEntry[], keep: Set<number>): DiffEntry[] {
+  let prefix: string | null = null
+  for (let i = 0; i < entries.length; i++) {
+    if (!keep.has(i)) continue
+    const text = entries[i].text
+    if (text.trim() === '') continue
+    const lead = /^[ \t]*/.exec(text)?.[0] ?? ''
+    if (prefix === null) {
+      prefix = lead
+    } else {
+      let n = 0
+      const max = Math.min(prefix.length, lead.length)
+      while (n < max && prefix[n] === lead[n]) n++
+      prefix = prefix.slice(0, n)
+    }
+    if (prefix === '') return entries
+  }
+  if (!prefix) return entries
+  const p = prefix
+  return entries.map((e) => (e.text.startsWith(p) ? { ...e, text: e.text.slice(p.length) } : e))
+}
+
 function buildUnifiedDiff(oldText: string, newText: string, contextLines = 2): DiffLine[] {
-  const entries = flattenDiffEntries(oldText, newText)
-  const keep = selectKeptIndices(entries, contextLines)
+  const raw = flattenDiffEntries(oldText, newText)
+  const keep = selectKeptIndices(raw, contextLines)
+  const entries = stripCommonIndent(raw, keep)
   const out: DiffLine[] = []
   let lastIdx = -2
   for (let i = 0; i < entries.length; i++) {
@@ -344,8 +369,9 @@ function buildUnifiedDiff(oldText: string, newText: string, contextLines = 2): D
 }
 
 function buildSideBySideDiff(oldText: string, newText: string, contextLines = 2): SideRow[] {
-  const entries = flattenDiffEntries(oldText, newText)
-  const keep = selectKeptIndices(entries, contextLines)
+  const raw = flattenDiffEntries(oldText, newText)
+  const keep = selectKeptIndices(raw, contextLines)
+  const entries = stripCommonIndent(raw, keep)
   const rows: SideRow[] = []
   let i = 0
   let lastIdx = -2
