@@ -5,6 +5,10 @@ import { broadcast } from './dispatch'
 interface PtyEntry {
   proc: pty.IPty
   workspacePath: string
+  // spawn 시 클라이언트가 hint 한 backend. listActive 응답에 그대로 돌려준다.
+  // 새로고침 후 클라이언트가 'terminal' vs 'interactive' 를 구분 복원하기 위함.
+  // hint 가 없으면 'terminal' (가장 보수적 — xterm raw 로 그려짐).
+  backend: 'terminal' | 'interactive'
 }
 
 const ptys = new Map<string, PtyEntry>()
@@ -20,12 +24,13 @@ interface SpawnArgs {
   rows: number
   command?: string
   delayMs?: number
+  backend?: 'terminal' | 'interactive'
 }
 
 export function registerPtyHandlers(): void {
   registerInvoke('pty:spawn', (rawArgs: unknown) => {
     const args = rawArgs as SpawnArgs
-    const { sessionId, workspacePath, cols, rows, command, delayMs } = args
+    const { sessionId, workspacePath, cols, rows, command, delayMs, backend } = args
     void delayMs
 
     if (ptys.has(sessionId)) {
@@ -58,7 +63,11 @@ export function registerPtyHandlers(): void {
       ptys.delete(sessionId)
     })
 
-    ptys.set(sessionId, { proc, workspacePath })
+    ptys.set(sessionId, {
+      proc,
+      workspacePath,
+      backend: backend === 'interactive' ? 'interactive' : 'terminal'
+    })
     return { alreadyRunning: false }
   })
 
@@ -85,6 +94,15 @@ export function registerPtyHandlers(): void {
     }
     ptys.delete(id)
   })
+
+  // 새로고침 reconcile 용. PTY 기반 살아있는 세션 (terminal/interactive).
+  registerInvoke('pty:list-active', () =>
+    Array.from(ptys.entries()).map(([sessionId, e]) => ({
+      sessionId,
+      workspacePath: e.workspacePath,
+      backend: e.backend
+    }))
+  )
 }
 
 export function killAllPty(): void {

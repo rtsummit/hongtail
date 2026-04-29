@@ -21,6 +21,10 @@ interface Props {
   workspacePath: string
   initialCommand: string
   visible: boolean
+  // 'terminal' (xterm raw 가 본체) vs 'interactive' (jsonl tail 로 ChatPane 이 그림).
+  // main 의 PTY 엔트리에 hint 로 저장되어 새로고침 후 list-active 응답에서
+  // 같은 backend 로 복원된다.
+  backend: 'terminal' | 'interactive'
   onExit: (code: number | null) => void
   onReady?: () => void
 }
@@ -32,7 +36,7 @@ interface PtyEvent {
 }
 
 const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function TerminalSession(
-  { sessionId, workspacePath, initialCommand, visible, onExit, onReady },
+  { sessionId, workspacePath, initialCommand, visible, backend, onExit, onReady },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -126,7 +130,8 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       workspacePath,
       cols: term.cols,
       rows: term.rows,
-      command: initialCommand
+      command: initialCommand,
+      backend
     })
 
     term.onData((data) => {

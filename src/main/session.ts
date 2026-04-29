@@ -146,6 +146,16 @@ export function registerSessionHandlers(): void {
   })
 
   registerInvoke('claude:list-running', () => Array.from(sessions.keys()))
+
+  // 새로고침 reconcile 용. 'app' 백엔드 살아있는 세션 + workspacePath 까지.
+  // listRunning 은 호환성 위해 그대로 두고 별도 RPC.
+  registerInvoke('claude:list-active', () =>
+    Array.from(sessions.values()).map((s) => ({
+      sessionId: s.id,
+      workspacePath: s.workspacePath,
+      backend: 'app' as const
+    }))
+  )
 }
 
 export function killAllSessions(): void {

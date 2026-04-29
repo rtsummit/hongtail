@@ -1395,6 +1395,7 @@ function App(): React.JSX.Element {
               workspacePath={t.workspacePath}
               initialCommand={command}
               visible={visible && terminalReady[t.sessionId] !== false}
+              backend={t.backend === 'interactive' ? 'interactive' : 'terminal'}
               onExit={(code) => handleTerminalExit(t.sessionId, code)}
               onReady={() => handleTerminalReady(t.sessionId)}
             />

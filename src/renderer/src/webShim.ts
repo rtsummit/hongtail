@@ -88,6 +88,7 @@ export const webApi: ExposedApi = {
     controlRequest: (sid, req) => rpc('claude:control-request', [sid, req]),
     stopSession: (sid) => rpc('claude:stop-session', [sid]),
     listRunning: () => rpc('claude:list-running', []),
+    listActive: () => rpc('claude:list-active', []),
     onEvent: (sid, cb) => subscribe(`claude:event:${sid}`, cb),
     watchSession: (cwd, sid) => rpc('claude:watch-session', [cwd, sid]),
     unwatchSession: (sid) => rpc('claude:unwatch-session', [sid]),
@@ -125,6 +126,7 @@ export const webApi: ExposedApi = {
     write: (sid, data) => rpc('pty:write', [sid, data]),
     resize: (sid, cols, rows) => rpc('pty:resize', [sid, cols, rows]),
     kill: (sid) => rpc('pty:kill', [sid]),
+    listActive: () => rpc('pty:list-active', []),
     onEvent: (sid, cb) => subscribe(`pty:event:${sid}`, cb)
   },
   btw: {
