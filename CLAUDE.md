@@ -94,6 +94,13 @@ npm run build:win:portable
   하면 자동 HTTPS.
 - 다른 client 의 active session 동기화는 5초 주기 polling 으로 sidebar 의 jsonl
   목록 refresh. SSE 기반 실시간 동기화는 의도적으로 빼서 단순화.
+- **dev 모드에서 web 은 Vite HMR 을 안 받음.** `serveStatic` 이 `out/renderer/`
+  의 빌드 산출물을 그대로 서빙 (`src/main/web.ts` 의 `serveStatic`). `npm run dev`
+  는 Electron 렌더러용 Vite dev 서버만 띄우고 `out/renderer/` 는 안 건드린다.
+  → 렌더러 코드를 고치면 Electron 창은 HMR 로 즉시 반영되지만 **브라우저 web
+  탭은 옛 번들** 그대로다. web 에서 검증·재현하려면 `npm run build` (또는 빠르게
+  `electron-vite build --renderer`) 로 `out/renderer/` 를 갱신한 뒤 브라우저 탭
+  새로고침. dev-restart 만 하고 build 안 하면 web 사용자는 영향 없음.
 - 자세히는 `docs/web-mode.md`.
 
 ## 별도 인스턴스 (병행 dev)
