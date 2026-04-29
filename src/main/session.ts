@@ -1,26 +1,9 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { randomUUID } from 'crypto'
 import { createInterface } from 'readline'
-import { appendFileSync } from 'fs'
-import { join } from 'path'
-import { tmpdir } from 'os'
 import { refreshUsageCacheIfStale } from './usageCache'
 import { registerInvoke } from './ipc'
 import { broadcast } from './dispatch'
-
-// Phase 0 probe — host-confirm-ui 브랜치 한정. control_request / control_response 라인을 raw 로
-// 덤프해 wire format 확인. probe 끝나면 제거.
-const PROBE_LOG = join(tmpdir(), 'hongtail-control-probe.log')
-function probeLog(direction: 'in' | 'out' | 'err', sessionId: string, line: string): void {
-  try {
-    appendFileSync(
-      PROBE_LOG,
-      `[${new Date().toISOString()}] ${direction} sid=${sessionId.slice(0, 8)} ${line}\n`
-    )
-  } catch {
-    /* ignore */
-  }
-}
 
 interface Session {
   id: string
@@ -85,14 +68,6 @@ function spawnClaude(
       try {
         const event = JSON.parse(line)
         const t = (event as { type?: string }).type
-        if (
-          t === 'control_request' ||
-          t === 'control_response' ||
-          t === 'system' ||
-          t === 'hook_event'
-        ) {
-          probeLog('in', sessionId, line)
-        }
         // 자식 → 호스트 incoming control_request 는 별 채널로 분리해 channel 흐름과
         // 섞지 않음. claudeEvents.ts 의 일반 파서가 control_request 를 처리하지 않게.
         if (t === 'control_request') {
@@ -110,9 +85,7 @@ function spawnClaude(
   }
 
   child.stderr?.on('data', (data) => {
-    const text = String(data)
-    probeLog('err', sessionId, text.replace(/\n/g, ' '))
-    broadcast(channel, { type: 'stderr', data: text })
+    broadcast(channel, { type: 'stderr', data: String(data) })
   })
 
   child.on('close', (code) => {
@@ -186,9 +159,7 @@ export function registerSessionHandlers(): void {
     if (!session?.child.stdin) {
       throw new Error(`Session ${String(sessionId)} not running`)
     }
-    const line = JSON.stringify(payload) + '\n'
-    probeLog('out', String(sessionId), line.replace(/\n$/, ''))
-    session.child.stdin.write(line)
+    session.child.stdin.write(JSON.stringify(payload) + '\n')
   })
 
   registerInvoke('claude:stop-session', (sessionId: unknown) => {

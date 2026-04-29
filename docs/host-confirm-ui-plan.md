@@ -1,11 +1,17 @@
-# 호스트 Confirm UI 구현 계획 — Phase 2
+# 호스트 Confirm UI 구현 (완료)
 
-Last Updated: 2026-04-30 (Phase 0 종료 — §11 결과 반영)
-Branch: `host-confirm-ui` (Phase 0 probe 완료, Phase 1 진입 직전)
+Last Updated: 2026-04-30 (Phase 1 종료 — UI 카드 + 사용자 응답 흐름 동작)
+Branch: `host-confirm-ui` (구현 완료, main 머지 대기)
 
+> **현재 상태**: Phase 1 (1.1 + 1.2) 종료. AskUserQuestion / ExitPlanMode 의
+> 자동 deny 가 사라졌고 hongtail 의 호스트 카드로 사용자 응답을 받는다. Phase 0
+> probe 코드는 §11.5 에 따라 정리됐다. Phase 2 (23개 deferred tool 일반 confirm
+> 카드) 는 §6 — 옵션, 시급하지 않음 (probe 결과 §11.2 의 *interactive* 둘만 deny
+> 였고 *functional* 은 이미 정상 작동).
+>
 > **이 문서의 목적**: 다른 세션이 self-contained 로 읽고 즉시 구현 시작할 수 있게 모든 컨텍스트를
-> 박아둔 plan. plan mode + AskUserQuestion + 23개 deferred tool 의 자동 deny 를 호스트 confirm UI
-> 로 풀어내는 작업.
+> 박아둔 plan. plan mode + AskUserQuestion 의 자동 deny 를 호스트 confirm UI
+> 로 풀어낸 기록.
 
 > **읽는 순서 권장**: §11 (Phase 0 결과) → §0 → §5 (Phase 1 구현). §1~§4 는 Phase 0 가설·분기·임시
 > 회피 정리이므로 history 로 참고만. §11 이 §2.3 의 "확정 안 된 것" / §3.2 분기 / §4 임시 회피 / §10
@@ -652,12 +658,34 @@ const baseArgs = [
 전제: hongtail 이 control_request 를 받아 control_response 로 응답하는 흐름 (§5.2 그대로) 을 먼저
 구현해야 함. 안 하면 자식이 응답 대기로 영원히 stuck.
 
-### 11.5 정리 대기 항목 (Phase 1 후)
+### 11.5 정리 항목 (✅ 종료)
 
-- `scripts/hook-probe-stub.cjs` — probe 전용 stub, 삭제
-- `scripts/hook-probe-settings.json` — probe 전용 settings, 삭제
-- `src/main/session.ts` 의 `probeLog` / `PROBE_LOG` / `tmpdir` import — Phase 1 디버깅 끝나면 제거
-- `src/main/session.ts` baseArgs 의 `--include-hook-events`, `--settings`, `--debug` (probe 전용 항목) — 제거
+- ✅ `scripts/hook-probe-stub.cjs` 삭제
+- ✅ `scripts/hook-probe-settings.json` 삭제
+- ✅ `src/main/session.ts` 의 `probeLog` / `PROBE_LOG` / `tmpdir` / `appendFileSync` 제거
+- ✅ baseArgs 의 probe 전용 항목 (`--include-hook-events`, `--settings`, `--debug`) 제거 — `--permission-prompt-tool stdio` 만 신규 항목으로 영구 추가
+- ✅ `--disallowed-tools AskUserQuestion` 영구 제거
+- ✅ `docs/plan-mode-askuserquestion.md` history 형태로 갱신
+- ✅ `CLAUDE.md` 의 docs 표 + 빠른 동작 모델 갱신
+
+## 12. 종료 (Phase 1 완료)
+
+`host-confirm-ui` 브랜치의 Phase 1.1 + 1.2 commit:
+
+| 커밋 | 내용 |
+|---|---|
+| `f608591` | Phase 0 probe — control_request 라인 raw 덤프 (이후 §11.5 로 정리됨) |
+| `0d1124c` | Phase 0 probe C — `--permission-prompt-tool stdio` 가 결정적 |
+| `ea04757` | docs: §11 신설, 활성화 플래그 확정 |
+| `0aa6679` | feat: Phase 1.1 control_request 양방향 채널 + auto-allow |
+| `7e756a9` | docs: §11.3 control_response 형식 확정 |
+| `1aaa212` | feat: Phase 1.2 AskUserQuestion/ExitPlanMode 카드 + 사용자 응답 |
+
+main 머지 후 작업: §6 Phase 2 (선택 — 다른 deferred tool 일반 confirm card) 는
+보류. 현재 `--permission-prompt-tool stdio` 가 들어가서 일반 도구의 ask (예:
+content-specific safety) 도 control_request 로 올라올 수 있는데, Phase 1 의
+fallback 자동 allow (`App.tsx` 의 ensureClaudeSubscription) 가 처리. 별도 UI
+필요해지면 그때 §6 디자인 적용.
 - [ ] interactive 백엔드와의 호환 — app 만 적용 / interactive 는 PTY TUI 가 자체 처리
 
 이 결정들은 작업 시작 시 이 문서 끝에 [Decisions] 섹션 추가해서 기록.
