@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { spawn } from 'child_process'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -129,6 +130,37 @@ app.whenReady().then(() => {
     startWebServer(merged)
     return merged
   })
+
+  // dev 재시작 — scripts/dev-restart.ps1 을 새 PowerShell 콘솔에서 실행.
+  // Electron 자기 자신을 죽이는 게 본질이라 detach + unref 로 떼어냄. dev 빌드
+  // 에서만 노출 (production 패키지엔 ps1 파일 없음).
+  if (is.dev) {
+    registerInvoke('dev:restart', () => {
+      const isTest = process.env.HONGTAIL_TEST === '1'
+      const scriptPath = join(app.getAppPath(), 'scripts', 'dev-restart.ps1')
+      // `start ""` 로 새 conhost 윈도우를 강제로 띄움 — Electron 은 콘솔이 없는
+      // GUI 앱이라 그냥 spawn 하면 콘솔 윈도우가 안 뜨는 케이스가 있음.
+      const cmd = [
+        'start',
+        '""',
+        'powershell.exe',
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        `"${scriptPath}"`,
+        ...(isTest ? ['-Test'] : [])
+      ].join(' ')
+      const child = spawn(cmd, {
+        shell: true,
+        detached: true,
+        stdio: 'ignore',
+        cwd: app.getAppPath()
+      })
+      child.unref()
+      return { ok: true }
+    })
+  }
 
   // TLS cert/key 파일 선택 다이얼로그. 웹에서는 OS 다이얼로그가 없어 의미 무 →
   // ipcMain 에만 등록. webShim 은 prompt 로 fallback.

@@ -160,6 +160,11 @@ export interface ExposedApi {
     hasPassword: () => Promise<boolean>
     setPassword: (newPassword: string) => Promise<{ ok: true }>
   }
+  // dev 빌드에서만 main 이 핸들러를 등록 — production / web 모드에서 호출하면
+  // No handler / 미지원 에러. 호출하는 측에서 import.meta.env.DEV 로 가드.
+  dev: {
+    restart: () => Promise<{ ok: true }>
+  }
 }
 
 declare global {

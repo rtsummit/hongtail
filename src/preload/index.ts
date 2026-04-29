@@ -120,6 +120,9 @@ const api = {
     hasPassword: (): Promise<boolean> => ipcRenderer.invoke('web:has-password'),
     setPassword: (newPassword: string) => ipcRenderer.invoke('web:set-password', newPassword)
   },
+  dev: {
+    restart: (): Promise<{ ok: true }> => ipcRenderer.invoke('dev:restart')
+  },
   pty: {
     spawn: (args: {
       sessionId: string

@@ -459,6 +459,31 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               {webError && <p className="settings-hint" style={{ color: '#ff6b6b' }}>{webError}</p>}
             </>
           )}
+          {import.meta.env.DEV && (
+            <>
+              <hr className="settings-divider" />
+              <h3 className="settings-section-title">개발</h3>
+              <div className="settings-row">
+                <span className="settings-label">dev 재시작</span>
+                <button
+                  type="button"
+                  className="settings-tls-btn"
+                  onClick={() => {
+                    void window.api.dev.restart().catch((err) => {
+                      console.error('dev restart failed:', err)
+                    })
+                  }}
+                >
+                  실행
+                </button>
+              </div>
+              <p className="settings-hint">
+                기존 electron · vite · 자식 프로세스 정리 후 새 PowerShell 창에서
+                npm run dev 재시작. 현재 인스턴스에 맞춰 -Test 자동 토글
+                (HONGTAIL_TEST=1 → -Test).
+              </p>
+            </>
+          )}
         </div>
         <footer className="modal-footer">
           <button type="button" className="modal-btn secondary" onClick={reset}>
