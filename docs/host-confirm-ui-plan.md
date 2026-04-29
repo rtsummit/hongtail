@@ -603,7 +603,7 @@ questions?"` 합성. 이게 hongtail 이 본 자동 deny 의 진짜 원인.
 
 ExitPlanMode 의 input 은 `{ "plan": "<markdown>", "planFilePath": "<path>" }`.
 
-**control_response (호스트 → 자식)** — Phase 1 구현 중 검증할 것. 추정:
+**control_response (호스트 → 자식)** — Phase 1.1 에서 확정 (양방향 흐름 동작):
 ```json
 {
   "type": "control_response",
@@ -612,13 +612,24 @@ ExitPlanMode 의 input 은 `{ "plan": "<markdown>", "planFilePath": "<path>" }`.
     "request_id": "63b67a17-...",
     "response": {
       "behavior": "allow",
-      "updatedInput": { /* AskUserQuestion answers, ExitPlanMode 는 옵션 */ }
+      "updatedInput": {}
     }
   }
 }
 ```
 
-deny 시: `response.response = { behavior: "deny", message: "<feedback>" }`.
+`response.response` 의 schema = claude-code-main 의 `PermissionPromptToolResultSchema.ts`:
+
+- **allow**: `{ behavior:'allow', updatedInput: Record<string,unknown> (필수, 빈 {} 면 원본 input
+  사용), updatedPermissions?: PermissionUpdate[], toolUseID?: string, decisionClassification?:
+  'user_temporary'|'user_permanent'|'user_reject' }`
+- **deny**: `{ behavior:'deny', message: string (필수, 모델한테 줄 피드백), interrupt?: boolean,
+  toolUseID?: string, decisionClassification?: ... }`
+
+`updatedInput: {}` 의 의미: schema 의 line 110 — "Mobile clients responding from a push notification
+don't have the original tool input, so they send `{}` to satisfy the schema. Treat an empty object
+as 'use original' so the tool doesn't run with no args." 즉 빈 객체면 자식이 원래 input 그대로
+사용. AskUserQuestion 의 answers 같은 사용자 응답을 inject 하려면 여기 입력값 형태로 넣음.
 
 ### 11.4 Phase 1 진입 시 적용 사항
 
