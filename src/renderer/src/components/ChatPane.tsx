@@ -67,6 +67,15 @@ interface Props {
   // 그대로 App 으로 흘려서 status 추출 (UsageBar) 만 돌리게 한다.
   // readonly 일 때는 호출 안 함 — 라이브 아님.
   onLiveJsonlEvents?: (sessionId: string, events: unknown[]) => void
+  // Phase 1.2 — 자식의 control_request 카드 응답.
+  onAskUserQuestionAnswer?: (
+    sessionId: string,
+    requestId: string,
+    answers: Record<string, string>
+  ) => void
+  onAskUserQuestionCancel?: (sessionId: string, requestId: string) => void
+  onExitPlanModeApprove?: (sessionId: string, requestId: string) => void
+  onExitPlanModeDeny?: (sessionId: string, requestId: string, message: string) => void
 }
 
 function isLiveMode(mode: SessionMode): boolean {
@@ -100,8 +109,13 @@ function ChatPane({
   onSetPermissionMode,
   onSetModel,
   onInterrupt,
-  onLiveJsonlEvents
+  onLiveJsonlEvents,
+  onAskUserQuestionAnswer,
+  onAskUserQuestionCancel,
+  onExitPlanModeApprove,
+  onExitPlanModeDeny
 }: Props): React.JSX.Element {
+  const sessionId = selected?.sessionId
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [shownFromLine, setShownFromLine] = useState(0)
@@ -536,7 +550,29 @@ function ChatPane({
               : `위로 스크롤하면 이전 ${shownFromLine} 줄을 더 불러옵니다`}
           </div>
         )}
-        <MessageList blocks={messages} />
+        <MessageList
+          blocks={messages}
+          onAskUserQuestionAnswer={
+            sessionId && onAskUserQuestionAnswer
+              ? (rid, answers) => onAskUserQuestionAnswer(sessionId, rid, answers)
+              : undefined
+          }
+          onAskUserQuestionCancel={
+            sessionId && onAskUserQuestionCancel
+              ? (rid) => onAskUserQuestionCancel(sessionId, rid)
+              : undefined
+          }
+          onExitPlanModeApprove={
+            sessionId && onExitPlanModeApprove
+              ? (rid) => onExitPlanModeApprove(sessionId, rid)
+              : undefined
+          }
+          onExitPlanModeDeny={
+            sessionId && onExitPlanModeDeny
+              ? (rid, message) => onExitPlanModeDeny(sessionId, rid, message)
+              : undefined
+          }
+        />
         {status?.thinking && (
           <ThinkingIndicator
             verb={status.verb}

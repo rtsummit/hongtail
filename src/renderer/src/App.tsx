@@ -31,7 +31,14 @@ import {
   type RpcSnapshot,
   type RpcWaiterEntry
 } from './rpcBridge'
-import type { Backend, Block, SelectedSession, SessionStatus, WorkspaceEntry } from './types'
+import type {
+  AskUserQuestionDef,
+  Backend,
+  Block,
+  SelectedSession,
+  SessionStatus,
+  WorkspaceEntry
+} from './types'
 import type { SessionAlias } from '../../preload/index.d'
 
 // Shift+Tab 으로 사이클링되는 permission mode 들. Claude Code CLI 와 동일하게
@@ -547,16 +554,53 @@ function App(): React.JSX.Element {
       const unsub = window.api.claude.onEvent(sessionId, (event) =>
         handleClaudeEvent(sessionId, event)
       )
-      // 자식 → 호스트 incoming control_request 구독. Phase 1.1 — 일단 무조건
-      // allow 로 회신해 ExitPlanMode/AskUserQuestion 의 자동 deny 만 풀어둔다.
-      // host UI (AskUserQuestionCard / ExitPlanModeCard) 는 Phase 1.2 에서 추가.
+      // 자식 → 호스트 incoming control_request 구독.
+      // - AskUserQuestion / ExitPlanMode: 호스트 카드 Block 으로 push, 사용자 응답
+      //   까지 자식 stdin 회신 보류. (실제 control_response 는 onAskUserQuestion*
+      //   / onExitPlanMode* 핸들러에서 송신.)
+      // - 그 외 tool_name: Phase 2 fallback — 자동 allow + updatedInput:{}.
       // wire format: docs/host-confirm-ui-plan.md §11.3.
-      // updatedInput: {} 는 schema 의 "use original input" 약속
-      // (PermissionPromptToolResultSchema.ts:110 — 빈 객체면 자식이 원본 input 사용).
       const unsubCtrl = window.api.claude.onControlRequest(sessionId, (event) => {
-        const req = event?.request as { subtype?: string } | undefined
+        const req = event?.request as
+          | {
+              subtype?: string
+              tool_name?: string
+              tool_use_id?: string
+              input?: Record<string, unknown>
+            }
+          | undefined
         const requestId = event?.request_id as string | undefined
         if (!requestId || req?.subtype !== 'can_use_tool') return
+
+        if (req.tool_name === 'AskUserQuestion') {
+          const questions = (req.input?.questions as AskUserQuestionDef[] | undefined) ?? []
+          appendBlocks(sessionId, [
+            {
+              kind: 'ask-user-question',
+              requestId,
+              toolUseId: req.tool_use_id,
+              questions
+            }
+          ])
+          return
+        }
+        if (req.tool_name === 'ExitPlanMode') {
+          const plan = (req.input?.plan as string | undefined) ?? ''
+          const planFilePath = req.input?.planFilePath as string | undefined
+          appendBlocks(sessionId, [
+            {
+              kind: 'exit-plan-mode',
+              requestId,
+              toolUseId: req.tool_use_id,
+              plan,
+              planFilePath
+            }
+          ])
+          return
+        }
+        // 그 외 deferred tool: 자동 allow (§7 fallback). 일반 도구는 보통
+        // bypassPermissions 로 'ask' 까지 안 올라가지만 content-specific ask
+        // (`.git/`, `.claude/` safety 룰) 가 올라올 수 있어 안전하게 처리.
         void window.api.claude.respondControl(sessionId, {
           type: 'control_response',
           response: {
@@ -571,7 +615,118 @@ function App(): React.JSX.Element {
         unsubCtrl()
       })
     },
-    [handleClaudeEvent]
+    [handleClaudeEvent, appendBlocks]
+  )
+
+  // 카드 응답을 control_response 로 변환해 자식에 회신 + Block 의 resolved 갱신.
+  // resolved 는 카드 disable + 결과 표시용. wire format §11.3.
+  const sendControlAllow = useCallback(
+    (sessionId: string, requestId: string, updatedInput: Record<string, unknown>) => {
+      void window.api.claude.respondControl(sessionId, {
+        type: 'control_response',
+        response: {
+          subtype: 'success',
+          request_id: requestId,
+          response: { behavior: 'allow', updatedInput }
+        }
+      })
+    },
+    []
+  )
+
+  const sendControlDeny = useCallback(
+    (sessionId: string, requestId: string, message: string) => {
+      void window.api.claude.respondControl(sessionId, {
+        type: 'control_response',
+        response: {
+          subtype: 'success',
+          request_id: requestId,
+          response: { behavior: 'deny', message }
+        }
+      })
+    },
+    []
+  )
+
+  // requestId 로 messages 안의 카드 Block 을 찾아 resolved 갱신. update 함수가
+  // 새 resolved 객체 반환.
+  const resolveCardBlock = useCallback(
+    (sessionId: string, requestId: string, update: (block: Block) => Block) => {
+      setMessagesBySession((prev) => {
+        const blocks = prev[sessionId]
+        if (!blocks) return prev
+        let changed = false
+        const next = blocks.map((b) => {
+          if (
+            (b.kind === 'ask-user-question' || b.kind === 'exit-plan-mode') &&
+            b.requestId === requestId
+          ) {
+            changed = true
+            return update(b)
+          }
+          return b
+        })
+        if (!changed) return prev
+        return { ...prev, [sessionId]: next }
+      })
+    },
+    []
+  )
+
+  const handleAskUserQuestionAnswer = useCallback(
+    (sessionId: string, requestId: string, answers: Record<string, string>) => {
+      // updatedInput 은 원본 input + answers. AskUserQuestionTool.tsx 의 schema
+      // (line 56) 가 input 에 questions + 선택적 answers 를 받음. 비어 있으면 자식이
+      // 원본 input 사용 (§11.3) 인데 answers 가 비면 모델이 빈 답으로 받음.
+      // 안전하게 questions 를 같이 보내 schema 통과.
+      let questions: AskUserQuestionDef[] = []
+      setMessagesBySession((prev) => {
+        const blocks = prev[sessionId]
+        if (!blocks) return prev
+        for (const b of blocks) {
+          if (b.kind === 'ask-user-question' && b.requestId === requestId) {
+            questions = b.questions
+            break
+          }
+        }
+        return prev
+      })
+      sendControlAllow(sessionId, requestId, { questions, answers })
+      resolveCardBlock(sessionId, requestId, (b) =>
+        b.kind === 'ask-user-question' ? { ...b, resolved: { answers } } : b
+      )
+    },
+    [sendControlAllow, resolveCardBlock]
+  )
+
+  const handleAskUserQuestionCancel = useCallback(
+    (sessionId: string, requestId: string) => {
+      sendControlDeny(sessionId, requestId, 'User cancelled the question.')
+      resolveCardBlock(sessionId, requestId, (b) =>
+        b.kind === 'ask-user-question' ? { ...b, resolved: { cancelled: true as const } } : b
+      )
+    },
+    [sendControlDeny, resolveCardBlock]
+  )
+
+  const handleExitPlanModeApprove = useCallback(
+    (sessionId: string, requestId: string) => {
+      sendControlAllow(sessionId, requestId, {})
+      resolveCardBlock(sessionId, requestId, (b) =>
+        b.kind === 'exit-plan-mode' ? { ...b, resolved: 'approve' as const } : b
+      )
+    },
+    [sendControlAllow, resolveCardBlock]
+  )
+
+  const handleExitPlanModeDeny = useCallback(
+    (sessionId: string, requestId: string, message: string) => {
+      sendControlDeny(sessionId, requestId, message)
+      resolveCardBlock(sessionId, requestId, (b) =>
+        b.kind === 'exit-plan-mode' ? { ...b, resolved: 'deny' as const } : b
+      )
+    },
+    [sendControlDeny, resolveCardBlock]
   )
 
   // 'interactive' 백엔드의 jsonl tail 흐름이 ChatPane 안에서 일어나지만 status
@@ -1532,6 +1687,10 @@ function App(): React.JSX.Element {
             onSetModel={handleSetModel}
             onInterrupt={handleInterrupt}
             onLiveJsonlEvents={handleLiveJsonlEvents}
+            onAskUserQuestionAnswer={handleAskUserQuestionAnswer}
+            onAskUserQuestionCancel={handleAskUserQuestionCancel}
+            onExitPlanModeApprove={handleExitPlanModeApprove}
+            onExitPlanModeDeny={handleExitPlanModeDeny}
           />
         )}
         {isStartingTerminal && (

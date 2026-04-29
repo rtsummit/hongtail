@@ -5,10 +5,20 @@ import { Highlight, themes } from 'prism-react-renderer'
 import { safeLanguage } from '../prismSetup'
 import { PrismBoundary } from './PrismBoundary'
 import ToolBlock from './ToolBlock'
+import AskUserQuestionCard from './AskUserQuestionCard'
+import ExitPlanModeCard from './ExitPlanModeCard'
 import type { Block } from '../types'
 
 interface Props {
   blocks: Block[]
+  // Phase 1.2 — 자식의 control_request 로 들어온 deferred tool 카드 응답.
+  // 호출자 (App.tsx) 가 control_response 로 변환해 자식 stdin 에 회신 + Block
+  // 의 resolved 갱신 책임. MessageList 가 ChatPane / SideChatPanel 둘 다에서
+  // 쓰여서 핸들러를 optional 로 둠 — undefined 면 카드는 readonly 로 렌더.
+  onAskUserQuestionAnswer?: (requestId: string, answers: Record<string, string>) => void
+  onAskUserQuestionCancel?: (requestId: string) => void
+  onExitPlanModeApprove?: (requestId: string) => void
+  onExitPlanModeDeny?: (requestId: string, message: string) => void
 }
 
 type ToolUseBlock = Extract<Block, { kind: 'tool-use' }>
@@ -100,18 +110,45 @@ const markdownComponents = {
   code: MarkdownCode
 }
 
-function MessageList({ blocks }: Props): React.JSX.Element {
+function MessageList({
+  blocks,
+  onAskUserQuestionAnswer,
+  onAskUserQuestionCancel,
+  onExitPlanModeApprove,
+  onExitPlanModeDeny
+}: Props): React.JSX.Element {
   const items = useMemo(() => pairToolBlocks(blocks), [blocks])
   return (
     <>
       {items.map((b, i) => (
-        <ItemView key={i} item={b} />
+        <ItemView
+          key={i}
+          item={b}
+          onAskUserQuestionAnswer={onAskUserQuestionAnswer}
+          onAskUserQuestionCancel={onAskUserQuestionCancel}
+          onExitPlanModeApprove={onExitPlanModeApprove}
+          onExitPlanModeDeny={onExitPlanModeDeny}
+        />
       ))}
     </>
   )
 }
 
-const ItemView = memo(function ItemView({ item }: { item: RenderItem }): React.JSX.Element | null {
+interface ItemViewProps {
+  item: RenderItem
+  onAskUserQuestionAnswer?: (requestId: string, answers: Record<string, string>) => void
+  onAskUserQuestionCancel?: (requestId: string) => void
+  onExitPlanModeApprove?: (requestId: string) => void
+  onExitPlanModeDeny?: (requestId: string, message: string) => void
+}
+
+const ItemView = memo(function ItemView({
+  item,
+  onAskUserQuestionAnswer,
+  onAskUserQuestionCancel,
+  onExitPlanModeApprove,
+  onExitPlanModeDeny
+}: ItemViewProps): React.JSX.Element | null {
   if (item.kind === 'tool-pair') {
     return <ToolBlock use={item.use} result={item.result} />
   }
@@ -158,6 +195,25 @@ const ItemView = memo(function ItemView({ item }: { item: RenderItem }): React.J
       return <div className="system-line">{item.text}</div>
     case 'error':
       return <div className="system-line error">{item.text}</div>
+    case 'ask-user-question':
+      return (
+        <AskUserQuestionCard
+          questions={item.questions}
+          resolved={item.resolved}
+          onSubmit={(answers) => onAskUserQuestionAnswer?.(item.requestId, answers)}
+          onCancel={() => onAskUserQuestionCancel?.(item.requestId)}
+        />
+      )
+    case 'exit-plan-mode':
+      return (
+        <ExitPlanModeCard
+          plan={item.plan}
+          planFilePath={item.planFilePath}
+          resolved={item.resolved}
+          onApprove={() => onExitPlanModeApprove?.(item.requestId)}
+          onDeny={(message) => onExitPlanModeDeny?.(item.requestId, message)}
+        />
+      )
     default:
       return null
   }
