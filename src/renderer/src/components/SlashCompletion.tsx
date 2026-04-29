@@ -87,6 +87,7 @@ function SlashCompletion({
         >
           <span className="slash-name">/{c.name}</span>
           {c.description && <span className="slash-desc">{c.description}</span>}
+          {c.kind === 'skill' && <span className="slash-source skill">skill</span>}
           <span className={`slash-source ${c.source}`}>{SOURCE_LABEL[c.source]}</span>
         </div>
       ))}

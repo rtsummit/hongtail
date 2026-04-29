@@ -17,6 +17,10 @@ export interface SlashCommand {
   name: string
   description: string
   source: 'builtin' | 'user' | 'project' | 'plugin'
+  // 'command' = .claude/commands/*.md / 'skill' = .claude/skills/<name>/SKILL.md.
+  // 둘 다 / 픽커에 같이 뜨고, 입력은 그냥 텍스트로 forward — Claude CLI 가
+  // 스킬은 모델이 Skill tool 로 호출하게 처리한다.
+  kind: 'command' | 'skill'
   origin?: string
 }
 

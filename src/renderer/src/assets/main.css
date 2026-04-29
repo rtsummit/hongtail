@@ -1746,6 +1746,9 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .slash-source.plugin {
   border-color: rgba(200, 120, 200, 0.4);
 }
+.slash-source.skill {
+  border-color: rgba(120, 200, 200, 0.4);
+}
 
 /* === Quote (selection-to-comment) === */
 .quote-chips {
