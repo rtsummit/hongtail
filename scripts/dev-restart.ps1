@@ -4,15 +4,24 @@
   hongtail dev 재시작.
   기존 electron / vite / 자식 claude·pty 프로세스를 정리한 뒤 `npm run dev` 실행.
 
+  기본으로 electron-vite build 를 한 번 돌려 out/renderer/ 도 갱신한다 — web
+  모드 (`src/main/web.ts` 의 serveStatic) 가 out/renderer/ 의 빌드 산출물을
+  서빙하기 때문. dev 모드에서도 web 은 Vite HMR 을 안 받으므로 build 를 안
+  하면 브라우저 web 사용자는 옛 번들을 계속 본다. typecheck 는 생략 (속도).
+
 .PARAMETER Test
   Test 인스턴스로 띄움 (HONGTAIL_TEST=1, RPC 포트 9877).
   지정 시 9877 포트 + repo path 의 leaked 프로세스만 정리.
 
+.PARAMETER NoBuild
+  out/renderer/ 빌드 단계 생략. web 모드 안 쓰는 빠른 재시작용.
+
 .EXAMPLE
   .\scripts\dev-restart.ps1
   .\scripts\dev-restart.ps1 -Test
+  .\scripts\dev-restart.ps1 -NoBuild
 #>
-param([switch]$Test)
+param([switch]$Test, [switch]$NoBuild)
 
 $ErrorActionPreference = 'Continue'
 $repoRoot = (Resolve-Path "$PSScriptRoot\..").Path.TrimEnd('\')
@@ -80,10 +89,23 @@ if (-not $freed) {
   Write-Host "  ⚠ 포트가 끝까지 release 안 됨 — 그래도 진행. dev 시작 후 web/rpc 가 disabled 되면 한 번 더 실행하세요." -ForegroundColor Yellow
 }
 
+Set-Location $repoRoot
+
+# out/renderer/ 갱신 — web 모드 사용자가 최신 코드 받게 함. typecheck 건너뛰고
+# electron-vite build 직접 호출. main/preload 도 같이 빌드되지만 곧 npm run dev
+# 가 다시 덮어쓰므로 무해.
+if (-not $NoBuild) {
+  Write-Host ""
+  Write-Host "▸ out/ 빌드 (web 모드용 — typecheck 생략)" -ForegroundColor Cyan
+  & npx electron-vite build
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "  ⚠ build 실패 (exit $LASTEXITCODE) — 그래도 dev 진행. web 사용자는 옛 번들 그대로." -ForegroundColor Yellow
+  }
+}
+
 Write-Host ""
 $label = if ($Test) { 'test 인스턴스 (HONGTAIL_TEST=1, RPC 9877)' } else { 'main 인스턴스 (RPC 9876)' }
 Write-Host "▸ dev 재시작 — $label" -ForegroundColor Cyan
-Set-Location $repoRoot
 if ($Test) { $env:HONGTAIL_TEST = '1' }
 npm run dev
 $exitCode = $LASTEXITCODE
