@@ -575,6 +575,109 @@ function App(): React.JSX.Element {
     [handleClaudeEvent]
   )
 
+  // 새로고침 reconcile — mount 직후 1회. main 의 살아있는 세션 (app + pty 기반)
+  // 을 가져와 active state 를 복원한다. 'app' 백엔드는 stream-json IPC 가 끊긴
+  // 상태라 onEvent 재구독 + jsonl 리플레이로 messages/status 도 같이 채운다.
+  // 'terminal'/'interactive' 는 active 만 채우면 다른 useEffect / ChatPane 이
+  // 자동으로 jsonl watch 를 거니 별도 처리 불필요.
+  //
+  // race 노트: app 라이브 세션이 '응답 진행 중' 일 때 새로고침되면 readSession
+  // (jsonl) 과 onEvent (stream-json) 양쪽이 같은 마지막 turn 을 노릴 수 있다.
+  // jsonl 은 자식이 동시 기록하므로 거의 같은 내용이고, replaceBlocks 가
+  // 덮어쓴다. 이후 turn 의 새 stream-json event 는 정상 append. 짧은 race 로
+  // 마지막 turn 의 일부 출력이 잃을 수 있지만 PoC 단계에서는 무시한다.
+  const reconcileFnsRef = useRef({
+    ensureClaudeSubscription,
+    handleClaudeEvent,
+    replaceBlocks
+  })
+  reconcileFnsRef.current = {
+    ensureClaudeSubscription,
+    handleClaudeEvent,
+    replaceBlocks
+  }
+  useEffect(() => {
+    let cancelled = false
+    const run = async (): Promise<void> => {
+      let appActive: Array<{ sessionId: string; workspacePath: string; backend: 'app' }> = []
+      let ptyActive: Array<{
+        sessionId: string
+        workspacePath: string
+        backend: 'terminal' | 'interactive'
+      }> = []
+      try {
+        const [a, p] = await Promise.all([
+          window.api.claude.listActive(),
+          window.api.pty.listActive()
+        ])
+        appActive = a as typeof appActive
+        ptyActive = p as typeof ptyActive
+      } catch (err) {
+        console.error('[reconcile] listActive failed:', err)
+        return
+      }
+      if (cancelled) return
+
+      const all = [...appActive, ...ptyActive]
+      if (all.length === 0) {
+        // 살아있는 세션 없음 — 복원된 selected 가 있어도 readonly 그대로 둔다
+        // (Phase 1 에서 이미 readonly 로 강제됨). ChatPane 이 jsonl 을 자체 로드.
+        return
+      }
+
+      setActive((prev) => {
+        const next = { ...prev }
+        for (const a of all) {
+          if (next[a.sessionId]) continue
+          next[a.sessionId] = {
+            workspacePath: a.workspacePath,
+            mode: 'resume-full',
+            backend: a.backend
+          }
+        }
+        return next
+      })
+
+      // 'app' 백엔드 — stream-json IPC 끊김 → 재구독 + jsonl 리플레이
+      for (const a of appActive) {
+        if (cancelled) return
+        reconcileFnsRef.current.ensureClaudeSubscription(a.sessionId)
+        try {
+          const events = await window.api.claude.readSession(a.workspacePath, a.sessionId)
+          if (cancelled) return
+          const blocks: Block[] = []
+          for (const e of events) {
+            blocks.push(...parseClaudeEvent(e))
+            // status 추출 (model/permissionMode/contextTokens/usage 등)
+            reconcileFnsRef.current.handleClaudeEvent(a.sessionId, e, {
+              appendMessages: false
+            })
+          }
+          reconcileFnsRef.current.replaceBlocks(a.sessionId, blocks)
+        } catch (err) {
+          console.error('[reconcile] readSession failed:', err)
+        }
+      }
+
+      if (cancelled) return
+      // selected 보정 — 복원된 selected 가 라이브로 잡히면 mode/backend 를 active 로 덮어씀.
+      // sessionStorage 의 selected 는 readonly 로 강제되어 있었음.
+      setSelected((prev) => {
+        if (!prev) return prev
+        const match = all.find((a) => a.sessionId === prev.sessionId)
+        if (!match) return prev
+        if (prev.mode !== 'readonly' && prev.backend === match.backend) return prev
+        return { ...prev, mode: 'resume-full', backend: match.backend }
+      })
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+    // mount 1회만. ref 패턴으로 stale closure 회피.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // 'terminal' 백엔드는 ChatPane 을 안 거치므로 jsonl watch 가 없다 — App 측에서
   // 직접 watch 등록해 status 만 추출 (사이드바의 thinking dot, model 라벨 등).
   // messages append 는 안 함 (terminal 은 xterm raw 가 본체).
