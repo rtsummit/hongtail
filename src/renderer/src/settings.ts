@@ -1,19 +1,15 @@
-export type DefaultBackend = 'app' | 'terminal' | 'interactive'
-
 export interface AppSettings {
   fonts: string[]
   fontSize: number
   readonlyChunkSize: number
   toolCardsDefaultOpen: boolean
-  defaultBackend: DefaultBackend
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   fonts: [],
   fontSize: 13,
   readonlyChunkSize: 100,
-  toolCardsDefaultOpen: false,
-  defaultBackend: 'app'
+  toolCardsDefaultOpen: false
 }
 
 const KEY = 'hongtail.settings'
@@ -63,13 +59,7 @@ export function loadSettings(): AppSettings {
       toolCardsDefaultOpen:
         typeof parsed.toolCardsDefaultOpen === 'boolean'
           ? parsed.toolCardsDefaultOpen
-          : DEFAULT_SETTINGS.toolCardsDefaultOpen,
-      defaultBackend:
-        parsed.defaultBackend === 'app' ||
-        parsed.defaultBackend === 'terminal' ||
-        parsed.defaultBackend === 'interactive'
-          ? parsed.defaultBackend
-          : DEFAULT_SETTINGS.defaultBackend
+          : DEFAULT_SETTINGS.toolCardsDefaultOpen
     }
   } catch {
     return { ...DEFAULT_SETTINGS }

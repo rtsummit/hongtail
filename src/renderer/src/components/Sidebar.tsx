@@ -32,7 +32,7 @@ interface Props {
   onSetSessionAlias: (sessionId: string, alias: string) => void | Promise<void>
   onOpenSettings: () => void
   onSelect: (s: SelectedSession | null) => void
-  onStartClaude: (cwd: string) => void | Promise<void>
+  onStartClaude: (cwd: string, backend: Backend) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
 }
 

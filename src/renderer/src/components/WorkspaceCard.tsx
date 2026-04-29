@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import SessionRow from './SessionRow'
 import SessionTitleArea from './SessionTitleArea'
 import type {
+  Backend,
   ClaudeSessionMeta,
   LiveSessionInfo,
   SelectedSession,
@@ -25,7 +26,7 @@ interface Props {
   // 다른 client 가 세션 시작/종료한 신호. 변경 시 listSessions 재호출.
   refreshTick: number
   onSelect: (s: SelectedSession | null) => void
-  onStartClaude: (cwd: string) => void | Promise<void>
+  onStartClaude: (cwd: string, backend: Backend) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
   onRemove: (path: string) => void | Promise<void>
   onSetAlias: (path: string, alias: string) => void | Promise<void>
@@ -120,9 +121,12 @@ function WorkspaceCard({
     return () => window.clearTimeout(id)
   }, [refreshTick, refresh])
 
-  const handleNewConversation = useCallback(() => {
-    void onStartClaude(path)
-  }, [path, onStartClaude])
+  const handleNewConversation = useCallback(
+    (backend: Backend) => {
+      void onStartClaude(path, backend)
+    },
+    [path, onStartClaude]
+  )
 
   const handleDelete = useCallback(
     async (sessionId: string, title: string) => {
@@ -152,8 +156,9 @@ function WorkspaceCard({
     graduated: s.hasUserMessage || jsonlIds.has(s.sessionId),
     jsonlTitle: jsonlById.get(s.sessionId)?.title
   }))
-  // At most one fresh per workspace (we only allow one at a time).
-  const fresh = liveExt.find((s) => !s.graduated) ?? null
+  // Fresh 는 backend 별로 따로 추적 — 'app' 만 graduate 전 단계가 의미가 있고
+  // 'terminal' 은 spawn 즉시 graduated=true 라 사실상 fresh 가 없음.
+  const fresh = liveExt.find((s) => !s.graduated && s.backend === 'app') ?? null
   const graduatedLives = liveExt.filter((s) => s.graduated)
   const filteredPast = (sessions ?? []).filter((s) => {
     if (liveIds.has(s.id)) return false
@@ -225,8 +230,12 @@ function WorkspaceCard({
         mode: 'readonly'
       })
     } else {
-      handleNewConversation()
+      handleNewConversation('app')
     }
+  }
+
+  const handleTerminalClick = (): void => {
+    handleNewConversation('terminal')
   }
 
   const headerClasses = ['workspace-header']
@@ -321,22 +330,32 @@ function WorkspaceCard({
 
       {!collapsed && (
         <div className="session-list">
-          <div
-            className={newConversationClasses.join(' ')}
-            onClick={handleNewConversationClick}
-            title={
-              fresh
-                ? '대기 중인 새로운 대화 (선택)'
-                : '이 디렉터리에서 새 대화 시작 (현재 모드 사용)'
-            }
-          >
-            <span className="new-conversation-plus">+</span>
-            <span className="new-conversation-label">새로운 대화</span>
-            {fresh && (
-              <span className="live-dot" title={`${fresh.backend} · waiting`}>
-                ●
-              </span>
-            )}
+          <div className="new-conversation-row">
+            <div
+              className={newConversationClasses.join(' ')}
+              onClick={handleNewConversationClick}
+              title={
+                fresh
+                  ? '대기 중인 새로운 대화 (선택)'
+                  : '이 디렉터리에서 새 대화 시작 (앱 모드)'
+              }
+            >
+              <span className="new-conversation-plus">+</span>
+              <span className="new-conversation-label">새로운 대화</span>
+              {fresh && (
+                <span className="live-dot" title={`${fresh.backend} · waiting`}>
+                  ●
+                </span>
+              )}
+            </div>
+            <div
+              className="new-conversation new-conversation-terminal"
+              onClick={handleTerminalClick}
+              title="이 디렉터리에서 새 터미널 세션 시작"
+            >
+              <span className="new-conversation-plus">+</span>
+              <span className="new-conversation-label">터미널</span>
+            </div>
           </div>
 
           {orderedLives.map((s) => {

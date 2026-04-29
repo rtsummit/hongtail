@@ -117,16 +117,6 @@ function App(): React.JSX.Element {
   const cyclingRef = useRef(false)
   const cycleIdxRef = useRef(0)
 
-  const defaultBackend = settings.defaultBackend
-  const setDefaultBackend = useCallback((b: Backend) => {
-    setSettings((prev) => {
-      if (prev.defaultBackend === b) return prev
-      const next: AppSettings = { ...prev, defaultBackend: b }
-      saveSettings(next)
-      return next
-    })
-  }, [])
-
   const handleSettingsChange = useCallback((next: AppSettings) => {
     setSettings(next)
     saveSettings(next)
@@ -803,28 +793,28 @@ function App(): React.JSX.Element {
   }, [])
 
   const startClaudeIn = useCallback(
-    (cwd: string) => {
+    (cwd: string, backend: Backend) => {
       const sessionId = crypto.randomUUID()
       setSelected({
         workspacePath: cwd,
         sessionId,
         title: 'New session',
         mode: 'new',
-        backend: defaultBackend
+        backend
       })
-      void startLive(sessionId, cwd, 'new', defaultBackend)
+      void startLive(sessionId, cwd, 'new', backend)
     },
-    [defaultBackend, startLive]
+    [startLive]
   )
 
   const activate = useCallback(
     (mode: 'resume-full' | 'resume-summary', backendOverride?: Backend) => {
       if (!selected) return
-      const backend = backendOverride ?? defaultBackend
+      const backend = backendOverride ?? 'app'
       setSelected((prev) => (prev ? { ...prev, mode, backend } : prev))
       void startLive(selected.sessionId, selected.workspacePath, mode, backend)
     },
-    [selected, defaultBackend, startLive]
+    [selected, startLive]
   )
 
   const handleReorderWorkspaces = useCallback(
@@ -1123,7 +1113,6 @@ function App(): React.JSX.Element {
     selected: null,
     active: {},
     status: {},
-    defaultBackend: 'app',
     messageCounts: {}
   })
   const messagesRef = useRef<Record<string, Block[]>>({})
@@ -1133,7 +1122,6 @@ function App(): React.JSX.Element {
     selected,
     active,
     status: statusBySession,
-    defaultBackend,
     messageCounts: Object.fromEntries(
       Object.entries(messagesBySession).map(([k, v]) => [k, v.length])
     )
@@ -1210,7 +1198,6 @@ function App(): React.JSX.Element {
     activate,
     sendInput: rpcSendInput,
     controlRequest: rpcControlRequest,
-    setBackend: setDefaultBackend,
     waitResult: rpcWaitResult
   })
   actionsRef.current = {
@@ -1220,7 +1207,6 @@ function App(): React.JSX.Element {
     activate,
     sendInput: rpcSendInput,
     controlRequest: rpcControlRequest,
-    setBackend: setDefaultBackend,
     waitResult: rpcWaitResult
   }
 
@@ -1235,7 +1221,6 @@ function App(): React.JSX.Element {
         activate: (...args) => actionsRef.current.activate(...args),
         sendInput: (...args) => actionsRef.current.sendInput(...args),
         controlRequest: (...args) => actionsRef.current.controlRequest(...args),
-        setBackend: (...args) => actionsRef.current.setBackend(...args),
         waitResult: (...args) => actionsRef.current.waitResult(...args)
       }
     })

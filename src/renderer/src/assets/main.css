@@ -352,12 +352,17 @@
   color: var(--danger-fg);
 }
 
+.new-conversation-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
 .new-conversation {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 7px 10px;
-  margin-bottom: 4px;
   border-radius: 4px;
   font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
@@ -365,10 +370,16 @@
   user-select: none;
   background: rgba(14, 99, 156, 0.12);
   border: 1px dashed var(--accent);
+  flex: 1 1 0;
+  min-width: 0;
   transition:
     background-color 0.1s,
     border-color 0.1s,
     color 0.1s;
+}
+
+.new-conversation-terminal {
+  flex: 0 0 auto;
 }
 
 .new-conversation:hover {

@@ -107,10 +107,6 @@ async function dispatch(req: IncomingMessage): Promise<unknown> {
     return callRenderer('waitResult', [body.sessionId, body.timeoutMs ?? 60000])
   }
 
-  if (route === 'POST /backend/set') {
-    return callRenderer('setBackend', [body.backend])
-  }
-
   if (route === 'POST /eval' && ENABLE_EVAL) {
     const win = getMainWindow()
     if (!win) throw new Error('no window')

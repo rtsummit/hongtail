@@ -13,7 +13,6 @@ export interface RpcSnapshot {
   selected: SelectedSession | null
   active: Record<string, ActiveEntry>
   status: Record<string, SessionStatus>
-  defaultBackend: Backend
   messageCounts: Record<string, number>
 }
 
@@ -35,7 +34,6 @@ export interface RpcActions {
   activate: (mode: 'resume-full' | 'resume-summary') => void
   sendInput: (sessionId: string, text: string) => Promise<void>
   controlRequest: (sessionId: string, request: Record<string, unknown>) => Promise<string>
-  setBackend: (backend: Backend) => void
   waitResult: (sessionId: string, timeoutMs?: number) => Promise<unknown>
 }
 
@@ -56,7 +54,6 @@ declare global {
       activate: RpcActions['activate']
       sendInput: RpcActions['sendInput']
       controlRequest: RpcActions['controlRequest']
-      setBackend: RpcActions['setBackend']
       waitResult: RpcActions['waitResult']
     }
   }
@@ -72,7 +69,6 @@ export function installRpcBridge(install: RpcInstall): () => void {
     activate: (...args) => install.actions.activate(...args),
     sendInput: (...args) => install.actions.sendInput(...args),
     controlRequest: (...args) => install.actions.controlRequest(...args),
-    setBackend: (...args) => install.actions.setBackend(...args),
     waitResult: (...args) => install.actions.waitResult(...args)
   }
   return () => {
