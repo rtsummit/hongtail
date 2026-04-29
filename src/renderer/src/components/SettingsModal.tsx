@@ -129,6 +129,12 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
   const [pwDraft, setPwDraft] = useState<string>('')
   const [pwConfirm, setPwConfirm] = useState<string>('')
   const [pwMessage, setPwMessage] = useState<string>('')
+  const [sizeDraft, setSizeDraft] = useState<string>(String(settings.fontSize))
+
+  // Sync draft when external settings change (e.g. reset to defaults)
+  useEffect(() => {
+    setSizeDraft(String(settings.fontSize))
+  }, [settings.fontSize])
 
   useEffect(() => {
     if (!open) return
@@ -203,11 +209,15 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
 
   const reset = (): void => onChange({ ...DEFAULT_SETTINGS })
 
-  const sizeChange = (raw: string): void => {
-    const n = Number(raw)
-    if (!Number.isFinite(n)) return
+  const commitSize = (): void => {
+    const n = Number(sizeDraft)
+    if (!Number.isFinite(n)) {
+      setSizeDraft(String(settings.fontSize))
+      return
+    }
     const clamped = Math.min(32, Math.max(8, Math.round(n)))
-    onChange({ ...settings, fontSize: clamped })
+    setSizeDraft(String(clamped))
+    if (clamped !== settings.fontSize) onChange({ ...settings, fontSize: clamped })
   }
 
   return (
@@ -229,16 +239,10 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             <p className="settings-hint">시스템 폰트 목록 가져오는 중…</p>
           )}
           <FontStackEditor
-            label="UI 폰트"
-            fonts={settings.uiFonts}
+            label="폰트"
+            fonts={settings.fonts}
             available={available}
-            onUpdate={(next) => onChange({ ...settings, uiFonts: next })}
-          />
-          <FontStackEditor
-            label="코드 폰트 (mono)"
-            fonts={settings.monoFonts}
-            available={available}
-            onUpdate={(next) => onChange({ ...settings, monoFonts: next })}
+            onUpdate={(next) => onChange({ ...settings, fonts: next })}
           />
           <label className="settings-row">
             <span className="settings-label">
@@ -249,8 +253,15 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               min={8}
               max={32}
               step={1}
-              value={settings.fontSize}
-              onChange={(e) => sizeChange(e.target.value)}
+              value={sizeDraft}
+              onChange={(e) => setSizeDraft(e.target.value)}
+              onBlur={commitSize}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitSize()
+                }
+              }}
             />
           </label>
           <p className="settings-hint">

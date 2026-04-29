@@ -70,9 +70,7 @@
 }
 
 .throbber-label {
-  font-size: 12px;
   color: var(--fg-muted);
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
 }
 
 @keyframes throbber-spin {
@@ -123,7 +121,7 @@
   color: var(--fg-muted);
   padding: 6px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-family: inherit;
   transition:
     background-color 0.1s,
@@ -148,7 +146,7 @@
   color: var(--fg);
   border-radius: 6px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   text-align: left;
   transition:
     background-color 0.1s,
@@ -161,7 +159,7 @@
 }
 
 .new-session-btn .plus {
-  font-size: 16px;
+  font-size: calc(var(--font-size, 13px) * 16 / 13);
   line-height: 1;
   color: var(--fg-muted);
 }
@@ -175,7 +173,7 @@
 .date-filter-btn {
   flex: 1;
   padding: 4px 0;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   background: transparent;
   color: var(--fg-muted);
   border: 1px solid var(--border);
@@ -223,7 +221,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
   background: var(--panel-2);
   cursor: pointer;
@@ -250,7 +248,7 @@
 .workspace-header.drag-over-bottom::after { bottom: -1px; }
 
 .drag-handle {
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   color: var(--fg-muted);
   opacity: 0;
   cursor: grab;
@@ -268,7 +266,7 @@
 }
 
 .workspace-header .chevron {
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   color: var(--fg-muted);
   width: 10px;
   display: inline-block;
@@ -284,8 +282,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11px;
 }
 
 .workspace-meta {
@@ -298,7 +294,7 @@
 }
 
 .workspace-alias {
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
   font-weight: 500;
   white-space: nowrap;
@@ -309,8 +305,6 @@
 }
 
 .workspace-path-tail {
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11px;
   color: var(--fg-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -325,7 +319,7 @@
   border: 1px solid var(--accent);
   border-radius: 3px;
   padding: 3px 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-family: inherit;
   min-width: 0;
   outline: none;
@@ -341,7 +335,7 @@
   border: 1px solid transparent;
   color: var(--fg-muted);
   border-radius: 3px;
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   line-height: 1;
   cursor: pointer;
   visibility: hidden;
@@ -365,7 +359,7 @@
   padding: 7px 10px;
   margin-bottom: 4px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
   cursor: pointer;
   user-select: none;
@@ -395,7 +389,7 @@
 }
 
 .new-conversation-plus {
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   line-height: 1;
   color: var(--accent);
   flex: 0 0 auto;
@@ -429,7 +423,7 @@
   gap: 4px;
   padding: 6px 8px 6px 10px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg-muted);
   cursor: pointer;
   user-select: none;
@@ -474,7 +468,7 @@
 
 .live-dot {
   color: #4a9d6f;
-  font-size: 8px;
+  font-size: calc(var(--font-size, 13px) * 8 / 13);
   line-height: 1;
   flex: 0 0 8px;
   display: flex;
@@ -484,7 +478,7 @@
 
 .live-dot.busy {
   color: #d49a5e;
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   flex: 0 0 10px;
   animation: live-pulse-busy 0.9s ease-in-out infinite;
   text-shadow: 0 0 6px rgba(212, 154, 94, 0.6);
@@ -512,7 +506,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
 }
 
 .session-title.aliased {
@@ -526,14 +520,14 @@
   border: 1px solid var(--accent);
   border-radius: 3px;
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-family: inherit;
   min-width: 0;
   outline: none;
 }
 
 .session-time {
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -553,7 +547,7 @@
   border: 1px solid transparent;
   color: var(--fg-muted);
   border-radius: 3px;
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   line-height: 1;
   padding: 0;
   visibility: hidden;
@@ -571,7 +565,7 @@
 }
 
 .session-stop {
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
 }
 
 .session-stop:hover {
@@ -586,7 +580,7 @@
 
 .session-empty {
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   color: var(--fg-dim);
   font-style: italic;
 }
@@ -607,7 +601,7 @@
   align-items: center;
   justify-content: center;
   color: var(--fg-dim);
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
 }
 
 .chat-header {
@@ -619,8 +613,6 @@
 /* Todo panel (CLI-style task tracker) */
 .todo-panel {
   margin-top: 8px;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11px;
   color: var(--fg-muted);
 }
 
@@ -643,7 +635,7 @@
   color: var(--fg-dim);
   display: inline-block;
   width: 10px;
-  font-size: 9px;
+  font-size: calc(var(--font-size, 13px) * 9 / 13);
 }
 
 .todo-panel[open] > .todo-panel-summary::before {
@@ -687,7 +679,7 @@
   display: flex;
   gap: 6px;
   padding: 1px 0;
-  font-size: 11.5px;
+  font-size: calc(var(--font-size, 13px) * 11.5 / 13);
   color: var(--fg);
 }
 
@@ -716,7 +708,7 @@
 }
 
 .chat-title {
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   color: var(--fg);
   font-weight: 600;
   overflow: hidden;
@@ -725,9 +717,7 @@
 }
 
 .chat-subtitle {
-  font-size: 11px;
   color: var(--fg-dim);
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
   margin-top: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -747,7 +737,7 @@
 
 .load-more-indicator {
   align-self: center;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   color: var(--fg-dim);
   padding: 4px 8px;
   border: 1px dashed var(--border);
@@ -770,7 +760,7 @@
   max-width: 80%;
   padding: 10px 14px;
   border-radius: 8px;
-  font-size: var(--ui-font-size, 13px);
+  font-size: var(--font-size, 13px);
   line-height: 1.55;
   user-select: text;
 }
@@ -852,7 +842,6 @@
 }
 
 .bubble-markdown code {
-  font-family: var(--mono-font, ui-monospace, 'Cascadia Code', 'Consolas', monospace);
   font-size: 0.92em;
   padding: 1px 5px;
   border-radius: 3px;
@@ -913,7 +902,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   user-select: text;
 }
 
@@ -931,14 +920,12 @@
   gap: 8px;
   padding: 6px 10px;
   background: var(--panel-2);
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11px;
   color: var(--fg-muted);
   border-bottom: 1px solid var(--border);
 }
 
 .tool-icon {
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
 }
 
 .tool-name {
@@ -949,8 +936,6 @@
 .tool-body {
   margin: 0;
   padding: 8px 10px;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11px;
   color: var(--fg-muted);
   white-space: pre-wrap;
   word-break: break-all;
@@ -963,7 +948,7 @@
 .tool-block {
   align-self: stretch;
   width: 100%;
-  font-size: var(--ui-font-size, 13px);
+  font-size: var(--font-size, 13px);
   user-select: text;
 }
 
@@ -976,8 +961,6 @@ details.tool-block {
   align-items: baseline;
   gap: 6px;
   padding: 2px 0;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 12px;
   color: var(--fg);
   cursor: pointer;
   list-style: none;
@@ -999,7 +982,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .tool-row-bullet {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   line-height: 1;
   color: var(--accent);
   width: 14px;
@@ -1034,7 +1017,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   flex-shrink: 0;
   color: var(--fg-dim);
   margin-left: 8px;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
 }
 
 .tool-block.error .tool-row-summary {
@@ -1054,8 +1037,6 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .tool-out-text {
   margin: 0;
   padding: 6px 10px;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11.5px;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1078,8 +1059,6 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .tool-diff {
   margin: 0;
   padding: 4px 0;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11.5px;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1126,7 +1105,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-muted);
   border-radius: 3px;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   cursor: pointer;
   font-family: inherit;
 }
@@ -1149,7 +1128,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-muted);
   border-radius: 3px;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   line-height: 1;
   cursor: pointer;
   font-family: inherit;
@@ -1172,9 +1151,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   overflow: hidden;
 }
 
-.modal-title-mono {
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 12px;
+.modal-title-path {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1210,8 +1187,6 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   background: rgba(0, 0, 0, 0.28);
   max-height: 360px;
   overflow: auto;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11.5px;
   padding: 4px 0;
 }
 
@@ -1280,7 +1255,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   align-items: baseline;
   gap: 8px;
   padding: 2px 0;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
 }
 
@@ -1298,7 +1273,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   width: 1.2em;
   text-align: center;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg-muted);
 }
 
@@ -1312,8 +1287,6 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-left-width: 3px;
   border-radius: 6px;
   padding: 8px 12px;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 12px;
   user-select: text;
 }
 
@@ -1347,19 +1320,19 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .command-args {
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
 }
 
 .command-stream {
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .command-message {
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   margin-top: 4px;
 }
 
@@ -1373,14 +1346,12 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   word-break: break-word;
   max-height: 240px;
   overflow-y: auto;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
 }
 
 .system-line {
   align-self: center;
-  font-size: 11px;
   color: var(--fg-dim);
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
   font-style: italic;
 }
 
@@ -1389,15 +1360,13 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 12px;
   color: #d49a5e;
   padding: 4px 0;
   user-select: none;
 }
 
 .thinking-spinner {
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   color: #d49a5e;
   animation: thinking-pulse 1.4s ease-in-out infinite;
 }
@@ -1414,7 +1383,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .thinking-info {
   color: var(--fg-dim);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
 }
 
 .system-line.error {
@@ -1448,9 +1417,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   align-items: baseline;
   gap: 12px;
   padding: 6px 16px 0;
-  font-size: 11px;
   color: var(--fg-dim);
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
 }
 
 .usage-bar.stale {
@@ -1505,7 +1472,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .usage-stale-tag {
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--fg-dim);
@@ -1560,7 +1527,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .usage-mode {
   padding: 1px 8px;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
@@ -1602,7 +1569,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
 }
 
@@ -1638,13 +1605,13 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   flex: 0 0 64px;
 }
 
 .usage-mode-hint {
   color: var(--fg-dim);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   flex: 1;
 }
 .usage-mode.plan {
@@ -1676,7 +1643,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
 }
 
@@ -1703,7 +1670,6 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .slash-name {
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
   font-weight: 600;
   flex: 0 0 auto;
 }
@@ -1717,7 +1683,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .slash-source {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: calc(var(--font-size, 13px) * 10 / 13);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--fg-dim);
@@ -1757,13 +1723,12 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
   line-height: 1.3;
 }
 
 .quote-chip-text {
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
   color: var(--fg-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -1785,7 +1750,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-dim);
   cursor: pointer;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   line-height: 1;
 }
 
@@ -1801,7 +1766,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border: 1px solid var(--accent);
   border-radius: 6px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -1825,8 +1790,6 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .quote-popover-quote {
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
-  font-size: 11px;
   color: var(--fg-dim);
   background: var(--panel-2);
   border-left: 3px solid var(--accent);
@@ -1845,7 +1808,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-radius: 4px;
   padding: 6px 8px;
   font-family: inherit;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   resize: vertical;
   outline: none;
 }
@@ -1863,7 +1826,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .quote-btn-cancel,
 .quote-btn-add {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -1898,7 +1861,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-radius: 6px;
   padding: 10px 12px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   resize: none;
   outline: none;
   user-select: text;
@@ -1915,7 +1878,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: white;
   border: 1px solid var(--accent);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   font-weight: 600;
 }
 
@@ -1933,7 +1896,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   background: transparent;
   color: #f59e0b;
   border-color: #f59e0b;
-  font-size: 16px;
+  font-size: calc(var(--font-size, 13px) * 16 / 13);
   padding: 0 16px;
 }
 
@@ -1946,7 +1909,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-top: 1px solid var(--border);
   background: var(--panel);
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   text-align: center;
   font-style: italic;
 }
@@ -1963,7 +1926,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .chat-activate-label {
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-style: italic;
 }
 
@@ -1975,7 +1938,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .activate-btn {
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   font-weight: 500;
   font-family: inherit;
   border: 1px solid var(--border);
@@ -2029,7 +1992,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-muted);
   border-radius: 4px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   cursor: pointer;
   transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 }
@@ -2063,7 +2026,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 3px 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-family: inherit;
   outline: none;
 }
@@ -2074,7 +2037,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .find-count {
   color: var(--fg-dim);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   font-variant-numeric: tabular-nums;
   min-width: 36px;
   text-align: right;
@@ -2086,7 +2049,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-muted);
   border-radius: 3px;
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   cursor: pointer;
   font-family: inherit;
 }
@@ -2102,7 +2065,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .find-btn.close {
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   line-height: 1;
 }
 
@@ -2151,7 +2114,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .modal-header h2 {
   margin: 0;
   flex: 1;
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   font-weight: 600;
   color: var(--fg);
 }
@@ -2160,7 +2123,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   background: transparent;
   border: none;
   color: var(--fg-muted);
-  font-size: 22px;
+  font-size: calc(var(--font-size, 13px) * 22 / 13);
   line-height: 1;
   cursor: pointer;
   padding: 0 4px;
@@ -2185,7 +2148,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .settings-label {
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg-muted);
   display: flex;
   justify-content: space-between;
@@ -2193,9 +2156,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .settings-value {
-  font-family: var(--mono-font, 'Cascadia Code', 'Consolas', monospace);
   color: var(--fg);
-  font-size: 11px;
 }
 
 .settings-row input[type='text'],
@@ -2206,7 +2167,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-radius: 4px;
   padding: 6px 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   outline: none;
   width: 100%;
   box-sizing: border-box;
@@ -2242,7 +2203,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .font-chips-empty {
   color: var(--fg-dim);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   align-self: center;
   padding: 0 4px;
 }
@@ -2255,7 +2216,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 2px 4px 2px 6px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   color: var(--fg);
   max-width: 100%;
 }
@@ -2275,7 +2236,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   color: var(--fg-muted);
   cursor: pointer;
   padding: 0 4px;
-  font-size: 14px;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
   line-height: 1;
   border-radius: 3px;
 }
@@ -2310,7 +2271,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-radius: 4px;
   padding: 5px 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   outline: none;
   cursor: pointer;
 }
@@ -2325,7 +2286,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border: none;
   border-radius: 4px;
   width: 32px;
-  font-size: 16px;
+  font-size: calc(var(--font-size, 13px) * 16 / 13);
   line-height: 1;
   cursor: pointer;
 }
@@ -2342,14 +2303,14 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .settings-hint {
   margin: 0;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   color: var(--fg-dim);
   line-height: 1.5;
 }
 
 .settings-section-title {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-weight: 500;
   color: var(--fg);
   text-transform: uppercase;
@@ -2367,17 +2328,15 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .settings-tls-path {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
   color: var(--fg-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--mono-font, monospace);
 }
 
 .settings-tls-btn {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -2403,7 +2362,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .settings-label-inline {
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   color: var(--fg);
 }
 
@@ -2427,7 +2386,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   cursor: pointer;
 }
 
@@ -2483,7 +2442,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   width: 22px;
   height: 22px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2496,7 +2455,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .side-chat-collapsed-label {
   writing-mode: vertical-rl;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   letter-spacing: 1px;
   color: var(--fg-dim);
   margin-top: 4px;
@@ -2522,7 +2481,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .side-chat-badge {
   background: var(--accent);
   color: white;
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   font-weight: 600;
   letter-spacing: 0.5px;
   padding: 2px 6px;
@@ -2531,7 +2490,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .side-chat-subtitle {
   color: var(--fg-dim);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2547,7 +2506,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
   padding: 3px 8px;
   border-radius: 3px;
 }
@@ -2574,7 +2533,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .side-chat-empty {
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   line-height: 1.6;
   padding: 12px;
   text-align: center;
@@ -2582,7 +2541,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 .side-chat-thinking {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-style: italic;
   padding: 4px 8px;
 }
@@ -2604,7 +2563,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   padding: 6px 8px;
   border-radius: 4px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--font-size, 13px);
   line-height: 1.4;
   resize: none;
   outline: none;
@@ -2628,7 +2587,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   background: var(--accent);
   border: 1px solid var(--accent);
   color: white;
-  font-size: 12px;
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   padding: 4px 14px;
   border-radius: 4px;
 }
@@ -2655,12 +2614,12 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 
 /* Scope down message bubbles inside side chat for tighter look */
 .side-chat-messages .bubble {
-  font-size: 12.5px;
+  font-size: calc(var(--font-size, 13px) * 12.5 / 13);
 }
 
 .side-chat-messages .bubble-text,
 .side-chat-messages .bubble-markdown {
-  font-size: 12.5px;
+  font-size: calc(var(--font-size, 13px) * 12.5 / 13);
 }
 
 /* === Mobile layout === */
@@ -2687,7 +2646,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--fg);
-    font-size: 18px;
+    font-size: calc(var(--font-size, 13px) * 18 / 13);
     line-height: 1;
     cursor: pointer;
     user-select: none;

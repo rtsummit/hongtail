@@ -1273,11 +1273,14 @@ function App(): React.JSX.Element {
 
   const appStyle: Record<string, string> = {
     '--sidebar-width': `${sidebarWidth}px`,
-    '--ui-font-size': `${settings.fontSize}px`,
+    '--font-size': `${settings.fontSize}px`,
     fontSize: `${settings.fontSize}px`
   }
-  if (settings.uiFonts.length > 0) appStyle['--ui-font'] = fontStackToCss(settings.uiFonts)
-  if (settings.monoFonts.length > 0) appStyle['--mono-font'] = fontStackToCss(settings.monoFonts)
+  if (settings.fonts.length > 0) {
+    const stack = fontStackToCss(settings.fonts)
+    appStyle['--font'] = stack
+    appStyle.fontFamily = stack
+  }
 
   return (
     <ToolDefaultOpenContext.Provider value={settings.toolCardsDefaultOpen}>

@@ -414,7 +414,7 @@ function DiffModal({
     >
       <div className="modal modal-wide" role="dialog" aria-label="diff">
         <header className="modal-header">
-          <h2 className="modal-title-mono" title={title}>
+          <h2 className="modal-title-path" title={title}>
             {title}
           </h2>
           <button type="button" className="modal-close" onClick={onClose} title="닫기">

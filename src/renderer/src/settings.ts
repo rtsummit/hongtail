@@ -1,8 +1,7 @@
 export type DefaultBackend = 'app' | 'terminal' | 'interactive'
 
 export interface AppSettings {
-  uiFonts: string[]
-  monoFonts: string[]
+  fonts: string[]
   fontSize: number
   readonlyChunkSize: number
   toolCardsDefaultOpen: boolean
@@ -10,8 +9,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  uiFonts: [],
-  monoFonts: [],
+  fonts: [],
   fontSize: 13,
   readonlyChunkSize: 100,
   toolCardsDefaultOpen: false,
@@ -31,21 +29,21 @@ export function loadSettings(): AppSettings {
     if (!raw) return { ...DEFAULT_SETTINGS }
     const parsed = JSON.parse(raw) as Partial<AppSettings> & {
       uiFont?: string
+      uiFonts?: string[]
       monoFont?: string
+      monoFonts?: string[]
+      uiFontSize?: number
+      monoFontSize?: number
       chatFontSize?: number
     }
-    // Migrate from older single-string format
-    const uiFonts = parsed.uiFonts
-      ? asStringArray(parsed.uiFonts)
-      : typeof parsed.uiFont === 'string' && parsed.uiFont.trim()
-        ? parsed.uiFont.split(',').map((s) => s.trim()).filter(Boolean)
-        : []
-    const monoFonts = parsed.monoFonts
-      ? asStringArray(parsed.monoFonts)
-      : typeof parsed.monoFont === 'string' && parsed.monoFont.trim()
-        ? parsed.monoFont.split(',').map((s) => s.trim()).filter(Boolean)
-        : []
-    const sizeRaw = parsed.fontSize ?? parsed.chatFontSize
+    const fonts = parsed.fonts
+      ? asStringArray(parsed.fonts)
+      : parsed.uiFonts
+        ? asStringArray(parsed.uiFonts)
+        : typeof parsed.uiFont === 'string' && parsed.uiFont.trim()
+          ? parsed.uiFont.split(',').map((s) => s.trim()).filter(Boolean)
+          : []
+    const sizeRaw = parsed.fontSize ?? parsed.uiFontSize ?? parsed.chatFontSize
     const sizeNum = Number(sizeRaw)
     const chunkRaw =
       parsed.readonlyChunkSize ??
@@ -53,8 +51,7 @@ export function loadSettings(): AppSettings {
       (parsed as Record<string, unknown>).readonlyTailLines
     const chunkNum = Number(chunkRaw)
     return {
-      uiFonts,
-      monoFonts,
+      fonts,
       fontSize:
         Number.isFinite(sizeNum) && sizeNum >= 8 && sizeNum <= 32
           ? sizeNum
