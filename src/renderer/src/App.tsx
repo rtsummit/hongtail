@@ -547,7 +547,29 @@ function App(): React.JSX.Element {
       const unsub = window.api.claude.onEvent(sessionId, (event) =>
         handleClaudeEvent(sessionId, event)
       )
-      subscriptionsRef.current.set(sessionId, unsub)
+      // 자식 → 호스트 incoming control_request 구독. Phase 1.1 — 일단 무조건
+      // allow 로 회신해 ExitPlanMode/AskUserQuestion 의 자동 deny 만 풀어둔다.
+      // host UI (AskUserQuestionCard / ExitPlanModeCard) 는 Phase 1.2 에서 추가.
+      // wire format: docs/host-confirm-ui-plan.md §11.3.
+      // updatedInput: {} 는 schema 의 "use original input" 약속
+      // (PermissionPromptToolResultSchema.ts:110 — 빈 객체면 자식이 원본 input 사용).
+      const unsubCtrl = window.api.claude.onControlRequest(sessionId, (event) => {
+        const req = event?.request as { subtype?: string } | undefined
+        const requestId = event?.request_id as string | undefined
+        if (!requestId || req?.subtype !== 'can_use_tool') return
+        void window.api.claude.respondControl(sessionId, {
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: requestId,
+            response: { behavior: 'allow', updatedInput: {} }
+          }
+        })
+      })
+      subscriptionsRef.current.set(sessionId, () => {
+        unsub()
+        unsubCtrl()
+      })
     },
     [handleClaudeEvent]
   )

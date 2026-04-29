@@ -104,6 +104,16 @@ export interface ExposedApi {
     ) => Promise<{ sessionId: string; alreadyRunning: boolean }>
     sendInput: (sessionId: string, text: string) => Promise<void>
     controlRequest: (sessionId: string, request: Record<string, unknown>) => Promise<string>
+    // 자식이 stdout 으로 보낸 incoming control_request (subtype:'can_use_tool')
+    // 에 호스트가 답신. payload 는 wire format 그대로
+    // ({ type:'control_response', response:{ subtype, request_id, response:{ behavior, ... } } }).
+    // 자세히는 docs/host-confirm-ui-plan.md §11.3.
+    respondControl: (sessionId: string, payload: Record<string, unknown>) => Promise<void>
+    // 자식 → 호스트 control_request 구독. 일반 event 채널과 분리됨.
+    onControlRequest: (
+      sessionId: string,
+      callback: (event: Record<string, unknown>) => void
+    ) => () => void
     stopSession: (sessionId: string) => Promise<void>
     listRunning: () => Promise<string[]>
     // 새로고침 후 reconcile 용. main 의 'app' 백엔드 살아있는 세션 + workspacePath.

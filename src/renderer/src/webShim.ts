@@ -86,6 +86,9 @@ export const webApi: ExposedApi = {
       rpc('claude:start-session', [{ workspacePath, sessionId, mode }]),
     sendInput: (sid, text) => rpc('claude:send-input', [sid, text]),
     controlRequest: (sid, req) => rpc('claude:control-request', [sid, req]),
+    respondControl: (sid, payload) => rpc('claude:respond-control', [sid, payload]),
+    onControlRequest: (sid, cb) =>
+      subscribe(`claude:control-request:${sid}`, cb as (event: unknown) => void),
     stopSession: (sid) => rpc('claude:stop-session', [sid]),
     listRunning: () => rpc('claude:list-running', []),
     listActive: () => rpc('claude:list-active', []),

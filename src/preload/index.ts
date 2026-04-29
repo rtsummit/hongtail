@@ -49,6 +49,20 @@ const api = {
       ipcRenderer.invoke('claude:send-input', sessionId, text),
     controlRequest: (sessionId: string, request: Record<string, unknown>): Promise<string> =>
       ipcRenderer.invoke('claude:control-request', sessionId, request),
+    respondControl: (sessionId: string, payload: Record<string, unknown>): Promise<void> =>
+      ipcRenderer.invoke('claude:respond-control', sessionId, payload),
+    onControlRequest: (
+      sessionId: string,
+      callback: (event: Record<string, unknown>) => void
+    ): (() => void) => {
+      const channel = `claude:control-request:${sessionId}`
+      const handler = (_: IpcRendererEvent, event: Record<string, unknown>): void =>
+        callback(event)
+      ipcRenderer.on(channel, handler)
+      return (): void => {
+        ipcRenderer.off(channel, handler)
+      }
+    },
     stopSession: (sessionId: string): Promise<void> =>
       ipcRenderer.invoke('claude:stop-session', sessionId),
     listRunning: (): Promise<string[]> => ipcRenderer.invoke('claude:list-running'),

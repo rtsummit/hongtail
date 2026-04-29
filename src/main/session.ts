@@ -34,6 +34,14 @@ function eventChannel(sessionId: string): string {
   return `claude:event:${sessionId}`
 }
 
+// 자식 → 호스트 incoming control_request 전용 채널. 일반 event 흐름과 분리해서
+// 채팅 메시지 stream 에 안 섞이도록 함. 렌더러는 이 채널을 별도로 구독해
+// can_use_tool 같은 incoming request 를 받아 host UI 띄우고 control_response 로
+// 회신.
+function controlRequestChannel(sessionId: string): string {
+  return `claude:control-request:${sessionId}`
+}
+
 function spawnClaude(
   workspacePath: string,
   sessionId: string,
@@ -48,15 +56,15 @@ function spawnClaude(
     '--verbose',
     '--permission-mode',
     'bypassPermissions',
-    '--include-hook-events',
     '--permission-prompt-tool',
-    'stdio',
-    '--settings',
-    'C:/Workspace/hongtail/scripts/hook-probe-settings.json'
-    // (Phase 0 probe C) --permission-prompt-tool stdio 가 결정적 — print.ts:4276 의
-    // 분기를 'stdio' 로 끌어가 createCanUseTool() 가 활성화. 그래야 SDK can_use_tool
-    // control_request 가 stdout 으로 emit + PermissionRequest hook 도 race 로 발화.
-    // --settings 의 stub 은 항상 allow 반환해 race 에서 빠르게 결정되게.
+    'stdio'
+    // --permission-prompt-tool stdio: claude-code-main 의 print.ts:4276 분기를
+    // 'stdio' 로 끌어가 createCanUseTool() 활성화. interactive 한 deferred tool
+    // (AskUserQuestion / ExitPlanMode) 의 권한 요청이 자식의 stdout 으로
+    // can_use_tool subtype control_request 로 emit 되고, 호스트 (=hongtail)
+    // 가 stdin 으로 control_response 회신할 때까지 자식이 대기. 이 플래그가
+    // 빠지면 fallback 경로 ('ask' → 자동 deny) 가 작동해 자동 거부됨.
+    // 자세히는 docs/host-confirm-ui-plan.md §11.1.
   ]
   const args = isResume
     ? [...baseArgs, '--resume', sessionId]
@@ -84,6 +92,12 @@ function spawnClaude(
           t === 'hook_event'
         ) {
           probeLog('in', sessionId, line)
+        }
+        // 자식 → 호스트 incoming control_request 는 별 채널로 분리해 channel 흐름과
+        // 섞지 않음. claudeEvents.ts 의 일반 파서가 control_request 를 처리하지 않게.
+        if (t === 'control_request') {
+          broadcast(controlRequestChannel(sessionId), event)
+          return
         }
         broadcast(channel, event)
         if (t === 'result' || t === 'rate_limit_event') {
@@ -160,6 +174,21 @@ export function registerSessionHandlers(): void {
     })
     session.child.stdin.write(payload + '\n')
     return requestId
+  })
+
+  // 자식이 보낸 incoming control_request 에 호스트가 답신. 렌더러가
+  // controlRequestChannel 로 받은 request 의 request_id 를 그대로 박아 payload
+  // 통째로 stdin 에 write. payload 는 wire format (docs/host-confirm-ui-plan.md
+  // §11.3) 그대로 — { type:'control_response', response:{ subtype, request_id,
+  // response:{ behavior:'allow'|'deny', updatedInput?, message? } } }.
+  registerInvoke('claude:respond-control', (sessionId: unknown, payload: unknown) => {
+    const session = sessions.get(String(sessionId))
+    if (!session?.child.stdin) {
+      throw new Error(`Session ${String(sessionId)} not running`)
+    }
+    const line = JSON.stringify(payload) + '\n'
+    probeLog('out', String(sessionId), line.replace(/\n$/, ''))
+    session.child.stdin.write(line)
   })
 
   registerInvoke('claude:stop-session', (sessionId: unknown) => {
