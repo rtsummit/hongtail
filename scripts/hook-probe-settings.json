@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\\\Workspace\\\\hongtail\\\\scripts\\\\hook-probe-stub.cjs\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:\\\\Workspace\\\\hongtail\\\\scripts\\\\hook-probe-stub.cjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

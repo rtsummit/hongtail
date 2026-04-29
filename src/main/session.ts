@@ -11,7 +11,7 @@ import { broadcast } from './dispatch'
 // Phase 0 probe — host-confirm-ui 브랜치 한정. control_request / control_response 라인을 raw 로
 // 덤프해 wire format 확인. probe 끝나면 제거.
 const PROBE_LOG = join(tmpdir(), 'hongtail-control-probe.log')
-function probeLog(direction: 'in' | 'out', sessionId: string, line: string): void {
+function probeLog(direction: 'in' | 'out' | 'err', sessionId: string, line: string): void {
   try {
     appendFileSync(
       PROBE_LOG,
@@ -47,9 +47,16 @@ function spawnClaude(
     'stream-json',
     '--verbose',
     '--permission-mode',
-    'bypassPermissions'
-    // (Phase 0 probe) --disallowed-tools AskUserQuestion 임시 제거 — control_request 흐름을
-    // 그대로 받아 wire format 캡처. probe 끝나면 호스트 UI 가 처리하도록 영구 제거.
+    'bypassPermissions',
+    '--include-hook-events',
+    '--permission-prompt-tool',
+    'stdio',
+    '--settings',
+    'C:/Workspace/hongtail/scripts/hook-probe-settings.json'
+    // (Phase 0 probe C) --permission-prompt-tool stdio 가 결정적 — print.ts:4276 의
+    // 분기를 'stdio' 로 끌어가 createCanUseTool() 가 활성화. 그래야 SDK can_use_tool
+    // control_request 가 stdout 으로 emit + PermissionRequest hook 도 race 로 발화.
+    // --settings 의 stub 은 항상 allow 반환해 race 에서 빠르게 결정되게.
   ]
   const args = isResume
     ? [...baseArgs, '--resume', sessionId]
@@ -70,7 +77,12 @@ function spawnClaude(
       try {
         const event = JSON.parse(line)
         const t = (event as { type?: string }).type
-        if (t === 'control_request' || t === 'control_response') {
+        if (
+          t === 'control_request' ||
+          t === 'control_response' ||
+          t === 'system' ||
+          t === 'hook_event'
+        ) {
           probeLog('in', sessionId, line)
         }
         broadcast(channel, event)
@@ -84,7 +96,9 @@ function spawnClaude(
   }
 
   child.stderr?.on('data', (data) => {
-    broadcast(channel, { type: 'stderr', data: String(data) })
+    const text = String(data)
+    probeLog('err', sessionId, text.replace(/\n/g, ' '))
+    broadcast(channel, { type: 'stderr', data: text })
   })
 
   child.on('close', (code) => {
