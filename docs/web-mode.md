@@ -69,6 +69,38 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
 | 폰트 목록 | △ (호스트 폰트 그대로 — 클라이언트엔 그 폰트 없을 수 있음) |
 | 클립보드 paste (Ctrl+V) | △ (브라우저 권한 prompt 의존) |
 
+## 새로고침 reconnect
+
+브라우저 새로고침 (F5) 시 React state·SSE EventSource·xterm 버퍼는 초기화
+되지만 main 의 자식 process / PTY / jsonl 은 모두 살아있다. 다음 방식으로
+이전 대화 연결을 복원한다.
+
+- **selected**: `sessionStorage` 에 sync. 탭별 격리, 디바이스 간 동기화 없음.
+  복원 시 mode 는 일단 readonly 로 강제하고 mount 후 reconcile 단계에서 라이브
+  매칭되면 덮어쓴다.
+- **active 세션 목록**: mount 직후 `claude:list-active` + `pty:list-active`
+  를 합쳐 main 의 살아있는 세션 (sessionId / workspacePath / backend) 을
+  모두 가져옴. PTY 백엔드 'terminal' vs 'interactive' 구분은 spawn 시 hint 로
+  main 에 보관해 둔다.
+- **'app' 백엔드 messages·status**: stream-json IPC 가 끊겼으므로 reconcile
+  이 onEvent 재구독 + `readSession` (jsonl 통째로) 으로 messages/status 를
+  리플레이.
+- **'terminal'/'interactive' jsonl tail**: active 만 채우면 기존 useEffect
+  (terminal 의 status watch) / ChatPane 자체 jsonl tail (interactive) 이
+  자동 동작.
+- **xterm 버퍼**: main `PtyEntry` 가 256KB ring buffer 를 누적. 같은
+  sessionId 로 spawn 이 다시 오면 (alreadyRunning) RPC 응답에 같이 돌려줘
+  호출한 클라이언트만 한 번에 term.write. broadcast 가 아니라 다른 활성
+  클라이언트 화면에 중복 출력 안 됨. cap 초과 시 앞부분 잘려 ANSI escape 가
+  깨질 수 있으나 보통 화면 밖이라 실용적으로 허용.
+
+알려진 race 한계: 'app' 백엔드 라이브 세션이 응답 진행 중일 때 새로고침
+되면 마지막 turn 일부 출력이 jsonl flush 와 stream-json emit 사이에서
+잃을 수 있음. 다음 turn 부터는 정상.
+
+BTW 사이드 챗 history 와 다른 디바이스 간 selected 동기화는 의도적으로
+복원하지 않음.
+
 ## 한계 / 보안
 
 - **인증은 단일 사용자 + 비밀번호 + cookie 세션**. 비밀번호는 sha256+salt
