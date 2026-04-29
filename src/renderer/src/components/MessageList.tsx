@@ -2,7 +2,8 @@ import { memo, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Highlight, themes } from 'prism-react-renderer'
-import type { Language } from 'prism-react-renderer'
+import { safeLanguage } from '../prismSetup'
+import { PrismBoundary } from './PrismBoundary'
 import ToolBlock from './ToolBlock'
 import type { Block } from '../types'
 
@@ -69,27 +70,29 @@ interface CodeProps {
 
 function MarkdownCode({ className, children, ...rest }: CodeProps): React.JSX.Element {
   const match = /language-([\w+#-]+)/.exec(className ?? '')
-  const lang = match?.[1] as Language | undefined
-  if (!lang) {
+  if (!match?.[1]) {
     return <code className={className} {...rest}>{children}</code>
   }
+  const lang = safeLanguage(match[1])
   const code = String(children).replace(/\n$/, '')
   return (
-    <Highlight code={code} language={lang} theme={themes.vsDark}>
-      {({ tokens, getLineProps, getTokenProps }) => (
-        <code className={className}>
-          {tokens.map((line, i) => (
-            <div key={i} {...getLineProps({ line })}>
-              {line.length === 0 ? (
-                <span> </span>
-              ) : (
-                line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
-              )}
-            </div>
-          ))}
-        </code>
-      )}
-    </Highlight>
+    <PrismBoundary fallback={<code className={className}>{code}</code>}>
+      <Highlight code={code} language={lang} theme={themes.vsDark}>
+        {({ tokens, getLineProps, getTokenProps }) => (
+          <code className={className}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {line.length === 0 ? (
+                  <span> </span>
+                ) : (
+                  line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
+                )}
+              </div>
+            ))}
+          </code>
+        )}
+      </Highlight>
+    </PrismBoundary>
   )
 }
 

@@ -4,7 +4,9 @@ import { Highlight, themes } from 'prism-react-renderer'
 import type { Language } from 'prism-react-renderer'
 import { ToolDefaultOpenContext } from '../toolContext'
 import { detectLanguage } from '../langDetect'
+import { safeLanguage } from '../prismSetup'
 import { HighlightedLine } from './CodeBlock'
+import { PrismBoundary } from './PrismBoundary'
 import type { Block } from '../types'
 
 type ToolUseBlock = Extract<Block, { kind: 'tool-use' }>
@@ -239,30 +241,42 @@ function ReadBody({ filePath, text }: { filePath: string; text: string }): React
   const language = detectLanguage(filePath)
   const lines = useMemo(() => parseCatN(text), [text])
   const code = useMemo(() => lines.map((l) => l.code).join('\n'), [lines])
-  const lang: Language = language ?? 'markup'
+  const lang: Language = safeLanguage(language)
+  const fallback = (
+    <>
+      {lines.map((l, i) => (
+        <div key={i} className="code-line">
+          <span className="code-gutter">{l.num ?? ''}</span>
+          <span className="code-content">{l.code || ' '}</span>
+        </div>
+      ))}
+    </>
+  )
   return (
     <pre className="tool-out-text tool-out-code">
-      <Highlight code={code} language={lang} theme={themes.vsDark}>
-        {({ tokens, getLineProps, getTokenProps }) => (
-          <>
-            {tokens.map((line, i) => {
-              const lineProps = getLineProps({ line })
-              return (
-                <div key={i} {...lineProps} className={`code-line ${lineProps.className ?? ''}`}>
-                  <span className="code-gutter">{lines[i]?.num ?? ''}</span>
-                  <span className="code-content">
-                    {line.length === 0 ? (
-                      <span> </span>
-                    ) : (
-                      line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
-                    )}
-                  </span>
-                </div>
-              )
-            })}
-          </>
-        )}
-      </Highlight>
+      <PrismBoundary fallback={fallback}>
+        <Highlight code={code} language={lang} theme={themes.vsDark}>
+          {({ tokens, getLineProps, getTokenProps }) => (
+            <>
+              {tokens.map((line, i) => {
+                const lineProps = getLineProps({ line })
+                return (
+                  <div key={i} {...lineProps} className={`code-line ${lineProps.className ?? ''}`}>
+                    <span className="code-gutter">{lines[i]?.num ?? ''}</span>
+                    <span className="code-content">
+                      {line.length === 0 ? (
+                        <span> </span>
+                      ) : (
+                        line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </Highlight>
+      </PrismBoundary>
     </pre>
   )
 }
@@ -636,24 +650,26 @@ function HighlightedCode({
   language: Language | null
   className: string
 }): React.JSX.Element {
-  const lang: Language = language ?? 'markup'
+  const lang: Language = safeLanguage(language)
   return (
     <pre className={className}>
-      <Highlight code={code} language={lang} theme={themes.vsDark}>
-        {({ tokens, getLineProps, getTokenProps }) => (
-          <>
-            {tokens.map((line, i) => (
-              <div key={i} {...getLineProps({ line })}>
-                {line.length === 0 ? (
-                  <span> </span>
-                ) : (
-                  line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
-                )}
-              </div>
-            ))}
-          </>
-        )}
-      </Highlight>
+      <PrismBoundary fallback={<>{code}</>}>
+        <Highlight code={code} language={lang} theme={themes.vsDark}>
+          {({ tokens, getLineProps, getTokenProps }) => (
+            <>
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line })}>
+                  {line.length === 0 ? (
+                    <span> </span>
+                  ) : (
+                    line.map((token, j) => <span key={j} {...getTokenProps({ token })} />)
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+        </Highlight>
+      </PrismBoundary>
     </pre>
   )
 }
