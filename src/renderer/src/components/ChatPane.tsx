@@ -122,7 +122,9 @@ function ChatPane({
   const mode = selected?.mode ?? 'readonly'
   const live = selected ? isLiveMode(selected.mode) : false
 
-  shownFromLineRef.current = shownFromLine
+  useEffect(() => {
+    shownFromLineRef.current = shownFromLine
+  }, [shownFromLine])
 
   // When the selected session changes, snap immediately to bottom.
   // useLayoutEffect (not useEffect) so it runs before paint — avoids flashing
@@ -491,7 +493,7 @@ function ChatPane({
     return (
       <main className="chat-pane">
         <div className="chat-empty">
-          <p>워크스페이스의 "+ 새 대화" 로 시작하세요</p>
+          <p>{'워크스페이스의 "+ 새 대화" 로 시작하세요'}</p>
         </div>
       </main>
     )
