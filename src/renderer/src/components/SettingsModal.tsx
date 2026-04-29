@@ -178,11 +178,22 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
   const [pwConfirm, setPwConfirm] = useState<string>('')
   const [pwMessage, setPwMessage] = useState<string>('')
   const [sizeDraft, setSizeDraft] = useState<string>(String(settings.fontSize))
+  // 호스트가 dev 모드인지 — Electron 창은 import.meta.env.DEV 와 일치하지만
+  // web 사용자는 production 빌드를 받기 때문에 RPC 로 따로 물어야 한다.
+  const [devAvailable, setDevAvailable] = useState<boolean>(false)
 
   // Sync draft when external settings change (e.g. reset to defaults)
   useEffect(() => {
     setSizeDraft(String(settings.fontSize))
   }, [settings.fontSize])
+
+  useEffect(() => {
+    if (!open) return
+    void window.api.dev
+      .available()
+      .then(setDevAvailable)
+      .catch(() => setDevAvailable(false))
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -459,7 +470,7 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               {webError && <p className="settings-hint" style={{ color: '#ff6b6b' }}>{webError}</p>}
             </>
           )}
-          {import.meta.env.DEV && (
+          {devAvailable && (
             <>
               <hr className="settings-divider" />
               <h3 className="settings-section-title">개발</h3>

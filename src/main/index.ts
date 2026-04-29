@@ -131,6 +131,11 @@ app.whenReady().then(() => {
     return merged
   })
 
+  // 호스트가 dev 모드인지 — web 사용자가 받는 번들은 production 빌드라
+  // import.meta.env.DEV 가 false 라서 빌드타임 flag 로는 호스트 상태를 알 수
+  // 없음. UI 는 이 RPC 결과로 dev-only 섹션을 토글.
+  registerInvoke('dev:available', () => is.dev)
+
   // dev 재시작 — scripts/dev-restart.ps1 을 새 PowerShell 콘솔에서 실행.
   // Electron 자기 자신을 죽이는 게 본질이라 detach + unref 로 떼어냄. dev 빌드
   // 에서만 노출 (production 패키지엔 ps1 파일 없음).

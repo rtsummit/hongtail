@@ -121,6 +121,7 @@ const api = {
     setPassword: (newPassword: string) => ipcRenderer.invoke('web:set-password', newPassword)
   },
   dev: {
+    available: (): Promise<boolean> => ipcRenderer.invoke('dev:available'),
     restart: (): Promise<{ ok: true }> => ipcRenderer.invoke('dev:restart')
   },
   pty: {

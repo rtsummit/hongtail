@@ -160,9 +160,12 @@ export interface ExposedApi {
     hasPassword: () => Promise<boolean>
     setPassword: (newPassword: string) => Promise<{ ok: true }>
   }
-  // dev 빌드에서만 main 이 핸들러를 등록 — production / web 모드에서 호출하면
-  // No handler / 미지원 에러. 호출하는 측에서 import.meta.env.DEV 로 가드.
+  // available() 는 항상 등록 — 호스트가 dev 모드인지 runtime 으로 확인. web
+  // 사용자는 production 빌드 번들을 받기 때문에 import.meta.env.DEV 로는 호스트
+  // 상태를 모른다. restart() 는 호스트가 dev 일 때만 등록되며 production 에서
+  // 호출하면 'No handler' 에러로 reject.
   dev: {
+    available: () => Promise<boolean>
     restart: () => Promise<{ ok: true }>
   }
 }

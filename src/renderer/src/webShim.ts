@@ -138,6 +138,7 @@ export const webApi: ExposedApi = {
     // 호스트 (= hongtail dev 인스턴스) 한테 RPC forward — 그 머신에서 PowerShell
     // 창 뜨고 dev 재시작. 호스트가 production 빌드면 main 이 핸들러를 등록 안 했
     // 으므로 'no handler' 에러로 reject (정상 동작).
+    available: () => rpc('dev:available', []) as Promise<boolean>,
     restart: () => rpc('dev:restart', [])
   }
 }
