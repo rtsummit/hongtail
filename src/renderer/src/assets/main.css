@@ -1182,13 +1182,14 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-color: var(--fg-muted);
 }
 
-.modal-wide {
-  width: 95vw;
-  height: 95vh;
+.modal.modal-wide {
+  width: 100vw;
+  height: 100vh;
   min-width: 400px;
   min-height: 300px;
-  max-width: 95vw;
-  max-height: 95vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
   resize: both;
   overflow: hidden;
 }
