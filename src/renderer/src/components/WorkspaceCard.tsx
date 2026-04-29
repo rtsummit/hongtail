@@ -336,12 +336,12 @@ function WorkspaceCard({
               onClick={handleNewConversationClick}
               title={
                 fresh
-                  ? '대기 중인 새로운 대화 (선택)'
+                  ? '대기 중인 새 대화 (선택)'
                   : '이 디렉터리에서 새 대화 시작 (앱 모드)'
               }
             >
               <span className="new-conversation-plus">+</span>
-              <span className="new-conversation-label">새로운 대화</span>
+              <span className="new-conversation-label">새 대화</span>
               {fresh && (
                 <span className="live-dot" title={`${fresh.backend} · waiting`}>
                   ●
@@ -354,7 +354,7 @@ function WorkspaceCard({
               title="이 디렉터리에서 새 터미널 세션 시작"
             >
               <span className="new-conversation-plus">+</span>
-              <span className="new-conversation-label">터미널</span>
+              <span className="new-conversation-label">새 터미널</span>
             </div>
           </div>
 

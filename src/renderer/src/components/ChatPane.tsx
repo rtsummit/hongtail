@@ -491,7 +491,7 @@ function ChatPane({
     return (
       <main className="chat-pane">
         <div className="chat-empty">
-          <p>워크스페이스의 "+ 새로운 대화" 로 시작하세요</p>
+          <p>워크스페이스의 "+ 새 대화" 로 시작하세요</p>
         </div>
       </main>
     )
