@@ -1418,8 +1418,13 @@ function App(): React.JSX.Element {
     appStyle.fontFamily = stack
   }
 
+  const toolDefaultOpenSet = useMemo(
+    () => new Set(settings.toolCardsDefaultOpen),
+    [settings.toolCardsDefaultOpen]
+  )
+
   return (
-    <ToolDefaultOpenContext.Provider value={settings.toolCardsDefaultOpen}>
+    <ToolDefaultOpenContext.Provider value={toolDefaultOpenSet}>
     <div
       className={`app${sidebarOpen ? ' sidebar-open' : ''}`}
       style={appStyle as React.CSSProperties}

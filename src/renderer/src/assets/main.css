@@ -2419,6 +2419,56 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   cursor: pointer;
 }
 
+.tool-cards-default-open-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+}
+
+.tool-cards-default-open-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: var(--font-size, 13px);
+  color: var(--fg);
+}
+
+.tool-cards-default-open-item input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.tool-cards-default-open-actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.tool-cards-default-open-actions button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tool-cards-default-open-actions button:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--fg);
+}
+
+.tool-cards-default-open-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;

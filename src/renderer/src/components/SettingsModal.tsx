@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { AppSettings } from '../settings'
-import { DEFAULT_SETTINGS } from '../settings'
+import { DEFAULT_SETTINGS, KNOWN_TOOL_NAMES } from '../settings'
 import type { WebSettings } from '../../../preload/index.d'
 
 interface Props {
@@ -115,6 +115,54 @@ function FontStackEditor({
         >
           +
         </button>
+      </div>
+    </div>
+  )
+}
+
+function ToolCardsDefaultOpenEditor({
+  value,
+  onUpdate
+}: {
+  value: string[]
+  onUpdate: (next: string[]) => void
+}): React.JSX.Element {
+  const set = new Set(value)
+  const allOn = KNOWN_TOOL_NAMES.every((n) => set.has(n))
+  const noneOn = KNOWN_TOOL_NAMES.every((n) => !set.has(n))
+
+  const toggle = (name: string): void => {
+    const next = new Set(set)
+    if (next.has(name)) next.delete(name)
+    else next.add(name)
+    onUpdate(KNOWN_TOOL_NAMES.filter((n) => next.has(n)))
+  }
+  const setAll = (on: boolean): void => {
+    onUpdate(on ? [...KNOWN_TOOL_NAMES] : [])
+  }
+
+  return (
+    <div className="settings-row tool-cards-default-open">
+      <span className="settings-label">기본 펼침 도구 카드</span>
+      <div className="tool-cards-default-open-grid">
+        {KNOWN_TOOL_NAMES.map((name) => (
+          <label key={name} className="tool-cards-default-open-item">
+            <input
+              type="checkbox"
+              checked={set.has(name)}
+              onChange={() => toggle(name)}
+            />
+            <span>{name}</span>
+          </label>
+        ))}
+        <div className="tool-cards-default-open-actions">
+          <button type="button" onClick={() => setAll(true)} disabled={allOn}>
+            모두
+          </button>
+          <button type="button" onClick={() => setAll(false)} disabled={noneOn}>
+            없음
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -285,16 +333,10 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               }}
             />
           </label>
-          <label className="settings-row settings-row-inline">
-            <input
-              type="checkbox"
-              checked={settings.toolCardsDefaultOpen}
-              onChange={(e) =>
-                onChange({ ...settings, toolCardsDefaultOpen: e.target.checked })
-              }
-            />
-            <span className="settings-label-inline">도구 카드 (Bash/Edit 등) 기본 펼침</span>
-          </label>
+          <ToolCardsDefaultOpenEditor
+            value={settings.toolCardsDefaultOpen}
+            onUpdate={(next) => onChange({ ...settings, toolCardsDefaultOpen: next })}
+          />
           {web && (
             <>
               <hr className="settings-divider" />

@@ -117,7 +117,7 @@ function ToolRow({
   defaultOpen
 }: RowProps): React.JSX.Element {
   const ctxDefaultOpen = useContext(ToolDefaultOpenContext)
-  const open = defaultOpen ?? ctxDefaultOpen
+  const open = defaultOpen ?? ctxDefaultOpen.has(name)
   const hasBody = body != null
   const cls = `tool-block ${toolClass}${isError ? ' error' : ''}`
   if (hasBody) {

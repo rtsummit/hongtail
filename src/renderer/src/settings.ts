@@ -2,14 +2,18 @@ export interface AppSettings {
   fonts: string[]
   fontSize: number
   readonlyChunkSize: number
-  toolCardsDefaultOpen: boolean
+  // Tool 이름 (Bash, Read, ...) 의 배열. 비면 모두 접힘.
+  toolCardsDefaultOpen: string[]
 }
+
+// SettingsModal 의 도구 카드 토글에 노출되는 이름들.
+export const KNOWN_TOOL_NAMES = ['Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob', 'TodoWrite'] as const
 
 export const DEFAULT_SETTINGS: AppSettings = {
   fonts: [],
   fontSize: 13,
   readonlyChunkSize: 100,
-  toolCardsDefaultOpen: false
+  toolCardsDefaultOpen: []
 }
 
 const KEY = 'hongtail.settings'
@@ -17,6 +21,13 @@ const KEY = 'hongtail.settings'
 function asStringArray(v: unknown): string[] {
   if (!Array.isArray(v)) return []
   return v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+}
+
+function migrateToolCardsDefaultOpen(v: unknown): string[] {
+  // 구버전: boolean. true → 알려진 도구 전부, false → 빈 배열.
+  if (typeof v === 'boolean') return v ? [...KNOWN_TOOL_NAMES] : []
+  if (Array.isArray(v)) return asStringArray(v)
+  return [...DEFAULT_SETTINGS.toolCardsDefaultOpen]
 }
 
 export function loadSettings(): AppSettings {
@@ -56,10 +67,9 @@ export function loadSettings(): AppSettings {
         Number.isFinite(chunkNum) && chunkNum >= 20 && chunkNum <= 2000
           ? Math.round(chunkNum)
           : DEFAULT_SETTINGS.readonlyChunkSize,
-      toolCardsDefaultOpen:
-        typeof parsed.toolCardsDefaultOpen === 'boolean'
-          ? parsed.toolCardsDefaultOpen
-          : DEFAULT_SETTINGS.toolCardsDefaultOpen
+      toolCardsDefaultOpen: migrateToolCardsDefaultOpen(
+        (parsed as Record<string, unknown>).toolCardsDefaultOpen
+      )
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
