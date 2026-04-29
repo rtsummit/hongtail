@@ -132,6 +132,20 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
       rows: term.rows,
       command: initialCommand,
       backend
+    }).then((res) => {
+      // 새로고침으로 다시 mount 된 경우 main 의 ring buffer 를 받아 xterm
+      // 화면 복원. 자식 프로세스 자체는 살아있고 새 출력은 onData broadcast
+      // 로 정상 흐름. replay 가 있으면 ready 상태도 즉시 set (사용자가
+      // throbber 없이 바로 화면 복원을 보게).
+      if (res?.replay) {
+        term.write(res.replay)
+        if (!hasReceivedDataRef.current) {
+          hasReceivedDataRef.current = true
+          onReadyRef.current?.()
+        }
+      }
+    }).catch((err) => {
+      console.error('pty spawn failed:', err)
     })
 
     term.onData((data) => {

@@ -129,7 +129,8 @@ const api = {
       command?: string
       delayMs?: number
       backend?: 'terminal' | 'interactive'
-    }): Promise<{ alreadyRunning: boolean }> => ipcRenderer.invoke('pty:spawn', args),
+    }): Promise<{ alreadyRunning: boolean; replay?: string }> =>
+      ipcRenderer.invoke('pty:spawn', args),
     write: (sessionId: string, data: string): Promise<void> =>
       ipcRenderer.invoke('pty:write', sessionId, data),
     resize: (sessionId: string, cols: number, rows: number): Promise<void> =>

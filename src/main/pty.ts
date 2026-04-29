@@ -9,7 +9,15 @@ interface PtyEntry {
   // 새로고침 후 클라이언트가 'terminal' vs 'interactive' 를 구분 복원하기 위함.
   // hint 가 없으면 'terminal' (가장 보수적 — xterm raw 로 그려짐).
   backend: 'terminal' | 'interactive'
+  // 새로고침 후 xterm 버퍼 복원용 ring. proc.onData 가 누적해두고,
+  // 같은 sessionId 로 다시 spawn 호출이 오면 (alreadyRunning) 응답에 같이
+  // 돌려줘서 호출한 클라이언트만 한 번에 term.write 한다 — broadcast 면 다른
+  // 활성 클라이언트가 중복 출력 받음. limit 초과 시 앞부분만 잘라 ANSI
+  // escape 가 깨질 수 있으나 실용적으로 화면 밖 영역이라 허용.
+  buffer: string
 }
+
+const PTY_BUFFER_LIMIT = 256_000
 
 const ptys = new Map<string, PtyEntry>()
 
@@ -33,8 +41,11 @@ export function registerPtyHandlers(): void {
     const { sessionId, workspacePath, cols, rows, command, delayMs, backend } = args
     void delayMs
 
-    if (ptys.has(sessionId)) {
-      return { alreadyRunning: true }
+    const existing = ptys.get(sessionId)
+    if (existing) {
+      // 새로고침 등으로 다시 mount 된 클라이언트. ring buffer 를 응답으로
+      // 돌려줘 xterm 화면 복원. 다른 활성 클라이언트 화면에는 영향 없음.
+      return { alreadyRunning: true, replay: existing.buffer || undefined }
     }
 
     const isWin = process.platform === 'win32'
@@ -57,7 +68,15 @@ export function registerPtyHandlers(): void {
     })
 
     const channel = eventChannel(sessionId)
-    proc.onData((data) => broadcast(channel, { type: 'data', data }))
+    proc.onData((data) => {
+      broadcast(channel, { type: 'data', data })
+      const entry = ptys.get(sessionId)
+      if (!entry) return
+      entry.buffer += data
+      if (entry.buffer.length > PTY_BUFFER_LIMIT) {
+        entry.buffer = entry.buffer.slice(entry.buffer.length - PTY_BUFFER_LIMIT)
+      }
+    })
     proc.onExit(({ exitCode }) => {
       broadcast(channel, { type: 'exit', code: exitCode })
       ptys.delete(sessionId)
@@ -66,7 +85,8 @@ export function registerPtyHandlers(): void {
     ptys.set(sessionId, {
       proc,
       workspacePath,
-      backend: backend === 'interactive' ? 'interactive' : 'terminal'
+      backend: backend === 'interactive' ? 'interactive' : 'terminal',
+      buffer: ''
     })
     return { alreadyRunning: false }
   })

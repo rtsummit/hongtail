@@ -127,7 +127,10 @@ export interface ExposedApi {
     sync: (cwd: string, sessionId: string) => Promise<SessionAlias | null>
   }
   pty: {
-    spawn: (args: PtySpawnArgs) => Promise<{ alreadyRunning: boolean }>
+    // alreadyRunning 이면 main 의 ring buffer 가 replay 로 함께 반환된다 —
+    // 새로고침 후 동일 sessionId 로 spawn 호출 시 xterm 버퍼 복원용. 호출한
+    // 클라이언트만 받음 (broadcast 안 함, 다른 클라이언트 중복 출력 회피).
+    spawn: (args: PtySpawnArgs) => Promise<{ alreadyRunning: boolean; replay?: string }>
     write: (sessionId: string, data: string) => Promise<void>
     resize: (sessionId: string, cols: number, rows: number) => Promise<void>
     kill: (sessionId: string) => Promise<void>
