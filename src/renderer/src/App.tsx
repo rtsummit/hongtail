@@ -38,9 +38,51 @@ import type { SessionAlias } from '../../preload/index.d'
 // bypassPermissions / auto 는 우발 진입 방지를 위해 사이클에서 제외 — 메뉴로만 진입.
 const PERMISSION_MODE_CYCLE = ['default', 'acceptEdits', 'plan'] as const
 
+// 새로고침을 가로질러 selected 만 복원한다. 라이브 mode/backend 는 mount 직후
+// listRunning reconcile 이 active 매핑으로 덮어쓰므로, 복원 시점엔 일단
+// readonly 로 강제. messages·status 는 jsonl 리플레이로 ChatPane / reconcile
+// 흐름이 자동 재구성한다.
+const SELECTED_STORAGE_KEY = 'hongtail.selected'
+
+function loadSelectedFromStorage(): SelectedSession | null {
+  try {
+    const raw = sessionStorage.getItem(SELECTED_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<SelectedSession> | null
+    if (
+      parsed &&
+      typeof parsed.workspacePath === 'string' &&
+      typeof parsed.sessionId === 'string' &&
+      typeof parsed.title === 'string'
+    ) {
+      return {
+        workspacePath: parsed.workspacePath,
+        sessionId: parsed.sessionId,
+        title: parsed.title,
+        mode: 'readonly',
+        backend: typeof parsed.backend === 'string' ? (parsed.backend as Backend) : undefined
+      }
+    }
+  } catch {
+    /* corrupt or unavailable */
+  }
+  return null
+}
+
+function saveSelectedToStorage(s: SelectedSession | null): void {
+  try {
+    if (s) sessionStorage.setItem(SELECTED_STORAGE_KEY, JSON.stringify(s))
+    else sessionStorage.removeItem(SELECTED_STORAGE_KEY)
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 function App(): React.JSX.Element {
   const [workspaces, setWorkspaces] = useState<WorkspaceEntry[]>([])
-  const [selected, setSelected] = useState<SelectedSession | null>(null)
+  const [selected, setSelected] = useState<SelectedSession | null>(() =>
+    loadSelectedFromStorage()
+  )
   const [messagesBySession, setMessagesBySession] = useState<Record<string, Block[]>>({})
   const [active, setActive] = useState<Record<string, ActiveEntry>>({})
   const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
@@ -127,6 +169,12 @@ function App(): React.JSX.Element {
       setAliasesBySession(map ?? {})
     })
   }, [])
+
+  // selected 를 sessionStorage 에 sync — 웹/Electron 새로고침을 가로질러 복원.
+  // sessionStorage 라 탭 닫으면 사라지고 디바이스 간 동기화도 없다 (의도).
+  useEffect(() => {
+    saveSelectedToStorage(selected)
+  }, [selected])
 
   // Multi-client 동기화 — 5초마다 sidebar 의 session list refresh. 다른 client
   // 가 시작/종료한 세션은 jsonl 이 생기는 시점에 자동으로 readonly entry 로
