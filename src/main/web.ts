@@ -168,7 +168,18 @@ function busSet(topic: string): Set<EventEmit> {
 export function emitSse(topic: string, event: unknown): void {
   const set = busSet(topic)
   if (set.size > 0) {
-    for (const emit of set) emit(event)
+    // emit 이 throw (예: res.destroyed 직후 write → ERR_STREAM_DESTROYED, 또는
+    // event 가 circular 라 JSON.stringify throw) 하면 그 stale emitter 를 set
+    // 에서 제거하고 다음 emitter 로 계속. 보호 안 하면 한 client 의 socket 절단
+    // 이 모든 후속 broadcast 를 stuck 시켜 전 세션 hang 을 유발 (관측 사례).
+    for (const emit of set) {
+      try {
+        emit(event)
+      } catch (err) {
+        console.warn('[web] sse emit failed — dropping subscriber:', err)
+        set.delete(emit)
+      }
+    }
     return
   }
   let buf = sseBuffer.get(topic)
@@ -182,10 +193,17 @@ export function emitSse(topic: string, event: unknown): void {
 
 function attachSseEmitter(topic: string, emit: EventEmit): () => void {
   const set = busSet(topic)
-  // 첫 connection 시 buffered 부터 flush.
+  // 첫 connection 시 buffered 부터 flush. 한 이벤트가 throw 해도 나머지를
+  // 계속 시도 — 첫 client 가 일부만 받더라도 페이지 자체는 살아있게.
   const buffered = sseBuffer.get(topic)
   if (buffered) {
-    for (const e of buffered) emit(e)
+    for (const e of buffered) {
+      try {
+        emit(e)
+      } catch (err) {
+        console.warn('[web] sse buffered flush failed:', err)
+      }
+    }
     sseBuffer.delete(topic)
   }
   set.add(emit)
@@ -305,7 +323,11 @@ function handleEvents(req: IncomingMessage, res: ServerResponse): void {
   res.flushHeaders?.()
   res.write(': ok\n\n')
   const emit: EventEmit = (event) => {
-    if (res.writableEnded) return
+    // socket 이 끝났거나 destroyed 면 write 가 throw 한다 (ERR_STREAM_DESTROYED).
+    // 일반 backpressure 는 false 리턴이라 OK. 호출자 (emitSse) 의 try/catch 가
+    // 예외 케이스에서 stale emitter 를 set 에서 제거할 수 있게 throw 는 그대로
+    // propagate.
+    if (res.writableEnded || res.destroyed) return
     res.write(`data: ${JSON.stringify(event)}\n\n`)
   }
   const detach = attachSseEmitter(topic, emit)
