@@ -227,6 +227,21 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
     setPwMessage('')
   }, [open])
 
+  // ESC 로 모달 닫기. capture + stopPropagation 으로 등록해 글로벌 ESC interrupt
+  // 핸들러보다 먼저 잡고 전파 막음.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      if (e.isComposing || e.keyCode === 229) return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [open, onClose])
+
   const submitPassword = (): void => {
     setPwMessage('')
     if (pwDraft.length < 8) {

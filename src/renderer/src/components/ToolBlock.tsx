@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { diffLines } from 'diff'
 import { Highlight, themes } from 'prism-react-renderer'
 import type { Language } from 'prism-react-renderer'
@@ -511,6 +511,19 @@ function DiffModal({
   title: string
   onClose: () => void
 }): React.JSX.Element {
+  // ESC 로 닫기. capture + stopPropagation 으로 글로벌 ESC interrupt 보다 먼저 잡음.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      if (e.isComposing || e.keyCode === 229) return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
   return (
     <div
       className="modal-backdrop"

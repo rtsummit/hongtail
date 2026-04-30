@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Highlight, themes } from 'prism-react-renderer'
@@ -110,6 +110,234 @@ const markdownComponents = {
   code: MarkdownCode
 }
 
+const ICON_PROPS = {
+  width: 14,
+  height: 14,
+  viewBox: '0 0 16 16',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.5,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true
+}
+
+function CopyIcon(): React.JSX.Element {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="5.5" y="5.5" width="9" height="9" rx="1.5" />
+      <path d="M11 5.5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5.5" />
+    </svg>
+  )
+}
+
+function CheckIcon(): React.JSX.Element {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M3 8.5l3 3L13 5" />
+    </svg>
+  )
+}
+
+function ChevronUpIcon(): React.JSX.Element {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M4 10l4-4 4 4" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon(): React.JSX.Element {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  )
+}
+
+function ExternalLinkIcon(): React.JSX.Element {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M9 3h4v4" />
+      <path d="M13 3l-7 7" />
+      <path d="M11 8.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4.5" />
+    </svg>
+  )
+}
+
+function CloseIcon(): React.JSX.Element {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+    </svg>
+  )
+}
+
+const AssistantText = memo(function AssistantText({
+  text
+}: {
+  text: string
+}): React.JSX.Element {
+  const [collapsed, setCollapsed] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [opened, setOpened] = useState(false)
+  const bubbleRef = useRef<HTMLDivElement>(null)
+  // 접기 직전 폭을 기억해 collapsed 동안 width 고정. placeholder 가 짧아 bubble
+  // 폭이 줄어드는 걸 방지.
+  const [savedWidth, setSavedWidth] = useState<number | null>(null)
+
+  const onCopy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1200)
+    } catch {
+      /* clipboard 권한 없거나 비-secure 컨텍스트 — 무시 */
+    }
+  }
+
+  const toggleCollapsed = (): void => {
+    if (!collapsed) {
+      // 접기로 전환 — 현재 폭 캡처
+      if (bubbleRef.current) setSavedWidth(bubbleRef.current.offsetWidth)
+    } else {
+      // 펼치기로 전환 — 고정 해제, 자연 폭으로 복귀
+      setSavedWidth(null)
+    }
+    setCollapsed((v) => !v)
+  }
+
+  const expandFromCollapsed = (): void => {
+    setSavedWidth(null)
+    setCollapsed(false)
+  }
+
+  const style =
+    collapsed && savedWidth != null
+      ? { width: `${savedWidth}px`, maxWidth: 'none' as const }
+      : undefined
+
+  return (
+    <div ref={bubbleRef} className="bubble assistant" style={style}>
+      <div className="bubble-actions">
+        <button
+          type="button"
+          className="bubble-action"
+          onClick={onCopy}
+          title={copied ? '복사됨' : '복사'}
+          aria-label={copied ? '복사됨' : '복사'}
+        >
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+        <button
+          type="button"
+          className="bubble-action"
+          onClick={toggleCollapsed}
+          title={collapsed ? '펼치기' : '접기'}
+          aria-label={collapsed ? '펼치기' : '접기'}
+        >
+          {collapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
+        </button>
+        <button
+          type="button"
+          className="bubble-action"
+          onClick={() => setOpened(true)}
+          title="별도 창으로 열기"
+          aria-label="별도 창으로 열기"
+        >
+          <ExternalLinkIcon />
+        </button>
+      </div>
+      {collapsed ? (
+        <div className="bubble-collapsed" onClick={expandFromCollapsed}>
+          ··· (접힘 — 클릭해서 펼치기)
+        </div>
+      ) : (
+        <div className="bubble-markdown">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {text}
+          </ReactMarkdown>
+        </div>
+      )}
+      {opened && <AssistantTextModal text={text} onClose={() => setOpened(false)} />}
+    </div>
+  )
+})
+
+function AssistantTextModal({
+  text,
+  onClose
+}: {
+  text: string
+  onClose: () => void
+}): React.JSX.Element {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      if (e.isComposing || e.keyCode === 229) return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
+  const onCopy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1200)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <div
+      className="modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal modal-wide" role="dialog" aria-label="응답 보기">
+        <header className="modal-header">
+          <h2 className="modal-title-path">응답</h2>
+          <div className="modal-header-actions">
+            <button
+              type="button"
+              className="bubble-action"
+              onClick={onCopy}
+              title={copied ? '복사됨' : '복사'}
+              aria-label={copied ? '복사됨' : '복사'}
+            >
+              {copied ? <CheckIcon /> : <CopyIcon />}
+            </button>
+            <button
+              type="button"
+              className="bubble-action"
+              onClick={onClose}
+              title="닫기"
+              aria-label="닫기"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        </header>
+        <div className="modal-body assistant-modal-body">
+          <div className="bubble-markdown">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {text}
+            </ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MessageList({
   blocks,
   onAskUserQuestionAnswer,
@@ -160,15 +388,7 @@ const ItemView = memo(function ItemView({
         </div>
       )
     case 'assistant-text':
-      return (
-        <div className="bubble assistant">
-          <div className="bubble-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {item.text}
-            </ReactMarkdown>
-          </div>
-        </div>
-      )
+      return <AssistantText text={item.text} />
     case 'command-invoke':
       return (
         <div className="command-card invoke">

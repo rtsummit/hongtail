@@ -783,6 +783,59 @@
   background: var(--panel);
   border: 1px solid var(--border);
   color: var(--fg);
+  position: relative;
+}
+
+.bubble-actions {
+  position: absolute;
+  /* bubble 박스 바깥 위쪽으로 띄움 — 답변 텍스트와 시각적으로 안 겹치게.
+     아이콘 22px + 살짝 gap → -26px. */
+  top: -26px;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+  /* 위쪽 메시지/스크롤 콘텐츠보다 앞에 보이게. */
+  z-index: 1;
+}
+
+.bubble.assistant:hover .bubble-actions,
+.bubble-actions:focus-within {
+  opacity: 1;
+}
+
+.bubble-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: var(--panel-2);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.bubble-action:hover {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.bubble-action svg {
+  display: block;
+}
+
+.bubble-collapsed {
+  font-style: italic;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
 }
 
 .bubble-text {
@@ -1207,6 +1260,20 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   min-height: 0;
   display: flex;
   padding: 12px;
+}
+
+.assistant-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px;
+  user-select: text;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .diff-modal-body .diff-wrap {

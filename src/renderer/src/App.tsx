@@ -227,6 +227,8 @@ function App(): React.JSX.Element {
       picked = typed.trim()
       if (!picked) return
     }
+    picked = normalizeWorkspacePath(picked)
+    if (!picked) return
     if (workspaces.some((w) => w.path === picked)) return
     await persist([{ path: picked }, ...workspaces])
   }, [workspaces, persist])
@@ -1466,12 +1468,31 @@ function App(): React.JSX.Element {
         const target = e.target as HTMLElement
         if (!target.closest('.find-bar')) {
           setFindOpen(false)
+          // 아래 글로벌 ESC interrupt 가 같이 발사되지 않도록 전파 차단.
+          e.stopPropagation()
         }
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [findOpen])
+
+  // ESC 로 진행 중 turn 인터럽트. bubble 단계로 등록 — 모달/find-bar/slash
+  // popup 등 자체 ESC 를 처리하는 곳이 stopPropagation 하면 여기까지 안 옴.
+  // textarea·input 안에서도 동작 (textarea ESC 의 default 동작은 없음).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      if (e.isComposing || e.keyCode === 229) return
+      if (!selected) return
+      const status = statusBySession[selected.sessionId]
+      if (!status?.thinking) return
+      e.preventDefault()
+      void handleInterrupt(selected.sessionId)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, statusBySession, handleInterrupt])
 
   // selected 변경 시 MRU 갱신. cycle 중에는 갱신 skip — cycle 끝나는 시점에
   // 한 번에 정리 (finishCycle).

@@ -328,6 +328,24 @@ function ChatPane({
     return () => obs.disconnect()
   }, [])
 
+  // ResizeObserver 는 컨테이너 자체 box 변화만 감지 — ToolBlock 펼치기처럼 자식
+  // 콘텐츠가 늘어나 scrollHeight 만 커지는 케이스는 안 잡힌다. MutationObserver
+  // 로 child node 추가/제거를 잡아 snap. attributes·characterData 는 제외 —
+  // streaming 중 markdown 텍스트 매 chunk 변경마다 callback 폭주해서 typing 등
+  // 메인 스레드 인터랙션이 lag. childList+subtree 만으로도 ToolBlock expand
+  // (자식 div 추가) 는 잡힘.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const mo = new MutationObserver(() => {
+      if (wasNearBottomRef.current) {
+        el.scrollTop = el.scrollHeight
+      }
+    })
+    mo.observe(el, { childList: true, subtree: true })
+    return () => mo.disconnect()
+  }, [])
+
   const chunkSize = settings.readonlyChunkSize
 
   useEffect(() => {
@@ -495,6 +513,8 @@ function ChatPane({
       }
       if (e.key === 'Escape') {
         e.preventDefault()
+        // 글로벌 ESC interrupt 까지 전파되지 않게 — slash popup 닫기만 하고 끝.
+        e.stopPropagation()
         setSlashCtx(null)
         return
       }
