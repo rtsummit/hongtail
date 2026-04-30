@@ -861,6 +861,20 @@
   opacity: 1;
 }
 
+/* 터치 디바이스 (hover 불가) — hover 로만 노출되던 액션 버튼들이 모바일·태블릿
+   에서 영영 안 보이는 문제. hover 가 없으면 항상 보이게. width 분기와 별개라
+   태블릿 landscape (>768px) 도 같이 다룸. */
+@media (hover: none) {
+  .bubble-actions {
+    opacity: 1;
+  }
+
+  .session:not(:hover) .session-remove,
+  .session:not(:hover) .session-stop {
+    visibility: visible;
+  }
+}
+
 .bubble-action {
   display: inline-flex;
   align-items: center;
@@ -1215,6 +1229,8 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-radius: 4px;
   max-height: 360px;
   overflow-y: auto;
+  /* 긴 줄이 viewport 밖으로 흘러 페이지 자체가 가로 스크롤되지 않게 컨테이너 안에 가둔다. */
+  overflow-x: auto;
   white-space: pre;
 }
 
@@ -1306,12 +1322,15 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 }
 
 .modal.modal-wide {
-  width: 100vw;
-  height: 100vh;
-  min-width: 400px;
-  min-height: 300px;
-  max-width: 100vw;
-  max-height: 100vh;
+  /* backdrop 의 padding (safe-area + 16px) 안에서 가능한 최대 — 100vw/100vh 를
+     쓰면 backdrop padding 을 무시해서 iOS 의 URL 바·홈 인디케이터 영역으로
+     삐져나가 닫기 버튼 / 하단 컨텐츠가 잘린다. */
+  width: 100%;
+  height: 100%;
+  min-width: min(400px, 100%);
+  min-height: min(300px, 100%);
+  max-width: 100%;
+  max-height: 100%;
   border-radius: 0;
   resize: both;
   overflow: hidden;
@@ -2095,6 +2114,30 @@ details.tool-block:hover > summary > .tool-row-open,
   border-color: var(--accent);
 }
 
+.attach-btn {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: calc(var(--font-size, 13px) * 16 / 13);
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-btn:hover {
+  background: var(--panel-2);
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
 .send-btn {
   flex: 0 0 auto;
   padding: 0 20px;
@@ -2496,10 +2539,42 @@ details.tool-block:hover > summary > .tool-row-open,
   color: #1e1e1e;
 }
 
+@media (max-width: 768px) {
+  /* 모바일은 mobile-sidebar-toggle / mobile-sidechat-toggle 가 top:8 좌우에
+     자리를 잡고 있어 FindBar 가 그 아래로 내려가야 안 겹친다. 폭은 좌우 8px
+     마진을 빼고 viewport 전체로 펼쳐 입력창이 답답하지 않게. */
+  .find-bar {
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    left: 8px;
+    right: 8px;
+    padding: 6px 8px;
+  }
+
+  .find-input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    padding: 6px 8px;
+  }
+
+  .find-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 4px 8px;
+  }
+}
+
 /* === Modal === */
 .modal-backdrop {
   position: fixed;
   inset: 0;
+  /* iOS Safari URL 바 / 홈 인디케이터를 고려한 visible viewport. inset:0 +
+     position:fixed 만으로는 URL 바 영역까지 잡혀서 모달 위 / 아래가 잘린다.
+     padding 으로 safe-area + 상단·하단 16px 여백을 backdrop 안에서 확보. */
+  padding: max(16px, env(safe-area-inset-top)) 16px
+    max(16px, env(safe-area-inset-bottom));
+  /* dynamic viewport — URL 바 변화에 따라 실제 보이는 영역에 맞게 */
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
@@ -2513,8 +2588,10 @@ details.tool-block:hover > summary > .tool-row-open,
   border: 1px solid var(--border);
   border-radius: 8px;
   width: 480px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 32px);
+  /* backdrop 의 padding 이 좌우 16, 상하 16+ 안전영역을 이미 깎아내므로
+     max-width / max-height 는 100% 로 둬도 안전하게 viewport 안에 들어간다. */
+  max-width: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
@@ -3091,37 +3168,59 @@ details.tool-block:hover > summary > .tool-row-open,
 }
 
 /* === Mobile layout === */
-.mobile-sidebar-toggle {
+.mobile-sidebar-toggle,
+.mobile-sidechat-toggle {
   display: none;
 }
 
-.mobile-sidebar-backdrop {
+.mobile-sidebar-backdrop,
+.mobile-sidechat-backdrop {
   display: none;
 }
 
 @media (max-width: 768px) {
-  .mobile-sidebar-toggle {
+  .mobile-sidebar-toggle,
+  .mobile-sidechat-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
     position: fixed;
-    top: 8px;
-    left: 8px;
+    /* iOS notch / 상태바 영역을 피한다. env() 미지원 브라우저는 8px 로 fallback. */
+    top: max(8px, env(safe-area-inset-top));
     z-index: 100;
-    width: 36px;
     height: 36px;
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--fg);
-    font-size: calc(var(--font-size, 13px) * 18 / 13);
     line-height: 1;
     cursor: pointer;
     user-select: none;
   }
 
-  .mobile-sidebar-toggle:active {
+  .mobile-sidebar-toggle {
+    left: max(8px, env(safe-area-inset-left));
+    width: 36px;
+    font-size: calc(var(--font-size, 13px) * 18 / 13);
+  }
+
+  .mobile-sidechat-toggle {
+    right: max(8px, env(safe-area-inset-right));
+    padding: 0 10px;
+    font-size: calc(var(--font-size, 13px) * 12 / 13);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .mobile-sidebar-toggle:active,
+  .mobile-sidechat-toggle:active {
     background: var(--panel);
+  }
+
+  .app.side-chat-open .mobile-sidechat-toggle {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
   }
 
   .app .sidebar {
@@ -3141,6 +3240,42 @@ details.tool-block:hover > summary > .tool-row-open,
     transform: translateX(0);
   }
 
+  /* 사이드바 brand (좌상단 로고) 영역이 햄버거 (top:8 left:8 36x36) 와 겹쳐
+     로고를 가리는 문제. brand 의 좌측에 햄버거 폭 + 여백만큼 padding. */
+  .sidebar .sidebar-brand {
+    padding-left: 52px;
+  }
+
+  /* 사이드 챗 — 모바일에선 우측에서 슬라이드 인하는 overlay 로 동작.
+     collapsed sliver (28px) 는 모바일에선 의미 없어서 숨긴다. */
+  .app .side-chat-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(360px, 90vw);
+    flex: none;
+    z-index: 60;
+    transform: translateX(100%);
+    transition: transform 0.18s ease;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .app.side-chat-open .side-chat-panel {
+    transform: translateX(0);
+  }
+
+  .app .side-chat-collapsed {
+    display: none;
+  }
+
+  /* 사이드 챗 헤더 우측 actions 영역이 BTW 토글 (top:8 right:8) 와 겹친다.
+     overlay 가 슬라이드 인하면 panel 좌상단부터 그려져서 BTW 토글이 actions
+     를 덮는 모양새. 헤더 우측에 토글 폭 + 여백만큼 padding 으로 밀어준다. */
+  .side-chat-panel .side-chat-header {
+    padding-right: 60px;
+  }
+
   .splitter {
     display: none;
   }
@@ -3151,7 +3286,8 @@ details.tool-block:hover > summary > .tool-row-open,
     padding-top: 0;
   }
 
-  .app.sidebar-open .mobile-sidebar-backdrop {
+  .app.sidebar-open .mobile-sidebar-backdrop,
+  .app.side-chat-open .mobile-sidechat-backdrop {
     display: block;
     position: fixed;
     inset: 0;
@@ -3162,6 +3298,125 @@ details.tool-block:hover > summary > .tool-row-open,
   /* 모바일에서는 splitter 가 없으므로 sidebar-width var 영향 받지 않게 */
   .app {
     --sidebar-width: 0px;
+  }
+
+  /* 메시지 버블 — desktop 80% 는 좁은 화면에서 답답. 95% 로 확장 + bubble-action
+     탭 타겟 22→32px. 22 는 손가락에 너무 작다. */
+  .bubble {
+    max-width: 95%;
+  }
+
+  .bubble-action {
+    width: 32px;
+    height: 32px;
+  }
+
+  .bubble-actions {
+    /* action 박스가 32 로 커지면서 -26 으로는 위로 안 올라감. 살짝 더 위로. */
+    top: -36px;
+  }
+
+  /* 팝업 / 메뉴 — slash command, usage mode, confirm card 액션 등 데스크톱
+     기준 작은 padding 으로 탭 타겟이 손가락에 너무 작다. 일관되게 키운다. */
+  .slash-item {
+    padding: 10px 12px;
+  }
+
+  .usage-mode-option {
+    padding: 10px 10px;
+  }
+
+  .confirm-actions .btn {
+    padding: 10px 16px;
+    min-height: 40px;
+  }
+
+  /* slash-completion 자체가 anchor (composer) 폭을 따라가니 별도 폭 처리 불필요.
+     단, 모바일에서 maxHeight 가 anchor.top - 24 로 잡혀 키보드 올라오면 더
+     좁아지는데 이는 의도한 동작 (composer 위쪽 가시 영역 안에 표시). */
+
+  /* quote-popover — JSX 에서 inline width 를 viewport 반영해서 잡으므로 CSS
+     는 max-width 만 안전망으로 둔다. */
+  .quote-popover,
+  .quote-affordance {
+    max-width: calc(100vw - 16px);
+  }
+
+  /* iOS Safari 는 input·textarea font-size < 16px 일 때 포커스 시 자동 zoom 한다.
+     사용자 입장에선 짜증나고 layout 도 깨짐. 모바일에서 16px 강제. */
+  .chat-input textarea,
+  .side-chat-input,
+  .quote-popover-input,
+  .find-input,
+  .modal input[type='text'],
+  .modal input[type='number'],
+  .modal input[type='password'] {
+    font-size: 16px;
+  }
+
+  /* 메시지 전송 버튼 — padding: 0 20px 만 있어 세로는 컨테이너 stretch 에
+     의존. 모바일에서 확실히 누를 수 있게 min-height. */
+  .send-btn,
+  .side-chat-send {
+    min-height: 44px;
+  }
+
+  /* 사이드바 세션 액션 — 20px 는 손가락에 너무 작다. */
+  .session-remove,
+  .session-stop {
+    flex: 0 0 32px;
+    height: 32px;
+  }
+
+  /* composer / usage bar — 좁은 폭에선 좌우 padding 16 이 textarea 폭을 더
+     깎아서 답답. 약간 줄여서 입력 영역 확보. */
+  .chat-input {
+    padding: 10px 10px 12px;
+  }
+
+  .usage-bar {
+    padding: 6px 10px 0;
+    gap: 8px;
+  }
+
+  /* readonly 세션 활성화 버튼 — 좁은 화면에서 두 버튼 나란히 못 들어가는 케이스
+     대비 wrap 허용 + 탭 타겟 키움. */
+  .chat-activate-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .activate-btn {
+    padding: 10px 18px;
+    min-height: 44px;
+  }
+
+  /* 사이드바 항목들 — 데스크톱 hover 기준 작은 padding 으로 탭 타겟이 작다. */
+  .session {
+    padding: 10px 8px 10px 10px;
+  }
+
+  .session.live {
+    padding-left: 8px;
+  }
+
+  .workspace-header {
+    padding: 12px 10px;
+  }
+
+  .new-session-btn {
+    padding: 12px;
+    min-height: 44px;
+  }
+
+  .settings-btn {
+    padding: 10px 12px;
+    min-height: 40px;
+  }
+
+  .new-conversation {
+    padding: 12px;
+    min-height: 44px;
   }
 }
 

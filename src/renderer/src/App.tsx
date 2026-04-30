@@ -122,9 +122,14 @@ function App(): React.JSX.Element {
   const [findOpen, setFindOpen] = useState(false)
   const [btwMessagesBySession, setBtwMessagesBySession] = useState<Record<string, Block[]>>({})
   const [btwThinkingBySession, setBtwThinkingBySession] = useState<Record<string, boolean>>({})
-  const [sideChatCollapsed, setSideChatCollapsed] = useState<boolean>(
-    () => localStorage.getItem(SIDE_CHAT_COLLAPSED_KEY) === '1'
-  )
+  const [sideChatCollapsed, setSideChatCollapsed] = useState<boolean>(() => {
+    const stored = localStorage.getItem(SIDE_CHAT_COLLAPSED_KEY)
+    if (stored !== null) return stored === '1'
+    // 모바일 첫 진입은 collapsed 로 시작. 안 하면 320px overlay 가
+    // 채팅 본체 위에 통째로 깔려 첫 인상이 깨진다. localStorage 저장 시점부터는
+    // 사용자 선택 우선.
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  })
   const btwSubscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
   const activeTerminalRef = useRef<TerminalSearchHandle | null>(null)
@@ -1497,7 +1502,9 @@ function App(): React.JSX.Element {
   return (
     <ToolDefaultOpenContext.Provider value={toolDefaultOpenSet}>
     <div
-      className={`app${sidebarOpen ? ' sidebar-open' : ''}`}
+      className={`app${sidebarOpen ? ' sidebar-open' : ''}${
+        selected && !sideChatCollapsed ? ' side-chat-open' : ''
+      }`}
       style={appStyle as React.CSSProperties}
     >
       <button
@@ -1508,9 +1515,23 @@ function App(): React.JSX.Element {
       >
         ☰
       </button>
+      {selected && (
+        <button
+          type="button"
+          className="mobile-sidechat-toggle"
+          aria-label="BTW 사이드 챗 열기/닫기"
+          onClick={() => handleToggleSideChat()}
+        >
+          BTW
+        </button>
+      )}
       <div
         className="mobile-sidebar-backdrop"
         onClick={() => setSidebarOpen(false)}
+      />
+      <div
+        className="mobile-sidechat-backdrop"
+        onClick={() => !sideChatCollapsed && handleToggleSideChat()}
       />
       <Sidebar
         workspaces={workspaces}

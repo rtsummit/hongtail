@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <title>hongtail</title>
+    <!-- 모바일 브라우저 viewport. 없으면 기본 980px 가상 viewport 로 렌더링되어
+         max-width 미디어 쿼리가 매칭 안 된다. viewport-fit=cover 는 iPhone notch /
+         home indicator 영역까지 채우면서 env(safe-area-inset-*) 가 0 이 아닌 값을
+         돌려주게 한다. Electron 데스크톱 창엔 영향 없음. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"

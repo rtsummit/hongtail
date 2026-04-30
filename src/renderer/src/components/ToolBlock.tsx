@@ -578,14 +578,29 @@ function DiffBody({
   oldText,
   newText,
   language,
-  onExpand
+  onExpand,
+  inModal = false
 }: {
   oldText: string
   newText: string
   language: Language | null
   onExpand?: () => void
+  inModal?: boolean
 }): React.JSX.Element {
   const [mode, setMode] = useState<DiffMode>(() => loadDiffMode())
+  // 모바일 인라인 (inModal=false) 에선 side-by-side 가 좁은 폭에서 의미 없으므로
+  // unified 강제. 모달 안에선 가로 스크롤로 양쪽을 볼 수 있어 양 모드 허용.
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const handler = (e: MediaQueryListEvent): void => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  const allowSide = inModal || !isMobile
+  const effectiveMode: DiffMode = mode === 'side' && !allowSide ? 'unified' : mode
   const updateMode = (m: DiffMode): void => {
     setMode(m)
     saveDiffMode(m)
@@ -596,18 +611,20 @@ function DiffBody({
       <div className="diff-toolbar" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className={`diff-mode-btn${mode === 'unified' ? ' active' : ''}`}
+          className={`diff-mode-btn${effectiveMode === 'unified' ? ' active' : ''}`}
           onClick={() => updateMode('unified')}
         >
           unified
         </button>
-        <button
-          type="button"
-          className={`diff-mode-btn${mode === 'side' ? ' active' : ''}`}
-          onClick={() => updateMode('side')}
-        >
-          side-by-side
-        </button>
+        {allowSide && (
+          <button
+            type="button"
+            className={`diff-mode-btn${effectiveMode === 'side' ? ' active' : ''}`}
+            onClick={() => updateMode('side')}
+          >
+            side-by-side
+          </button>
+        )}
         {onExpand && (
           <button
             type="button"
@@ -619,7 +636,7 @@ function DiffBody({
           </button>
         )}
       </div>
-      {mode === 'side' ? (
+      {effectiveMode === 'side' ? (
         <SideBySideDiff oldText={oldText} newText={newText} language={language} />
       ) : (
         <pre className="tool-diff">
@@ -683,7 +700,12 @@ function DiffModal({
           </button>
         </header>
         <div className="modal-body diff-modal-body">
-          <DiffBody oldText={oldText} newText={newText} language={language} />
+          <DiffBody
+            oldText={oldText}
+            newText={newText}
+            language={language}
+            inModal
+          />
         </div>
       </div>
     </div>

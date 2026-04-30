@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import WorkspaceCard from './WorkspaceCard'
 import logoUrl from '../assets/logo.svg'
 import type {
@@ -98,6 +98,20 @@ function Sidebar({
     if (next) localStorage.setItem(ICON_ONLY_KEY, '1')
     else localStorage.removeItem(ICON_ONLY_KEY)
   }
+  // 모바일 (≤768px) 에선 사이드바가 햄버거로 toggle 되는 overlay 라 icon-only
+  // 축소 모드 자체가 의미 없다. effective iconOnly 는 데스크톱에서만 활성화.
+  // localStorage 값은 그대로 두니 모바일↔데스크톱 전환 후에도 데스크톱 선호도
+  // 가 유지된다. matchMedia listener 로 viewport 변경 시 자동 반영.
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const handler = (e: MediaQueryListEvent): void => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  const effectiveIconOnly = iconOnly && !isMobile
   const liveByWorkspace = new Map<string, LiveSessionInfo[]>()
   for (const [sessionId, a] of Object.entries(active)) {
     const list = liveByWorkspace.get(a.workspacePath) ?? []
@@ -119,7 +133,7 @@ function Sidebar({
   }
 
   return (
-    <aside className={`sidebar${iconOnly ? ' icon-only' : ''}`}>
+    <aside className={`sidebar${effectiveIconOnly ? ' icon-only' : ''}`}>
       <div className="sidebar-brand" title="hongtail">
         <img src={logoUrl} alt="hongtail" className="sidebar-brand-logo" />
         <span className="sidebar-brand-name">hongtail</span>
@@ -134,18 +148,20 @@ function Sidebar({
           <span className="plus">+</span>
           <span className="sidebar-label">Workspace 추가</span>
         </button>
-        <button
-          type="button"
-          className="sidebar-minimize-btn"
-          onClick={() => toggleIconOnly(!iconOnly)}
-          title={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
-          aria-label={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
-        >
-          {iconOnly ? '›' : '‹'}
-        </button>
+        {!isMobile && (
+          <button
+            type="button"
+            className="sidebar-minimize-btn"
+            onClick={() => toggleIconOnly(!iconOnly)}
+            title={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
+            aria-label={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
+          >
+            {iconOnly ? '›' : '‹'}
+          </button>
+        )}
       </div>
 
-      {!iconOnly && (
+      {!effectiveIconOnly && (
         <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
           {([1, 3, 7, 'active', null] as const).map((v) => {
             const label = v == null ? '모두' : v === 'active' ? '활성' : `${v}일`
@@ -178,7 +194,7 @@ function Sidebar({
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             dateFilterDays={dateFilter}
             refreshTick={refreshTick}
-            iconOnly={iconOnly}
+            iconOnly={effectiveIconOnly}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}
