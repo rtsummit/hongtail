@@ -1,6 +1,7 @@
 import { homedir } from 'os'
 import { promises as fsp } from 'fs'
 import { extname, join } from 'path'
+import { ipcMain, shell } from 'electron'
 import { registerInvoke } from './ipc'
 
 // 이미지 외 일반 파일 첨부 저장. claude 는 절대 경로를 받아서 Read tool 로
@@ -76,4 +77,21 @@ export function registerFileHandlers(): void {
       return saveFile(String(sessionId), buf, String(fileName))
     }
   )
+
+  // 외부 앱으로 열기 — host PC 의 OS default app 에 위임. Electron 에서만
+  // 의미 있어서 ipcMain.handle 로만 등록 (registerInvoke 사용 안 함).
+  // 이유: web RPC 로 노출하면 web 사용자가 host PC 의 OS 에서 임의 파일을
+  // 열게 되는데, 사용자는 그 결과를 자기 화면에서 볼 수 없어 무의미·혼란.
+  // web 측은 fallback 으로 files:read 텍스트를 받아 hongtail 모달에 표시.
+  ipcMain.handle('files:open-external', async (_e, p: unknown) => {
+    if (typeof p !== 'string' || !p) throw new Error('path required')
+    const err = await shell.openPath(p)
+    if (err) throw new Error(err)
+  })
+
+  // 텍스트 read — Electron / web 공통. web 모드에서 모달 fallback 용.
+  registerInvoke('files:read', async (p: unknown) => {
+    if (typeof p !== 'string' || !p) throw new Error('path required')
+    return fsp.readFile(p, 'utf-8')
+  })
 }

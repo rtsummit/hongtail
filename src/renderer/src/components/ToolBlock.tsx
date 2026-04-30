@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { diffLines } from 'diff'
 import { Highlight, themes } from 'prism-react-renderer'
 import type { Language } from 'prism-react-renderer'
@@ -178,6 +178,34 @@ interface RowProps {
   // 있으면 row 우측에 호버 시 외부 열기 아이콘 button 노출. details 토글과
   // 분리되도록 click 시 preventDefault + stopPropagation.
   onOpen?: () => void
+  // Ctrl/Cmd + click 으로 args (file path) 클릭 시 호출. 토글과 충돌 안 나게
+  // modifier 가 있을 때만 활성화.
+  onArgsCtrlClick?: () => void
+}
+
+// 파일 열기 — Electron 은 OS default 앱으로, web 은 reject 후 read 텍스트를
+// hongtail 모달에 표시. ToolBlock 의 Read/Edit/Write 카드가 공유.
+function useFileOpener(): {
+  open: (path: string) => Promise<void>
+  viewer: { path: string; text: string } | null
+  close: () => void
+} {
+  const [viewer, setViewer] = useState<{ path: string; text: string } | null>(null)
+  const open = useCallback(async (path: string) => {
+    if (!path) return
+    try {
+      await window.api.files.openExternal(path)
+    } catch {
+      try {
+        const text = await window.api.files.read(path)
+        setViewer({ path, text })
+      } catch (err) {
+        console.error('failed to open file:', err)
+      }
+    }
+  }, [])
+  const close = useCallback(() => setViewer(null), [])
+  return { open, viewer, close }
 }
 
 function OpenButton({ onOpen }: { onOpen: () => void }): React.JSX.Element {
@@ -207,12 +235,26 @@ function ToolRow({
   isError,
   body,
   defaultOpen,
-  onOpen
+  onOpen,
+  onArgsCtrlClick
 }: RowProps): React.JSX.Element {
   const ctxDefaultOpen = useContext(ToolDefaultOpenContext)
   const open = defaultOpen ?? ctxDefaultOpen.has(name)
   const hasBody = body != null
   const cls = `tool-block ${toolClass}${isError ? ' error' : ''}`
+  // args span 의 Ctrl/Cmd+click 핸들러. 일반 클릭은 details toggle 그대로
+  // 가도록 modifier 검사 후에만 preventDefault + stopPropagation.
+  const argsTitleText = onArgsCtrlClick
+    ? `${argsTitle ?? args ?? ''}\n(Ctrl/⌘+클릭: 파일 열기)`
+    : argsTitle ?? args
+  const argsClickHandler = onArgsCtrlClick
+    ? (e: React.MouseEvent): void => {
+        if (!(e.ctrlKey || e.metaKey)) return
+        e.preventDefault()
+        e.stopPropagation()
+        onArgsCtrlClick()
+      }
+    : undefined
   if (hasBody) {
     return (
       <details className={cls} open={open}>
@@ -220,7 +262,11 @@ function ToolRow({
           <span className="tool-row-bullet">●</span>
           <span className="tool-row-name">{name}</span>
           {args ? (
-            <span className="tool-row-args" title={argsTitle ?? args}>
+            <span
+              className="tool-row-args"
+              title={argsTitleText}
+              onClick={argsClickHandler}
+            >
               ({args})
             </span>
           ) : null}
@@ -237,7 +283,11 @@ function ToolRow({
         <span className="tool-row-bullet">●</span>
         <span className="tool-row-name">{name}</span>
         {args ? (
-          <span className="tool-row-args" title={argsTitle ?? args}>
+          <span
+            className="tool-row-args"
+            title={argsTitleText}
+            onClick={argsClickHandler}
+          >
             ({args})
           </span>
         ) : null}
@@ -321,6 +371,7 @@ function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBloc
       : null
   const [modalOpen, setModalOpen] = useState(false)
   const canOpen = !!text && !isError
+  const opener = useFileOpener()
   return (
     <>
       <ToolRow
@@ -332,6 +383,7 @@ function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBloc
         isError={isError}
         body={body}
         onOpen={canOpen ? () => setModalOpen(true) : undefined}
+        onArgsCtrlClick={filePath ? () => void opener.open(filePath) : undefined}
       />
       {modalOpen && (
         <CodeModal
@@ -340,6 +392,15 @@ function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBloc
           title={filePath}
           isMarkdown={isMarkdownPath(filePath)}
           onClose={() => setModalOpen(false)}
+        />
+      )}
+      {opener.viewer && (
+        <CodeModal
+          code={opener.viewer.text}
+          language={safeLanguage(detectLanguage(opener.viewer.path))}
+          title={opener.viewer.path}
+          isMarkdown={isMarkdownPath(opener.viewer.path)}
+          onClose={opener.close}
         />
       )}
     </>
@@ -849,6 +910,7 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
   const removed = unified.filter((d) => d.marker === '-').length
   const summary = result?.isError ? '오류' : `-${removed} +${added}`
   const [modalOpen, setModalOpen] = useState(false)
+  const opener = useFileOpener()
   const body = (
     <>
       <DiffBody
@@ -870,6 +932,7 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
         summary={summary}
         isError={result?.isError}
         body={body}
+        onArgsCtrlClick={filePath ? () => void opener.open(filePath) : undefined}
       />
       {modalOpen && (
         <DiffModal
@@ -878,6 +941,15 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
           language={language}
           title={filePath}
           onClose={() => setModalOpen(false)}
+        />
+      )}
+      {opener.viewer && (
+        <CodeModal
+          code={opener.viewer.text}
+          language={safeLanguage(detectLanguage(opener.viewer.path))}
+          title={opener.viewer.path}
+          isMarkdown={isMarkdownPath(opener.viewer.path)}
+          onClose={opener.close}
         />
       )}
     </>
@@ -932,6 +1004,7 @@ function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBl
   ) : null
   const [modalOpen, setModalOpen] = useState(false)
   const canOpen = content.length > 0
+  const opener = useFileOpener()
   return (
     <>
       <ToolRow
@@ -943,6 +1016,7 @@ function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBl
         isError={result?.isError}
         body={body}
         onOpen={canOpen ? () => setModalOpen(true) : undefined}
+        onArgsCtrlClick={filePath ? () => void opener.open(filePath) : undefined}
       />
       {modalOpen && (
         <CodeModal
@@ -951,6 +1025,15 @@ function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBl
           title={filePath}
           isMarkdown={isMarkdownPath(filePath)}
           onClose={() => setModalOpen(false)}
+        />
+      )}
+      {opener.viewer && (
+        <CodeModal
+          code={opener.viewer.text}
+          language={safeLanguage(detectLanguage(opener.viewer.path))}
+          title={opener.viewer.path}
+          isMarkdown={isMarkdownPath(opener.viewer.path)}
+          onClose={opener.close}
         />
       )}
     </>

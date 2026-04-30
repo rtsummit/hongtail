@@ -104,7 +104,10 @@ const api = {
   },
   files: {
     save: (sessionId: string, bytes: Uint8Array, fileName: string): Promise<string> =>
-      ipcRenderer.invoke('files:save', sessionId, bytes, fileName)
+      ipcRenderer.invoke('files:save', sessionId, bytes, fileName),
+    openExternal: (path: string): Promise<void> =>
+      ipcRenderer.invoke('files:open-external', path),
+    read: (path: string): Promise<string> => ipcRenderer.invoke('files:read', path)
   },
   sessionAliases: {
     list: () => ipcRenderer.invoke('session-aliases:list'),

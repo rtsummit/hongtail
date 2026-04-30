@@ -134,6 +134,8 @@ export interface ExposedApi {
   }
   files: {
     save: (sessionId: string, bytes: Uint8Array, fileName: string) => Promise<string>
+    openExternal: (path: string) => Promise<void>
+    read: (path: string) => Promise<string>
   }
   sessionAliases: {
     list: () => Promise<Record<string, SessionAlias>>
