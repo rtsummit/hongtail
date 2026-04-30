@@ -44,3 +44,12 @@ function MarkdownCode({ className, children, ...rest }: CodeProps): React.JSX.El
 export const markdownComponents = {
   code: MarkdownCode
 }
+
+// react-markdown v10 의 기본 urlTransform 은 data:image/svg+xml 을 차단해서
+// assistant 가 인라인 SVG 시안 같은 걸 못 띄움. img-src CSP 는 이미 'self' data:
+// 로 좁혀 있으니, javascript:/vbscript: 만 막고 나머지는 그대로 통과시킨다.
+export function markdownUrlTransform(url: string): string | undefined {
+  const t = url.trim().toLowerCase()
+  if (t.startsWith('javascript:') || t.startsWith('vbscript:')) return undefined
+  return url
+}

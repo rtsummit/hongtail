@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { markdownUrlTransform } from '../markdownComponents'
 
 interface Props {
   plan: string
@@ -36,7 +37,7 @@ function ExitPlanModeCard({
         {denied ? <span className="confirm-status denied">거절됨</span> : null}
       </div>
       <div className="confirm-body bubble-markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{plan}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrlTransform}>{plan}</ReactMarkdown>
       </div>
       {planFilePath ? (
         <div className="confirm-meta">

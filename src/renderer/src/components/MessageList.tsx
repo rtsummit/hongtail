@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import ToolBlock from './ToolBlock'
 import AskUserQuestionCard from './AskUserQuestionCard'
 import ExitPlanModeCard from './ExitPlanModeCard'
-import { markdownComponents } from '../markdownComponents'
+import { markdownComponents, markdownUrlTransform } from '../markdownComponents'
 import type { Block } from '../types'
 
 interface Props {
@@ -215,7 +215,7 @@ const AssistantText = memo(function AssistantText({
         </div>
       ) : (
         <div className="bubble-markdown">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} urlTransform={markdownUrlTransform}>
             {text}
           </ReactMarkdown>
         </div>
@@ -289,7 +289,7 @@ function AssistantTextModal({
         </header>
         <div className="modal-body assistant-modal-body">
           <div className="bubble-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} urlTransform={markdownUrlTransform}>
               {text}
             </ReactMarkdown>
           </div>

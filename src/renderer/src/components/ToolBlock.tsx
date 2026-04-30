@@ -9,7 +9,7 @@ import { detectLanguage } from '../langDetect'
 import { canTokenize, safeLanguage } from '../prismSetup'
 import { HighlightedLine } from './CodeBlock'
 import { PrismBoundary } from './PrismBoundary'
-import { markdownComponents } from '../markdownComponents'
+import { markdownComponents, markdownUrlTransform } from '../markdownComponents'
 import type { Block } from '../types'
 
 function isMarkdownPath(p?: string): boolean {
@@ -367,7 +367,7 @@ function ReadMarkdownBody({
       <MdViewToggle mode={mode} onChange={updateMode} />
       {mode === 'preview' ? (
         <div className="bubble-markdown tool-md-preview">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} urlTransform={markdownUrlTransform}>
             {md}
           </ReactMarkdown>
         </div>
@@ -744,7 +744,7 @@ function CodeModal({
         <div className="modal-body code-modal-body">
           {isMarkdown && mode === 'preview' ? (
             <div className="bubble-markdown tool-md-preview">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} urlTransform={markdownUrlTransform}>
                 {code}
               </ReactMarkdown>
             </div>
@@ -879,7 +879,7 @@ function WriteMarkdownBody({
       <MdViewToggle mode={mode} onChange={updateMode} />
       {mode === 'preview' ? (
         <div className="bubble-markdown tool-md-preview">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} urlTransform={markdownUrlTransform}>
             {content}
           </ReactMarkdown>
         </div>
