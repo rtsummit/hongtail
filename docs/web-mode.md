@@ -60,7 +60,7 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
 |---|---|
 | 워크스페이스 목록 / 별칭 | ✓ |
 | readonly 세션 보기 / jsonl tail | ✓ |
-| 라이브 세션 (app / interactive / terminal) | ✓ (사용자 메시지 / control 모두) |
+| 라이브 세션 (app / terminal) | ✓ (사용자 메시지 / control 모두) |
 | PTY (xterm) | ✓ (web 의 xterm 도 같은 SSE 채널로 데이터 받음) |
 | BTW (side question) | ✓ |
 | 이미지 첨부 | ✓ (base64 로 인코드 후 RPC 전송) |
@@ -80,14 +80,12 @@ GET  /events?topic=... ◄┘       └─ registerEventSource / emitSse SSE fan
   매칭되면 덮어쓴다.
 - **active 세션 목록**: mount 직후 `claude:list-active` + `pty:list-active`
   를 합쳐 main 의 살아있는 세션 (sessionId / workspacePath / backend) 을
-  모두 가져옴. PTY 백엔드 'terminal' vs 'interactive' 구분은 spawn 시 hint 로
-  main 에 보관해 둔다.
+  모두 가져옴.
 - **'app' 백엔드 messages·status**: stream-json IPC 가 끊겼으므로 reconcile
   이 onEvent 재구독 + `readSession` (jsonl 통째로) 으로 messages/status 를
   리플레이.
-- **'terminal'/'interactive' jsonl tail**: active 만 채우면 기존 useEffect
-  (terminal 의 status watch) / ChatPane 자체 jsonl tail (interactive) 이
-  자동 동작.
+- **'terminal' status watch**: active 만 채우면 별도 useEffect 가 jsonl
+  watch 를 걸어 사이드바의 thinking dot·model 라벨용 status 만 추출.
 - **xterm 버퍼**: main `PtyEntry` 가 256KB ring buffer 를 누적. 같은
   sessionId 로 spawn 이 다시 오면 (alreadyRunning) RPC 응답에 같이 돌려줘
   호출한 클라이언트만 한 번에 term.write. broadcast 가 아니라 다른 활성

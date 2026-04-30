@@ -334,10 +334,10 @@ function stopWatch(sessionId: string): void {
 
 function startWatch(cwd: string, sessionId: string): void {
   if (watches.has(sessionId)) return
-  // 'interactive' 백엔드의 새 세션처럼 jsonl 이 아직 없는 상태에서도 watch 가 가능
-  // 해야 한다. 파일을 직접 watch 하면 ENOENT 로 실패하므로 디렉토리를 watch 하고
-  // filename 으로 필터링한다 — 어차피 fs.watch 가 파일 replace (truncate/recreate)
-  // 시 끊어지는 문제도 디렉토리 watch 가 더 견디므로 양쪽에 robust.
+  // jsonl 이 아직 없는 상태에서도 watch 가 가능해야 한다. 파일을 직접 watch 하면
+  // ENOENT 로 실패하므로 디렉토리를 watch 하고 filename 으로 필터링한다 — fs.watch
+  // 가 파일 replace (truncate/recreate) 시 끊어지는 문제도 디렉토리 watch 가
+  // 더 견디므로 양쪽에 robust.
   const dir = projectDir(cwd)
   const targetFileName = `${sessionId}.jsonl`
   try {

@@ -147,7 +147,7 @@ in-memory only**. fork 까지 가야 disk 에 남음.
 
 control_request `side_question` 을 우리가 직접 보내는 길도 있지만 — 인터랙티브 모드의
 PTY stdin 은 raw TTY 라 JSON 라인을 못 보내고, bridge channel 이 cloud 기반이라 thin
-client 구현 비용 크다 (`docs/interactive-jsonl-tail.md` 와 ANSI 옵션 문서의 같은 분석).
+client 구현 비용 크다.
 
 ### 결론
 

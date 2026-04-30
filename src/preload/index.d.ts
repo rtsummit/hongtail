@@ -54,16 +54,13 @@ export interface PtySpawnArgs {
   rows: number
   command?: string
   delayMs?: number
-  // 'terminal' | 'interactive' — main 이 list-active 응답에 그대로 돌려준다.
-  // 새로고침 후 클라이언트가 backend 를 정확히 복원하기 위함.
-  backend?: 'terminal' | 'interactive'
 }
 
 // 새로고침 reconcile 용. main 이 보유한 살아있는 세션 한 건의 메타.
 export interface ActiveSessionInfo {
   sessionId: string
   workspacePath: string
-  backend: 'app' | 'terminal' | 'interactive'
+  backend: 'app' | 'terminal'
 }
 
 export interface ExposedApi {
@@ -148,8 +145,7 @@ export interface ExposedApi {
     write: (sessionId: string, data: string) => Promise<void>
     resize: (sessionId: string, cols: number, rows: number) => Promise<void>
     kill: (sessionId: string) => Promise<void>
-    // 새로고침 reconcile 용. PTY 기반 ('terminal'/'interactive') 살아있는 세션.
-    // backend 는 spawn 시 받은 hint 그대로 (없으면 'terminal' 가정).
+    // 새로고침 reconcile 용. PTY 기반 살아있는 세션 — backend 는 항상 'terminal'.
     listActive: () => Promise<ActiveSessionInfo[]>
     onEvent: (sessionId: string, callback: (event: unknown) => void) => () => void
   }

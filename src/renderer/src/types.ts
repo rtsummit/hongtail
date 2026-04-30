@@ -1,10 +1,7 @@
 // Backend 종류:
-// - 'app'         : claude `-p` + stream-json (기존, 모바일 remote 불가)
-// - 'terminal'    : node-pty 안에서 `claude` 인터랙티브 띄우고 xterm 으로 raw 렌더
-// - 'interactive' : 'terminal' 과 같은 PTY (인터랙티브 claude) 를 띄우되, chat UI 는
-//                   jsonl tail 로 그림. 모바일 remote 가능 + 'app' 의 GUI.
-//                   docs/interactive-jsonl-tail.md 참조.
-export type Backend = 'app' | 'terminal' | 'interactive'
+// - 'app'      : claude `-p` + stream-json (기본, 모바일 remote 불가)
+// - 'terminal' : node-pty 안에서 `claude` 인터랙티브 띄우고 xterm 으로 raw 렌더
+export type Backend = 'app' | 'terminal'
 export type SessionMode = 'readonly' | 'new' | 'resume-full' | 'resume-summary'
 
 export interface SelectedSession {

@@ -405,8 +405,8 @@ function App(): React.JSX.Element {
 
       // assistant chunk 도착 = thinking 진행 중 신호. terminal 백엔드는
       // ChatPane 을 안 거치므로 onTurnStart 호출이 없어 이게 thinking=true
-      // 의 유일한 트리거. stream-json / interactive 백엔드는 onTurnStart 가
-      // 이미 true 로 set 했으니 idempotent.
+      // 의 유일한 트리거. stream-json (app) 백엔드는 onTurnStart 가 이미
+      // true 로 set 했으니 idempotent.
       const ev = event as { type?: string; parent_tool_use_id?: unknown; isSidechain?: unknown }
       if (
         ev?.type === 'assistant' &&
@@ -424,7 +424,7 @@ function App(): React.JSX.Element {
         })
       }
 
-      // 'interactive' 백엔드는 stream-json result 이벤트가 없으니 assistant
+      // 'terminal' 백엔드는 stream-json result 이벤트가 없으니 assistant
       // record 의 stop_reason='end_turn'/'stop_sequence' 로 turn 종료를 감지.
       // stream-json 모드에서도 결국 result 가 곧 따라오니 idempotent.
       if (isAssistantTurnEnd(event)) {
@@ -760,12 +760,11 @@ function App(): React.JSX.Element {
     [sendControlDeny, resolveCardBlock]
   )
 
-  // 'interactive' 백엔드의 jsonl tail 흐름이 ChatPane 안에서 일어나지만 status
-  // 추출 (UsageBar 의 model / contextTokens / thinking 종료 등) 은 App 의
-  // setStatusBySession 만 본다. 그래서 ChatPane 이 raw events 배열을 그대로
-  // 흘려주면 여기서 messages append 는 빼고 status 만 처리. readonly 도 같은
-  // 채널을 쓰지만 thinking 같은 라이브 시그널은 handleClaudeEvent 안에서
-  // 가드된다 — UsageBar 의 Context %·model 만 켜진다.
+  // readonly 모드의 jsonl tail 흐름이 ChatPane 안에서 일어나지만 status 추출
+  // (UsageBar 의 model / contextTokens 등) 은 App 의 setStatusBySession 만 본다.
+  // 그래서 ChatPane 이 raw events 배열을 그대로 흘려주면 여기서 messages append
+  // 는 빼고 status 만 처리. readonly 의 thinking 같은 라이브 시그널은
+  // handleClaudeEvent 안에서 가드된다 — UsageBar 의 Context %·model 만 켜진다.
   const handleLiveJsonlEvents = useCallback(
     (sessionId: string, events: unknown[], readonly?: boolean) => {
       for (const event of events) {
@@ -778,8 +777,8 @@ function App(): React.JSX.Element {
   // 새로고침 reconcile — mount 직후 1회. main 의 살아있는 세션 (app + pty 기반)
   // 을 가져와 active state 를 복원한다. 'app' 백엔드는 stream-json IPC 가 끊긴
   // 상태라 onEvent 재구독 + jsonl 리플레이로 messages/status 도 같이 채운다.
-  // 'terminal'/'interactive' 는 active 만 채우면 다른 useEffect / ChatPane 이
-  // 자동으로 jsonl watch 를 거니 별도 처리 불필요.
+  // 'terminal' 은 active 만 채우면 별도 useEffect 가 jsonl watch 를 걸어 status
+  // 만 추출한다.
   //
   // race 노트: app 라이브 세션이 '응답 진행 중' 일 때 새로고침되면 readSession
   // (jsonl) 과 onEvent (stream-json) 양쪽이 같은 마지막 turn 을 노릴 수 있다.
@@ -803,7 +802,7 @@ function App(): React.JSX.Element {
       let ptyActive: Array<{
         sessionId: string
         workspacePath: string
-        backend: 'terminal' | 'interactive'
+        backend: 'terminal'
       }> = []
       try {
         const [a, p] = await Promise.all([
@@ -881,7 +880,6 @@ function App(): React.JSX.Element {
   // 'terminal' 백엔드는 ChatPane 을 안 거치므로 jsonl watch 가 없다 — App 측에서
   // 직접 watch 등록해 status 만 추출 (사이드바의 thinking dot, model 라벨 등).
   // messages append 는 안 함 (terminal 은 xterm raw 가 본체).
-  // 'interactive' 는 ChatPane 이 자체 처리하니 여기서 스킵 — 중복 watch 회피.
   useEffect(() => {
     const cleanups: Array<() => void> = []
     for (const [sessionId, a] of Object.entries(active)) {
@@ -979,10 +977,7 @@ function App(): React.JSX.Element {
         ...prev,
         [sessionId]: { workspacePath, mode, backend }
       }))
-      if (backend === 'terminal' || backend === 'interactive') {
-        // 'interactive' 백엔드도 PTY 안에서 인터랙티브 claude 를 띄우는 점은
-        // 'terminal' 과 같다. 차이는 chat UI 를 어떻게 그리느냐 — 'terminal' 은
-        // xterm raw, 'interactive' 는 jsonl tail 로 같은 PTY 를 등에 업고 ChatPane 으로.
+      if (backend === 'terminal') {
         setTerminalReady((prev) => ({ ...prev, [sessionId]: false }))
       }
       if (backend === 'app') {
@@ -1057,7 +1052,7 @@ function App(): React.JSX.Element {
 
       for (const [sessionId, a] of liveInWorkspace) {
         try {
-          if (a.backend === 'terminal' || a.backend === 'interactive') {
+          if (a.backend === 'terminal') {
             await window.api.pty.kill(sessionId)
           } else {
             await window.api.claude.stopSession(sessionId)
@@ -1087,7 +1082,7 @@ function App(): React.JSX.Element {
       )
       if (!ok) return
       try {
-        if (a.backend === 'terminal' || a.backend === 'interactive') {
+        if (a.backend === 'terminal') {
           await window.api.pty.kill(sessionId)
         } else {
           await window.api.claude.stopSession(sessionId)
@@ -1106,13 +1101,6 @@ function App(): React.JSX.Element {
         return { ...prev, mode: 'readonly', backend: 'app' }
       })
     },
-    [active]
-  )
-
-  // 'interactive' 백엔드는 stream-json control_request 채널이 없으므로 PTY 의
-  // 키/텍스트 입력으로 번역한다. claude TUI 가 그걸 자체 처리.
-  const isInteractiveBackend = useCallback(
-    (sessionId: string): boolean => active[sessionId]?.backend === 'interactive',
     [active]
   )
 
@@ -1140,12 +1128,6 @@ function App(): React.JSX.Element {
           }
         }))
       try {
-        if (isInteractiveBackend(sessionId)) {
-          // /permissions <mode> 를 TUI 입력으로 보낸다. 결과는 jsonl 의
-          // permission-mode record 로 검증되어 status 가 업데이트됨.
-          await window.api.pty.write(sessionId, `/permissions ${mode}\r`)
-          return
-        }
         const requestId = await window.api.claude.controlRequest(sessionId, {
           subtype: 'set_permission_mode',
           mode
@@ -1156,7 +1138,7 @@ function App(): React.JSX.Element {
         rollback()
       }
     },
-    [isInteractiveBackend]
+    []
   )
 
   const handleSetModel = useCallback(
@@ -1183,10 +1165,6 @@ function App(): React.JSX.Element {
           }
         }))
       try {
-        if (isInteractiveBackend(sessionId)) {
-          await window.api.pty.write(sessionId, `/model ${model}\r`)
-          return
-        }
         const requestId = await window.api.claude.controlRequest(sessionId, {
           subtype: 'set_model',
           model
@@ -1197,35 +1175,19 @@ function App(): React.JSX.Element {
         rollback()
       }
     },
-    [isInteractiveBackend]
+    []
   )
 
-  const handleInterrupt = useCallback(
-    async (sessionId: string) => {
-      try {
-        if (isInteractiveBackend(sessionId)) {
-          // claude TUI 의 인터럽트. ESC 한 번이 input clear 정도로 흡수되는
-          // 케이스가 있어 두 번 보낸다 — 두 번째가 진행 중 turn 의 cancel 로 처리.
-          // 더불어 thinking=false 를 즉시 적용 — 인터럽트가 정상 처리됐다면 잠시
-          // 후 jsonl 에서 검증되고, 안 됐어도 사용자 입장에선 즉시 idle 표시.
-          await window.api.pty.write(sessionId, '\x1b\x1b')
-          setStatusBySession((prev) => {
-            const cur = prev[sessionId]
-            if (!cur || cur.thinking === false) return prev
-            return { ...prev, [sessionId]: { ...cur, thinking: false } }
-          })
-          return
-        }
-        const requestId = await window.api.claude.controlRequest(sessionId, {
-          subtype: 'interrupt'
-        })
-        pendingControlRef.current.set(requestId, {})
-      } catch (err) {
-        console.error('interrupt send failed:', err)
-      }
-    },
-    [isInteractiveBackend]
-  )
+  const handleInterrupt = useCallback(async (sessionId: string) => {
+    try {
+      const requestId = await window.api.claude.controlRequest(sessionId, {
+        subtype: 'interrupt'
+      })
+      pendingControlRef.current.set(requestId, {})
+    } catch (err) {
+      console.error('interrupt send failed:', err)
+    }
+  }, [])
 
   const handleTerminalExit = useCallback((sessionId: string, _code: number | null) => {
     void _code
@@ -1600,14 +1562,10 @@ function App(): React.JSX.Element {
       : selected
     : null
 
-  // 'terminal' 과 'interactive' 둘 다 PTY 위에서 인터랙티브 claude 를 띄우므로
-  // TerminalSession 컴포넌트로 mount 한다. 차이는 visible/show 결정 — 'terminal'
-  // 은 xterm 자체가 보이고, 'interactive' 는 hidden 상태로 PTY 만 살아있게 두고
-  // ChatPane 이 jsonl tail 로 같은 세션을 그린다.
   const terminalSessionList = useMemo(
     () =>
       Object.entries(active)
-        .filter(([, a]) => a.backend === 'terminal' || a.backend === 'interactive')
+        .filter(([, a]) => a.backend === 'terminal')
         .map(([sessionId, a]) => ({ sessionId, ...a })),
     [active]
   )
@@ -1629,7 +1587,6 @@ function App(): React.JSX.Element {
   const findMode: 'app' | 'terminal' =
     selected?.backend === 'terminal' && selected.mode !== 'readonly' ? 'terminal' : 'app'
 
-  // 'interactive' 백엔드는 chat UI (ChatPane) 로 그리므로 항상 show.
   // 'terminal' 백엔드 라이브일 때만 ChatPane 을 hide (xterm 이 그 자리를 차지).
   const showChatPane =
     !selected ||
@@ -1718,7 +1675,6 @@ function App(): React.JSX.Element {
               workspacePath={t.workspacePath}
               initialCommand={command}
               visible={visible && terminalReady[t.sessionId] !== false}
-              backend={t.backend === 'interactive' ? 'interactive' : 'terminal'}
               onExit={(code) => handleTerminalExit(t.sessionId, code)}
               onReady={() => handleTerminalReady(t.sessionId)}
             />

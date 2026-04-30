@@ -5,10 +5,6 @@ import { broadcast } from './dispatch'
 interface PtyEntry {
   proc: pty.IPty
   workspacePath: string
-  // spawn 시 클라이언트가 hint 한 backend. listActive 응답에 그대로 돌려준다.
-  // 새로고침 후 클라이언트가 'terminal' vs 'interactive' 를 구분 복원하기 위함.
-  // hint 가 없으면 'terminal' (가장 보수적 — xterm raw 로 그려짐).
-  backend: 'terminal' | 'interactive'
   // 새로고침 후 xterm 버퍼 복원용 ring. proc.onData 가 누적해두고,
   // 같은 sessionId 로 다시 spawn 호출이 오면 (alreadyRunning) 응답에 같이
   // 돌려줘서 호출한 클라이언트만 한 번에 term.write 한다 — broadcast 면 다른
@@ -32,13 +28,12 @@ interface SpawnArgs {
   rows: number
   command?: string
   delayMs?: number
-  backend?: 'terminal' | 'interactive'
 }
 
 export function registerPtyHandlers(): void {
   registerInvoke('pty:spawn', (rawArgs: unknown) => {
     const args = rawArgs as SpawnArgs
-    const { sessionId, workspacePath, cols, rows, command, delayMs, backend } = args
+    const { sessionId, workspacePath, cols, rows, command, delayMs } = args
     void delayMs
 
     const existing = ptys.get(sessionId)
@@ -85,7 +80,6 @@ export function registerPtyHandlers(): void {
     ptys.set(sessionId, {
       proc,
       workspacePath,
-      backend: backend === 'interactive' ? 'interactive' : 'terminal',
       buffer: ''
     })
     return { alreadyRunning: false }
@@ -115,12 +109,12 @@ export function registerPtyHandlers(): void {
     ptys.delete(id)
   })
 
-  // 새로고침 reconcile 용. PTY 기반 살아있는 세션 (terminal/interactive).
+  // 새로고침 reconcile 용. PTY 기반 살아있는 세션은 모두 'terminal' 백엔드.
   registerInvoke('pty:list-active', () =>
     Array.from(ptys.entries()).map(([sessionId, e]) => ({
       sessionId,
       workspacePath: e.workspacePath,
-      backend: e.backend
+      backend: 'terminal' as const
     }))
   )
 }

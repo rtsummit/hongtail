@@ -64,10 +64,9 @@ interface Props {
   onSetModel: (sessionId: string, model: string) => void
   onInterrupt: (sessionId: string) => void
   // jsonl tail 로 받은 raw event 들을 그대로 App 으로 흘려서 status 추출
-  // (UsageBar 의 Context %·model 등) 만 돌리게 한다. 'interactive' 라이브와
-  // readonly 둘 다 호출 — readonly=true 면 thinking·rateLimit·permissionMode
-  // 같은 라이브 전용 시그널은 무시되고 model·contextWindow·contextUsedTokens
-  // 만 반영된다.
+  // (UsageBar 의 Context %·model 등) 만 돌리게 한다. readonly 가 true 라
+  // thinking·rateLimit·permissionMode 같은 라이브 전용 시그널은 무시되고
+  // model·contextWindow·contextUsedTokens 만 반영된다.
   onLiveJsonlEvents?: (sessionId: string, events: unknown[], readonly?: boolean) => void
   // Phase 1.2 — 자식의 control_request 카드 응답.
   onAskUserQuestionAnswer?: (
@@ -350,12 +349,10 @@ function ChatPane({
 
   useEffect(() => {
     if (!selected) return
-    // readonly 모드는 항상 jsonl 로 그림. 'interactive' 백엔드는 라이브여도
-    // jsonl tail 이 chat UI 의 단일 source — 인터랙티브 claude TUI 는 PTY 안에서
-    // 알아서 화면을 그리고, 우리는 그 결과로 jsonl 에 쓰이는 record 만 본다.
+    // readonly 모드만 jsonl 로 그림 — 라이브 'app' 백엔드는 stream-json 이
+    // 본체이므로 별도 jsonl tail 불필요.
     const isReadonly = selected.mode === 'readonly'
-    const isInteractiveLive = selected.backend === 'interactive' && !isReadonly
-    if (!isReadonly && !isInteractiveLive) return
+    if (!isReadonly) return
     const sessionId = selected.sessionId
     const workspacePath = selected.workspacePath
     sessionContextRef.current = { sessionId, workspacePath }
@@ -476,14 +473,8 @@ function ChatPane({
     forceScrollBottomRef.current = true
     onTurnStart(selected.sessionId)
     try {
-      if (selected.backend === 'interactive') {
-        // PTY 안의 인터랙티브 claude TUI 에 텍스트를 그대로 흘려보내고 CR 로 submit.
-        // user-text echo 는 안 함 — 잠시 후 jsonl 에 user record 로 들어와 그릴 거다.
-        await window.api.pty.write(selected.sessionId, text + '\r')
-      } else {
-        onAppendBlocks(selected.sessionId, [{ kind: 'user-text', text }])
-        await window.api.claude.sendInput(selected.sessionId, text)
-      }
+      onAppendBlocks(selected.sessionId, [{ kind: 'user-text', text }])
+      await window.api.claude.sendInput(selected.sessionId, text)
     } catch (err) {
       onAppendBlocks(selected.sessionId, [
         { kind: 'error', text: `전송 실패: ${String(err)}` }

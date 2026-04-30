@@ -424,8 +424,6 @@ useEffect(() => {
   됨. Phase 1 에선 hook stub (`scripts/hook-probe-stub.cjs`) 과 `--settings` 인자 둘 다 제거해야
   control_request 가 race 없이 hongtail 로 직행. 안 그러면 사용자가 카드에 응답하기 전에 hook 이
   먼저 allow 응답해서 카드가 무용지물.
-- **control_request 가 해당 backend 에만 도착**: interactive 백엔드는 PTY 기반이라 stdout 이 ANSI.
-  control_request 흐름은 app 백엔드 전용. interactive 는 §7 의 행동 변경 (전환) 으로 대응.
 - **--disallowed-tools 제거 시 retro**: 기존 사용자가 AskUserQuestion 시나리오에서 텍스트 폴백에
   익숙해진 경우, UX 가 갑자기 옵션 카드로 변함. 옵션 추가: settings 에 "deferred tool 호스트 UI"
   toggle.
@@ -492,7 +490,6 @@ Phase 1 의 wire format 이 어려우면 (§3.2 시나리오 2 이상) hongtail 
 
 - `docs/plan-mode-askuserquestion.md` — 이전 분석. 이 문서가 그 §A0/A1 의 detailed 버전
 - `docs/sendinput-flow.md` — control_request 채널 일반 (호스트 → 자식 방향)
-- `docs/interactive-token-stream-paths.md` — interactive vs app 백엔드 한계 종합. §9 가 본 작업의 동기
 
 ### 8.4 plannotator (참고 — 같은 문제의 다른 해결)
 
@@ -524,9 +521,6 @@ Phase 1.1 만 완성해도 plan mode 가 풀린다. UI 는 점진 개선.
       할지. (기본 minimum: 단일 선택, multi 는 후속)
 - [ ] **settings 에 "deferred tool UI" toggle 추가 여부** — 기존 텍스트 폴백 UX 유지 옵션 제공할지.
       현재 `--disallowed-tools` 회피가 사라지면 옵션 카드로 강제됨.
-- [ ] **interactive 백엔드 호환** — control_request 흐름은 app 백엔드 전용. interactive 백엔드의
-      ExitPlanMode/AskUserQuestion 은 PTY 가 자체 처리 (claude REPL 의 옵션 UI). 별 작업 불필요로
-      예상.
 - [x] **PermissionRequest hook 과의 race** — §11.1 에서 race 가 hook winner 일 때 카드 무용지물.
       Phase 1 에선 hook 등록 안 함 (`--settings` 인자 + stub script 모두 제거). control_request
       단독 채널.
@@ -686,6 +680,5 @@ main 머지 후 작업: §6 Phase 2 (선택 — 다른 deferred tool 일반 conf
 content-specific safety) 도 control_request 로 올라올 수 있는데, Phase 1 의
 fallback 자동 allow (`App.tsx` 의 ensureClaudeSubscription) 가 처리. 별도 UI
 필요해지면 그때 §6 디자인 적용.
-- [ ] interactive 백엔드와의 호환 — app 만 적용 / interactive 는 PTY TUI 가 자체 처리
 
 이 결정들은 작업 시작 시 이 문서 끝에 [Decisions] 섹션 추가해서 기록.
