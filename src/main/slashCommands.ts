@@ -44,7 +44,7 @@ const BUILTIN: SlashCommand[] = [
 const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/
 const DESCRIPTION_RE = /^description:\s*(.+?)\s*$/m
 
-function parseFrontmatterDescription(text: string): string | null {
+export function parseFrontmatterDescription(text: string): string | null {
   const m = FRONT_MATTER_RE.exec(text)
   if (!m) return null
   const desc = DESCRIPTION_RE.exec(m[1])
@@ -83,9 +83,27 @@ async function walkMd(root: string): Promise<string[]> {
   return out
 }
 
-function fileToCommandName(root: string, file: string): string {
+export function fileToCommandName(root: string, file: string): string {
   const rel = relative(root, file).replace(/\.md$/i, '')
   return rel.split(sep).join(':')
+}
+
+// 같은 (kind, name) 의 첫 entry 만 살리고 이후 중복 drop. 호출자가 lists 의
+// 순서로 우선순위를 표현 (먼저 오는 list 가 이김). 결과는 name 의 locale
+// 순으로 sort.
+export function mergeCommandLists(lists: SlashCommand[][]): SlashCommand[] {
+  const seen = new Set<string>()
+  const merged: SlashCommand[] = []
+  for (const list of lists) {
+    for (const c of list) {
+      const key = `${c.kind}:${c.name}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      merged.push(c)
+    }
+  }
+  merged.sort((a, b) => a.name.localeCompare(b.name))
+  return merged
 }
 
 async function collectFromDir(
@@ -238,9 +256,7 @@ export async function listSlashCommands(workspacePath?: string): Promise<SlashCo
 
   // 우선순위: project → user → plugin → builtin. command 와 skill 은 같은
   // 이름이라도 별도로 보존한다 (kind 가 달라서 사용자 의도가 다를 수 있음).
-  const seen = new Set<string>()
-  const merged: SlashCommand[] = []
-  const lists: SlashCommand[][] = [
+  return mergeCommandLists([
     projectCmds,
     projectSkills,
     userCmds,
@@ -248,17 +264,7 @@ export async function listSlashCommands(workspacePath?: string): Promise<SlashCo
     pluginCmds,
     pluginSkills,
     BUILTIN
-  ]
-  for (const list of lists) {
-    for (const c of list) {
-      const key = `${c.kind}:${c.name}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      merged.push(c)
-    }
-  }
-  merged.sort((a, b) => a.name.localeCompare(b.name))
-  return merged
+  ])
 }
 
 export function registerSlashCommandHandlers(): void {

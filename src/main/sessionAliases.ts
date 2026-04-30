@@ -78,6 +78,26 @@ interface RenameSignal {
   setAt: string
 }
 
+// 파싱된 한 jsonl record 가 /rename 결과인지 판정하고 alias·timestamp 추출.
+// claude CLI 의 /rename 은 system + subtype:'local_command' record 로 기록되며
+// content 는 '<local-command-stdout>Session renamed to: <alias></local-command-stdout>'
+// 형태. 호출자는 cheap "Session renamed to:" 부분 문자열 체크로 JSON.parse
+// 비용을 회피.
+export function parseRenameRecord(record: unknown): RenameSignal | null {
+  if (!record || typeof record !== 'object') return null
+  const v = record as Record<string, unknown>
+  if (v.type !== 'system' || v.subtype !== 'local_command') return null
+  const content = typeof v.content === 'string' ? v.content : ''
+  if (!content.startsWith(RENAME_PREFIX)) return null
+  const ts = typeof v.timestamp === 'string' ? v.timestamp : null
+  if (!ts) return null
+  const tail = content.slice(RENAME_PREFIX.length)
+  const closeIdx = tail.lastIndexOf(RENAME_SUFFIX)
+  const aliasText = (closeIdx >= 0 ? tail.slice(0, closeIdx) : tail).trim()
+  if (!aliasText) return null
+  return { alias: aliasText, setAt: ts }
+}
+
 async function findLatestRenameInJsonl(
   cwd: string,
   sessionId: string
@@ -90,22 +110,14 @@ async function findLatestRenameInJsonl(
     for await (const line of rl) {
       // Cheap reject before JSON.parse
       if (!line.includes('Session renamed to:')) continue
-      let v: Record<string, unknown>
+      let v: unknown
       try {
         v = JSON.parse(line)
       } catch {
         continue
       }
-      if (v.type !== 'system' || v.subtype !== 'local_command') continue
-      const content = typeof v.content === 'string' ? v.content : ''
-      if (!content.startsWith(RENAME_PREFIX)) continue
-      const ts = typeof v.timestamp === 'string' ? v.timestamp : null
-      if (!ts) continue
-      const tail = content.slice(RENAME_PREFIX.length)
-      const closeIdx = tail.lastIndexOf(RENAME_SUFFIX)
-      const aliasText = (closeIdx >= 0 ? tail.slice(0, closeIdx) : tail).trim()
-      if (!aliasText) continue
-      latest = { alias: aliasText, setAt: ts }
+      const sig = parseRenameRecord(v)
+      if (sig) latest = sig
     }
     rl.close()
     stream.destroy()
