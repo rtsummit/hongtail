@@ -62,6 +62,8 @@ function normalizeWorkspacePath(p: string): string {
 // readonly 로 강제. messages·status 는 jsonl 리플레이로 ChatPane / reconcile
 // 흐름이 자동 재구성한다.
 const SELECTED_STORAGE_KEY = 'hongtail.selected'
+const SIDEBAR_WIDTH_KEY = 'hongtail.sidebarWidth'
+const SIDE_CHAT_COLLAPSED_KEY = 'hongtail.sideChatCollapsed'
 
 function loadSelectedFromStorage(): SelectedSession | null {
   try {
@@ -108,7 +110,7 @@ function App(): React.JSX.Element {
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [aliasesBySession, setAliasesBySession] = useState<Record<string, SessionAlias>>({})
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
-    const stored = Number(localStorage.getItem('hongtail.sidebarWidth'))
+    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
     return Number.isFinite(stored) && stored >= 180 && stored <= 600 ? stored : 240
   })
   // 모바일에서만 의미 — 사이드바 toggle. 데스크톱은 CSS 로 항상 보이므로
@@ -120,7 +122,7 @@ function App(): React.JSX.Element {
   const [btwMessagesBySession, setBtwMessagesBySession] = useState<Record<string, Block[]>>({})
   const [btwThinkingBySession, setBtwThinkingBySession] = useState<Record<string, boolean>>({})
   const [sideChatCollapsed, setSideChatCollapsed] = useState<boolean>(
-    () => localStorage.getItem('hongtail.sideChatCollapsed') === '1'
+    () => localStorage.getItem(SIDE_CHAT_COLLAPSED_KEY) === '1'
   )
   const btwSubscriptionsRef = useRef<Map<string, () => void>>(new Map())
   const terminalRefs = useRef<Map<string, TerminalSearchHandle | null>>(new Map())
@@ -165,7 +167,7 @@ function App(): React.JSX.Element {
           600,
           Math.max(180, startWidth + (ev.clientX - startX))
         )
-        localStorage.setItem('hongtail.sidebarWidth', String(finalWidth))
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(finalWidth))
       }
       target.addEventListener('pointermove', move)
       target.addEventListener('pointerup', up)
@@ -532,7 +534,7 @@ function App(): React.JSX.Element {
   const handleToggleSideChat = useCallback(() => {
     setSideChatCollapsed((prev) => {
       const next = !prev
-      localStorage.setItem('hongtail.sideChatCollapsed', next ? '1' : '0')
+      localStorage.setItem(SIDE_CHAT_COLLAPSED_KEY, next ? '1' : '0')
       return next
     })
   }, [])
