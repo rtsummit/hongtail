@@ -111,6 +111,10 @@ export const webApi: ExposedApi = {
     save: (sid, bytes, mimeType) =>
       rpc('images:save', [sid, bytesToBase64(bytes), mimeType])
   },
+  files: {
+    save: (sid, bytes, fileName) =>
+      rpc('files:save', [sid, bytesToBase64(bytes), fileName])
+  },
   sessionAliases: {
     list: () => rpc('session-aliases:list', []),
     set: (sid, alias) => rpc('session-aliases:set', [sid, alias]),

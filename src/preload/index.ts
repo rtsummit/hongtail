@@ -102,6 +102,10 @@ const api = {
     save: (sessionId: string, bytes: Uint8Array, mimeType: string): Promise<string> =>
       ipcRenderer.invoke('images:save', sessionId, bytes, mimeType)
   },
+  files: {
+    save: (sessionId: string, bytes: Uint8Array, fileName: string): Promise<string> =>
+      ipcRenderer.invoke('files:save', sessionId, bytes, fileName)
+  },
   sessionAliases: {
     list: () => ipcRenderer.invoke('session-aliases:list'),
     set: (sessionId: string, alias: string) =>

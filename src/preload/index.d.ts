@@ -132,6 +132,9 @@ export interface ExposedApi {
   images: {
     save: (sessionId: string, bytes: Uint8Array, mimeType: string) => Promise<string>
   }
+  files: {
+    save: (sessionId: string, bytes: Uint8Array, fileName: string) => Promise<string>
+  }
   sessionAliases: {
     list: () => Promise<Record<string, SessionAlias>>
     set: (sessionId: string, alias: string) => Promise<SessionAlias | null>
