@@ -7,7 +7,7 @@ import QuoteChips, { type Quote } from './QuoteChips'
 import SlashCompletion from './SlashCompletion'
 import UsageBar from './UsageBar'
 import { parseClaudeEvent } from '../claudeEvents'
-import { formatRateLimit, formatTokens, pctClass } from '../sessionStatus'
+import { formatRateLimit, formatTokens } from '../sessionStatus'
 import { extractTodoState } from '../todoState'
 import type { AppSettings } from '../settings'
 import type { Backend, Block, SelectedSession, SessionMode, SessionStatus } from '../types'
@@ -553,12 +553,11 @@ function ChatPane({
   const rateLimitLine = status?.rateLimit ? formatRateLimit(status.rateLimit) : null
 
   // readonly 는 UsageBar 가 안 그려지므로 (input 영역 안에 있음) 헤더에
-  // Context 만 따로 표시. 라이브 모드는 UsageBar 가 ContextBar 로 보여줌.
-  const headerCtxPercent =
-    mode === 'readonly' &&
-    status?.contextUsedTokens != null &&
-    status?.contextWindow
-      ? Math.min(100, Math.round((status.contextUsedTokens / status.contextWindow) * 100))
+  // Context 만 따로 표시. jsonl 에는 contextWindow 가 안 실리니 (system/init·
+  // result event 부재) 퍼센트는 못 그리고, 사용 토큰 숫자만 표시한다.
+  const headerCtxTokens =
+    mode === 'readonly' && status?.contextUsedTokens != null
+      ? status.contextUsedTokens
       : null
 
   return (
@@ -569,14 +568,7 @@ function ChatPane({
           {selected.workspacePath} · {selected.sessionId.slice(0, 8)} · {subtitleSuffix}
           {usageLine ? ` · ${usageLine}` : ''}
           {rateLimitLine ? ` · ${rateLimitLine}` : ''}
-          {headerCtxPercent != null && (
-            <>
-              {' · Context '}
-              <span className={`usage-pct ${pctClass(headerCtxPercent)}`}>
-                {headerCtxPercent}%
-              </span>
-            </>
-          )}
+          {headerCtxTokens != null && ` · Context ${formatTokens(headerCtxTokens)}`}
         </div>
         <TodoPanel state={todoState} />
       </div>
