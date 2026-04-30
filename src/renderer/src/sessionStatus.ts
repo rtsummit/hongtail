@@ -36,6 +36,12 @@ export function formatTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`
 }
 
+export function pctClass(pct: number): string {
+  if (pct >= 90) return 'crit'
+  if (pct >= 70) return 'warn'
+  return 'ok'
+}
+
 export function formatElapsed(startMs: number, nowMs: number): string {
   const sec = Math.max(0, Math.floor((nowMs - startMs) / 1000))
   return `${sec}s`

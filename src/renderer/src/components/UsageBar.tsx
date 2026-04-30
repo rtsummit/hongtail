@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { formatModelDisplay, formatTokens } from '../sessionStatus'
+import { formatModelDisplay, formatTokens, pctClass } from '../sessionStatus'
 import type { SessionStatus } from '../types'
 import type { UsageData } from '../../../preload/index.d'
 
@@ -60,12 +60,6 @@ function formatRemaining(resetMs: number, nowMs: number): string {
   const m = totalMin % 60
   if (h >= 1) return `${h}h ${m}m`
   return `${m}m`
-}
-
-function pctClass(pct: number): string {
-  if (pct >= 90) return 'crit'
-  if (pct >= 70) return 'warn'
-  return 'ok'
 }
 
 function ContextBar({ percent }: { percent: number }): React.JSX.Element {

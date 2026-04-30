@@ -45,6 +45,17 @@ import type { SessionAlias } from '../../preload/index.d'
 // bypassPermissions / auto 는 우발 진입 방지를 위해 사이클에서 제외 — 메뉴로만 진입.
 const PERMISSION_MODE_CYCLE = ['default', 'acceptEdits', 'plan'] as const
 
+// main 측 src/main/workspaces.ts 와 동일 규칙. web 모드 텍스트 입력 경로와
+// OS 다이얼로그(backslash) 가 한 entry 로 묶이게 forward slash 로 통일.
+function normalizeWorkspacePath(p: string): string {
+  let s = p.trim()
+  if (!s) return s
+  s = s.replace(/\\/g, '/')
+  if (/^[a-z]:/.test(s)) s = s[0].toUpperCase() + s.slice(1)
+  if (s.length > 3 && s.endsWith('/')) s = s.slice(0, -1)
+  return s
+}
+
 // 새로고침을 가로질러 selected 만 복원한다. 라이브 mode/backend 는 mount 직후
 // listRunning reconcile 이 active 매핑으로 덮어쓰므로, 복원 시점엔 일단
 // readonly 로 강제. messages·status 는 jsonl 리플레이로 ChatPane / reconcile
@@ -252,7 +263,11 @@ function App(): React.JSX.Element {
   }, [])
 
   const handleClaudeEvent = useCallback(
-    (sessionId: string, event: unknown, options?: { appendMessages?: boolean }) => {
+    (
+      sessionId: string,
+      event: unknown,
+      options?: { appendMessages?: boolean; readonly?: boolean }
+    ) => {
       // jsonl tail 흐름이 ChatPane 에서 이미 messages 를 onAppendBlocks 로
       // 그렸을 때 중복 append 방지를 위해 status 추출만 돌리는 옵션.
       if (options?.appendMessages !== false) {
@@ -262,28 +277,36 @@ function App(): React.JSX.Element {
         }
       }
 
-      const usage = extractUsage(event)
-      if (usage?.outputTokens !== undefined) {
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            outputTokens: usage.outputTokens
-          }
-        }))
-      }
+      // readonly 는 historical jsonl 리플레이라 thinking·rateLimit·
+      // permissionMode·세션 누적 토큰·control_response 같은 "라이브 상태"
+      // 시그널을 건드리면 안 된다. model/contextWindow/contextUsedTokens 만
+      // 반영해서 UsageBar 의 Context% 가 뜨게 한다.
+      const readonly = options?.readonly === true
 
-      const rateLimit = extractRateLimit(event)
-      if (rateLimit) {
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            rateLimit
-          }
-        }))
+      if (!readonly) {
+        const usage = extractUsage(event)
+        if (usage?.outputTokens !== undefined) {
+          setStatusBySession((prev) => ({
+            ...prev,
+            [sessionId]: {
+              ...prev[sessionId],
+              thinking: prev[sessionId]?.thinking ?? false,
+              outputTokens: usage.outputTokens
+            }
+          }))
+        }
+
+        const rateLimit = extractRateLimit(event)
+        if (rateLimit) {
+          setStatusBySession((prev) => ({
+            ...prev,
+            [sessionId]: {
+              ...prev[sessionId],
+              thinking: prev[sessionId]?.thinking ?? false,
+              rateLimit
+            }
+          }))
+        }
       }
 
       const init = extractInit(event)
@@ -294,7 +317,9 @@ function App(): React.JSX.Element {
             ...prev[sessionId],
             thinking: prev[sessionId]?.thinking ?? false,
             model: init.model,
-            permissionMode: init.permissionMode,
+            permissionMode: readonly
+              ? prev[sessionId]?.permissionMode
+              : init.permissionMode,
             contextWindow: init.contextWindow ?? prev[sessionId]?.contextWindow
           }
         }))
@@ -317,16 +342,18 @@ function App(): React.JSX.Element {
             }
           })
         }
-        const pmode = extractPermissionModeEvent(event)
-        if (pmode) {
-          setStatusBySession((prev) => ({
-            ...prev,
-            [sessionId]: {
-              ...prev[sessionId],
-              thinking: prev[sessionId]?.thinking ?? false,
-              permissionMode: pmode
-            }
-          }))
+        if (!readonly) {
+          const pmode = extractPermissionModeEvent(event)
+          if (pmode) {
+            setStatusBySession((prev) => ({
+              ...prev,
+              [sessionId]: {
+                ...prev[sessionId],
+                thinking: prev[sessionId]?.thinking ?? false,
+                permissionMode: pmode
+              }
+            }))
+          }
         }
       }
 
@@ -356,6 +383,8 @@ function App(): React.JSX.Element {
           }
         }))
       }
+
+      if (readonly) return
 
       const ctlResp = extractControlResponse(event)
       if (ctlResp) {
@@ -732,11 +761,13 @@ function App(): React.JSX.Element {
   // 'interactive' 백엔드의 jsonl tail 흐름이 ChatPane 안에서 일어나지만 status
   // 추출 (UsageBar 의 model / contextTokens / thinking 종료 등) 은 App 의
   // setStatusBySession 만 본다. 그래서 ChatPane 이 raw events 배열을 그대로
-  // 흘려주면 여기서 messages append 는 빼고 status 만 처리.
+  // 흘려주면 여기서 messages append 는 빼고 status 만 처리. readonly 도 같은
+  // 채널을 쓰지만 thinking 같은 라이브 시그널은 handleClaudeEvent 안에서
+  // 가드된다 — UsageBar 의 Context %·model 만 켜진다.
   const handleLiveJsonlEvents = useCallback(
-    (sessionId: string, events: unknown[]) => {
+    (sessionId: string, events: unknown[], readonly?: boolean) => {
       for (const event of events) {
-        handleClaudeEvent(sessionId, event, { appendMessages: false })
+        handleClaudeEvent(sessionId, event, { appendMessages: false, readonly })
       }
     },
     [handleClaudeEvent]

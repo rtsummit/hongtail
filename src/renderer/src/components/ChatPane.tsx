@@ -7,7 +7,7 @@ import QuoteChips, { type Quote } from './QuoteChips'
 import SlashCompletion from './SlashCompletion'
 import UsageBar from './UsageBar'
 import { parseClaudeEvent } from '../claudeEvents'
-import { formatRateLimit, formatTokens } from '../sessionStatus'
+import { formatRateLimit, formatTokens, pctClass } from '../sessionStatus'
 import { extractTodoState } from '../todoState'
 import type { AppSettings } from '../settings'
 import type { Backend, Block, SelectedSession, SessionMode, SessionStatus } from '../types'
@@ -63,10 +63,12 @@ interface Props {
   onSetPermissionMode: (sessionId: string, mode: string) => void
   onSetModel: (sessionId: string, model: string) => void
   onInterrupt: (sessionId: string) => void
-  // 'interactive' 백엔드 라이브에서 jsonl tail 로 받은 raw event 들을
-  // 그대로 App 으로 흘려서 status 추출 (UsageBar) 만 돌리게 한다.
-  // readonly 일 때는 호출 안 함 — 라이브 아님.
-  onLiveJsonlEvents?: (sessionId: string, events: unknown[]) => void
+  // jsonl tail 로 받은 raw event 들을 그대로 App 으로 흘려서 status 추출
+  // (UsageBar 의 Context %·model 등) 만 돌리게 한다. 'interactive' 라이브와
+  // readonly 둘 다 호출 — readonly=true 면 thinking·rateLimit·permissionMode
+  // 같은 라이브 전용 시그널은 무시되고 model·contextWindow·contextUsedTokens
+  // 만 반영된다.
+  onLiveJsonlEvents?: (sessionId: string, events: unknown[], readonly?: boolean) => void
   // Phase 1.2 — 자식의 control_request 카드 응답.
   onAskUserQuestionAnswer?: (
     sessionId: string,
@@ -354,8 +356,8 @@ function ChatPane({
         setShownFromLine(firstShown)
         shownFromLineRef.current = firstShown
         onReplaceBlocks(sessionId, blocks)
-        if (isInteractiveLive && onLiveJsonlEvents) {
-          onLiveJsonlEvents(sessionId, events)
+        if (onLiveJsonlEvents) {
+          onLiveJsonlEvents(sessionId, events, isReadonly)
         }
       } catch (err) {
         if (cancelled) return
@@ -385,8 +387,8 @@ function ChatPane({
         for (const e of events) newBlocks.push(...parseClaudeEvent(e))
         offset = newOffset
         if (newBlocks.length > 0) onAppendBlocks(sessionId, newBlocks)
-        if (isInteractiveLive && onLiveJsonlEvents) {
-          onLiveJsonlEvents(sessionId, events)
+        if (onLiveJsonlEvents) {
+          onLiveJsonlEvents(sessionId, events, isReadonly)
         }
       } catch (err) {
         console.error('incremental read failed:', err)
@@ -530,6 +532,15 @@ function ChatPane({
 
   const rateLimitLine = status?.rateLimit ? formatRateLimit(status.rateLimit) : null
 
+  // readonly 는 UsageBar 가 안 그려지므로 (input 영역 안에 있음) 헤더에
+  // Context 만 따로 표시. 라이브 모드는 UsageBar 가 ContextBar 로 보여줌.
+  const headerCtxPercent =
+    mode === 'readonly' &&
+    status?.contextUsedTokens != null &&
+    status?.contextWindow
+      ? Math.min(100, Math.round((status.contextUsedTokens / status.contextWindow) * 100))
+      : null
+
   return (
     <main className="chat-pane">
       <div className="chat-header">
@@ -538,6 +549,14 @@ function ChatPane({
           {selected.workspacePath} · {selected.sessionId.slice(0, 8)} · {subtitleSuffix}
           {usageLine ? ` · ${usageLine}` : ''}
           {rateLimitLine ? ` · ${rateLimitLine}` : ''}
+          {headerCtxPercent != null && (
+            <>
+              {' · Context '}
+              <span className={`usage-pct ${pctClass(headerCtxPercent)}`}>
+                {headerCtxPercent}%
+              </span>
+            </>
+          )}
         </div>
         <TodoPanel state={todoState} />
       </div>
