@@ -41,18 +41,40 @@ interface Body {
   [key: string]: unknown
 }
 
+// 호출 형태가 동일한 (= callRenderer(rpcMethod, body→args)) 라우트들의 테이블.
+// 새 라우트는 여기 한 줄 추가하는 게 보통의 흐름.
+const SIMPLE_RPC_ROUTES: Record<string, { rpc: string; args: (b: Body) => unknown[] }> = {
+  'GET /state': { rpc: 'getState', args: () => [] },
+  'POST /workspaces/add': { rpc: 'addWorkspace', args: (b) => [b.path] },
+  'POST /sessions/start': {
+    rpc: 'startSession',
+    args: (b) => [b.workspacePath, b.backend, b.mode, b.sessionId ?? null]
+  },
+  'POST /sessions/select': {
+    rpc: 'selectSession',
+    args: (b) => [b.workspacePath, b.sessionId, b.title ?? '']
+  },
+  'POST /sessions/activate': { rpc: 'activate', args: (b) => [b.mode] },
+  'POST /sessions/send': { rpc: 'sendInput', args: (b) => [b.sessionId, b.text] },
+  'POST /sessions/control': { rpc: 'controlRequest', args: (b) => [b.sessionId, b.request] },
+  'POST /sessions/wait-result': {
+    rpc: 'waitResult',
+    args: (b) => [b.sessionId, b.timeoutMs ?? 60000]
+  }
+}
+
 async function dispatch(req: IncomingMessage): Promise<unknown> {
   const url = new URL(req.url ?? '/', 'http://x')
   const path = url.pathname
   const method = req.method ?? 'GET'
   const body = (await readJsonBody<Body>(req)) ?? {}
-
   const route = `${method} ${path}`
 
-  if (route === 'GET /state') {
-    return callRenderer('getState', [])
-  }
+  const simple = SIMPLE_RPC_ROUTES[route]
+  if (simple) return callRenderer(simple.rpc, simple.args(body))
 
+  // Dynamic / special routes — body 외 사이드이펙트 (파일 쓰기, 윈도우 캡처,
+  // 앱 종료) 가 있는 것들.
   if (method === 'GET' && path.startsWith('/messages/')) {
     const sessionId = decodeURIComponent(path.slice('/messages/'.length))
     return callRenderer('getMessages', [sessionId])
@@ -68,43 +90,6 @@ async function dispatch(req: IncomingMessage): Promise<unknown> {
     )
     await fs.writeFile(filePath, img.toPNG())
     return { path: filePath }
-  }
-
-  if (route === 'POST /workspaces/add') {
-    return callRenderer('addWorkspace', [body.path])
-  }
-
-  if (route === 'POST /sessions/start') {
-    return callRenderer('startSession', [
-      body.workspacePath,
-      body.backend,
-      body.mode,
-      body.sessionId ?? null
-    ])
-  }
-
-  if (route === 'POST /sessions/select') {
-    return callRenderer('selectSession', [
-      body.workspacePath,
-      body.sessionId,
-      body.title ?? ''
-    ])
-  }
-
-  if (route === 'POST /sessions/activate') {
-    return callRenderer('activate', [body.mode])
-  }
-
-  if (route === 'POST /sessions/send') {
-    return callRenderer('sendInput', [body.sessionId, body.text])
-  }
-
-  if (route === 'POST /sessions/control') {
-    return callRenderer('controlRequest', [body.sessionId, body.request])
-  }
-
-  if (route === 'POST /sessions/wait-result') {
-    return callRenderer('waitResult', [body.sessionId, body.timeoutMs ?? 60000])
   }
 
   if (route === 'POST /eval' && ENABLE_EVAL) {
