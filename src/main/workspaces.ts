@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain, BrowserWindow } from 'electron'
-import { promises as fs } from 'fs'
 import { join } from 'path'
 import { registerInvoke } from './ipc'
+import { readJsonFile, writeJsonFile } from './jsonFile'
 
 interface WorkspaceEntry {
   path: string
@@ -57,24 +57,14 @@ function normalizeEntry(raw: unknown): WorkspaceEntry | null {
 }
 
 async function loadWorkspaces(): Promise<WorkspaceEntry[]> {
-  const file = workspacesFile()
-  try {
-    const content = await fs.readFile(file, 'utf-8')
-    if (!content.trim()) return []
-    const parsed = JSON.parse(content)
-    if (Array.isArray(parsed)) {
-      const out: WorkspaceEntry[] = []
-      for (const item of parsed) {
-        const normalized = normalizeEntry(item)
-        if (normalized) out.push(normalized)
-      }
-      return dedupe(out)
-    }
-    return []
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
-    throw err
+  const parsed = await readJsonFile<WorkspaceEntry[]>(workspacesFile(), [])
+  if (!Array.isArray(parsed)) return []
+  const out: WorkspaceEntry[] = []
+  for (const item of parsed) {
+    const normalized = normalizeEntry(item)
+    if (normalized) out.push(normalized)
   }
+  return dedupe(out)
 }
 
 async function saveWorkspaces(entries: WorkspaceEntry[]): Promise<void> {
@@ -82,7 +72,7 @@ async function saveWorkspaces(entries: WorkspaceEntry[]): Promise<void> {
   const sanitized = entries.map((e) =>
     e.alias && e.alias.trim() ? { path: e.path, alias: e.alias } : { path: e.path }
   )
-  await fs.writeFile(workspacesFile(), JSON.stringify(sanitized, null, 2), 'utf-8')
+  await writeJsonFile(workspacesFile(), sanitized)
 }
 
 export function registerWorkspaceHandlers(): void {

@@ -2,9 +2,9 @@
 // 환경변수 (HONGTAIL_WEB, HONGTAIL_WEB_PORT, HONGTAIL_WEB_HOST,
 // HONGTAIL_WEB_TLS_CERT, HONGTAIL_WEB_TLS_KEY) 는 같은 키가 있으면 file
 // 보다 우선. 운영자가 강제 설정하고 싶을 때 사용.
-import { promises as fs } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
+import { readJsonFile, writeJsonFile } from './jsonFile'
 
 export interface WebSettings {
   enabled: boolean
@@ -45,14 +45,14 @@ function normalize(parsed: Partial<WebSettings>): WebSettings {
 }
 
 export async function loadWebSettings(): Promise<WebSettings> {
-  try {
-    const raw = await fs.readFile(settingsFile(), 'utf-8')
-    return normalize(JSON.parse(raw) as Partial<WebSettings>)
-  } catch {
-    return { ...DEFAULT_SETTINGS }
-  }
+  // fallthrough: ENOENT 외 parse 실패도 디폴트로 흡수 — 손상된 파일이 앱 부팅을
+  // 막지 않게.
+  const parsed = await readJsonFile<WebSettings>(settingsFile(), { ...DEFAULT_SETTINGS }, {
+    fallthrough: true
+  })
+  return normalize(parsed as Partial<WebSettings>)
 }
 
 export async function saveWebSettings(next: WebSettings): Promise<void> {
-  await fs.writeFile(settingsFile(), JSON.stringify(normalize(next), null, 2), 'utf-8')
+  await writeJsonFile(settingsFile(), normalize(next))
 }

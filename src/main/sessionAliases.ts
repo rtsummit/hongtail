@@ -1,9 +1,10 @@
 import { app } from 'electron'
-import { promises as fs, createReadStream } from 'fs'
+import { createReadStream } from 'fs'
 import { join } from 'path'
 import { createInterface } from 'readline'
 import { projectDir } from './claude'
 import { registerInvoke } from './ipc'
+import { readJsonFile, writeJsonFile } from './jsonFile'
 
 export interface SessionAlias {
   alias: string
@@ -20,41 +21,28 @@ let cache: Store | null = null
 
 async function loadAll(): Promise<Store> {
   if (cache) return cache
-  try {
-    const content = await fs.readFile(aliasesFile(), 'utf-8')
-    if (!content.trim()) {
-      cache = {}
-      return cache
-    }
-    const parsed = JSON.parse(content)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const out: Store = {}
-      for (const [k, v] of Object.entries(parsed)) {
-        if (
-          v &&
-          typeof v === 'object' &&
-          typeof (v as { alias?: unknown }).alias === 'string' &&
-          typeof (v as { setAt?: unknown }).setAt === 'string'
-        ) {
-          out[k] = { alias: (v as SessionAlias).alias, setAt: (v as SessionAlias).setAt }
-        }
-      }
-      cache = out
-      return cache
-    }
+  const parsed = await readJsonFile<Store>(aliasesFile(), {})
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     cache = {}
     return cache
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      cache = {}
-      return cache
-    }
-    throw err
   }
+  const out: Store = {}
+  for (const [k, v] of Object.entries(parsed)) {
+    if (
+      v &&
+      typeof v === 'object' &&
+      typeof (v as { alias?: unknown }).alias === 'string' &&
+      typeof (v as { setAt?: unknown }).setAt === 'string'
+    ) {
+      out[k] = { alias: (v as SessionAlias).alias, setAt: (v as SessionAlias).setAt }
+    }
+  }
+  cache = out
+  return cache
 }
 
 async function persistAll(store: Store): Promise<void> {
-  await fs.writeFile(aliasesFile(), JSON.stringify(store, null, 2), 'utf-8')
+  await writeJsonFile(aliasesFile(), store)
   cache = store
 }
 
