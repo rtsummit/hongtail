@@ -56,6 +56,8 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
 const FILTER_KEY = 'hongtail.dateFilter'
 type DateFilter = 1 | 3 | 7 | 'active' | null
 
+const ICON_ONLY_KEY = 'hongtail.sidebarIconOnly'
+
 function Sidebar({
   workspaces,
   selected,
@@ -87,6 +89,14 @@ function Sidebar({
     if (next == null) localStorage.removeItem(FILTER_KEY)
     else localStorage.setItem(FILTER_KEY, String(next))
   }
+  const [iconOnly, setIconOnly] = useState<boolean>(
+    () => localStorage.getItem(ICON_ONLY_KEY) === '1'
+  )
+  const toggleIconOnly = (next: boolean): void => {
+    setIconOnly(next)
+    if (next) localStorage.setItem(ICON_ONLY_KEY, '1')
+    else localStorage.removeItem(ICON_ONLY_KEY)
+  }
   const liveByWorkspace = new Map<string, LiveSessionInfo[]>()
   for (const [sessionId, a] of Object.entries(active)) {
     const list = liveByWorkspace.get(a.workspacePath) ?? []
@@ -108,34 +118,48 @@ function Sidebar({
   }
 
   return (
-    <aside className="sidebar">
-      <button
-        type="button"
-        className="new-session-btn"
-        onClick={() => void onAddWorkspace()}
-      >
-        <span className="plus">+</span>
-        <span>Workspace 추가</span>
-      </button>
-
-      <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
-        {([1, 3, 7, 'active', null] as const).map((v) => {
-          const label = v == null ? '모두' : v === 'active' ? '활성' : `${v}일`
-          const active = dateFilter === v
-          return (
-            <button
-              key={String(v)}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              className={`date-filter-btn${active ? ' active' : ''}`}
-              onClick={() => updateDateFilter(v)}
-            >
-              {label}
-            </button>
-          )
-        })}
+    <aside className={`sidebar${iconOnly ? ' icon-only' : ''}`}>
+      <div className="sidebar-toolbar">
+        <button
+          type="button"
+          className="new-session-btn"
+          onClick={() => void onAddWorkspace()}
+          title="Workspace 추가"
+        >
+          <span className="plus">+</span>
+          <span className="sidebar-label">Workspace 추가</span>
+        </button>
+        <button
+          type="button"
+          className="sidebar-minimize-btn"
+          onClick={() => toggleIconOnly(!iconOnly)}
+          title={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
+          aria-label={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
+        >
+          {iconOnly ? '›' : '‹'}
+        </button>
       </div>
+
+      {!iconOnly && (
+        <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
+          {([1, 3, 7, 'active', null] as const).map((v) => {
+            const label = v == null ? '모두' : v === 'active' ? '활성' : `${v}일`
+            const active = dateFilter === v
+            return (
+              <button
+                key={String(v)}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`date-filter-btn${active ? ' active' : ''}`}
+                onClick={() => updateDateFilter(v)}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="workspace-list">
         {workspaces.map(({ path, alias }) => (
@@ -149,6 +173,8 @@ function Sidebar({
             selectedId={selected?.workspacePath === path ? selected.sessionId : null}
             dateFilterDays={dateFilter}
             refreshTick={refreshTick}
+            iconOnly={iconOnly}
+            onExpandSidebar={() => toggleIconOnly(false)}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}
@@ -189,7 +215,8 @@ function Sidebar({
           onClick={onOpenSettings}
           title="설정"
         >
-          ⚙ <span>설정</span>
+          <span className="settings-icon">⚙</span>
+          <span className="sidebar-label">설정</span>
         </button>
       </div>
     </aside>

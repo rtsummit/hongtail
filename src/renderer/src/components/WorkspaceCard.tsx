@@ -25,6 +25,11 @@ interface Props {
   dateFilterDays: 1 | 3 | 7 | 'active' | null
   // 다른 client 가 세션 시작/종료한 신호. 변경 시 listSessions 재호출.
   refreshTick: number
+  // 사이드바가 최소화 (icon-only) 상태인지. true 면 워크스페이스를 첫 글자
+  // 아이콘 하나로만 렌더하고, hover 시 이름 풍선 노출.
+  iconOnly: boolean
+  // iconOnly 모드에서 아이콘 클릭 시 호출. 사이드바를 다시 펼친다.
+  onExpandSidebar: () => void
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string, backend: Backend) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
@@ -49,6 +54,8 @@ function WorkspaceCard({
   selectedId,
   dateFilterDays,
   refreshTick,
+  iconOnly,
+  onExpandSidebar,
   onSelect,
   onStartClaude,
   onStopLive,
@@ -242,6 +249,33 @@ function WorkspaceCard({
   if (isDragging) headerClasses.push('dragging')
   if (dragOverPosition === 'top') headerClasses.push('drag-over-top')
   if (dragOverPosition === 'bottom') headerClasses.push('drag-over-bottom')
+
+  if (iconOnly) {
+    const displayName =
+      alias?.trim() ||
+      path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ||
+      path
+    const iconChar = (displayName[0] || '?').toUpperCase()
+    const hasLive = liveSessions.length > 0
+    const handleIconClick = (): void => {
+      setCollapsed(false)
+      onExpandSidebar()
+    }
+    return (
+      <section className="workspace icon-only-card">
+        <button
+          type="button"
+          className="workspace-icon-btn"
+          onClick={handleIconClick}
+          aria-label={displayName}
+        >
+          <span className="workspace-icon-letter">{iconChar}</span>
+          {hasLive && <span className="workspace-icon-livedot" />}
+          <span className="workspace-icon-tooltip">{displayName}</span>
+        </button>
+      </section>
+    )
+  }
 
   return (
     <section className={`workspace${collapsed ? ' collapsed' : ''}`}>

@@ -137,7 +137,14 @@
   color: white;
 }
 
+.sidebar-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
 .new-session-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -151,6 +158,33 @@
   transition:
     background-color 0.1s,
     border-color 0.1s;
+}
+
+.sidebar-minimize-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  order: 2;
+  transition:
+    background-color 0.1s,
+    color 0.1s,
+    border-color 0.1s;
+}
+
+.sidebar-minimize-btn:hover {
+  background: var(--panel-2);
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 .new-session-btn:hover {
@@ -2169,6 +2203,123 @@ details.tool-block:hover > summary > .tool-row-open,
   background: var(--panel-2);
   color: var(--fg);
   border-color: var(--fg-muted);
+}
+
+/* === Sidebar icon-only (minimized) mode === */
+.sidebar.icon-only {
+  --sidebar-width: 56px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 8px 6px;
+}
+
+.app:has(.sidebar.icon-only) .splitter {
+  display: none;
+}
+
+.sidebar.icon-only .sidebar-toolbar {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar.icon-only .sidebar-minimize-btn {
+  order: 0;
+  width: 100%;
+  height: 30px;
+}
+
+.sidebar.icon-only .new-session-btn {
+  width: 100%;
+  padding: 8px 0;
+  justify-content: center;
+}
+
+.sidebar.icon-only .sidebar-label {
+  display: none;
+}
+
+.sidebar.icon-only .workspace-list {
+  align-items: stretch;
+  gap: 6px;
+}
+
+.sidebar.icon-only .workspace.icon-only-card {
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+.workspace-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: calc(var(--font-size, 13px) * 14 / 13);
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  transition:
+    background-color 0.1s,
+    border-color 0.1s;
+}
+
+.workspace-icon-btn:hover {
+  background: var(--border);
+  border-color: var(--accent);
+}
+
+.workspace-icon-letter {
+  line-height: 1;
+}
+
+.workspace-icon-livedot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  pointer-events: none;
+}
+
+.workspace-icon-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 5px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: nowrap;
+  color: var(--fg);
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
+  font-weight: normal;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.workspace-icon-btn:hover .workspace-icon-tooltip {
+  opacity: 1;
+}
+
+.sidebar.icon-only .settings-btn {
+  width: 36px;
+  margin: 0 auto;
+  padding: 6px 0;
+  gap: 0;
 }
 
 /* === Find bar === */
