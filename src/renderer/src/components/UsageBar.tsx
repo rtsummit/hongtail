@@ -143,7 +143,6 @@ function UsageBar({
   const sessionInTokens =
     (status?.sessionInputTokens ?? 0) + (status?.sessionCacheTokens ?? 0)
   const sessionOutTokens = status?.sessionOutputTokens ?? 0
-  const sessionCost = status?.sessionCostUsd ?? 0
   const hasSessionTokens = sessionInTokens > 0 || sessionOutTokens > 0
 
   // Hide entirely if there's nothing to show.
@@ -213,9 +212,6 @@ function UsageBar({
           <span className="usage-tokens">
             ↑{formatTokens(sessionInTokens)} ↓{formatTokens(sessionOutTokens)}
           </span>
-          {sessionCost > 0 && (
-            <span className="usage-cost">${sessionCost.toFixed(2)}</span>
-          )}
         </span>
       )}
 

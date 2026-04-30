@@ -141,13 +141,10 @@ export function parseContextWindowFromModel(model: string): number | undefined {
 }
 
 export function formatModelDisplay(model: string): string {
-  // claude-opus-4-7[1m] → "Opus 4.7 (1M context)"
+  // claude-opus-4-7[1m] → "Opus"
   const m = model.match(/^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(\[(\d+[mk])\])?$/i)
   if (!m) return model
-  const family = m[1].charAt(0).toUpperCase() + m[1].slice(1)
-  const ver = `${m[2]}.${m[3]}`
-  const ctx = m[5] ? ` (${m[5].toUpperCase()} context)` : ''
-  return `${family} ${ver}${ctx}`
+  return m[1].charAt(0).toUpperCase() + m[1].slice(1)
 }
 
 export function extractContextTokens(event: unknown): number | null {
