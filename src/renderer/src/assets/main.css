@@ -2252,36 +2252,48 @@ details.tool-block:hover > summary > .tool-row-open,
   overflow: visible;
 }
 
-/* 워크스페이스 경계 마커 — 첫 글자, 클릭으로 활성 대화 펼침/접기. */
+/* 워크스페이스 경계 마커 — 첫 글자, 클릭으로 활성 대화 펼침/접기.
+   accent (선택된 세션) 와 분명히 구분되도록 별도 색상의 채워진 칩 형태. */
 .workspace-icon-marker {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  margin: 6px auto 2px;
-  padding: 3px 0;
-  background: transparent;
+  width: 40px;
+  height: 40px;
+  margin: 14px auto 6px;
+  padding: 0;
+  background: var(--workspace-marker-bg);
   border: none;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  color: var(--fg-muted);
+  border-radius: 10px;
+  color: var(--workspace-marker-fg);
   font-family: inherit;
-  font-size: calc(var(--font-size, 13px) * 11 / 13);
-  font-weight: 700;
+  font-size: calc(var(--font-size, 13px) * 16 / 13);
+  font-weight: 800;
   letter-spacing: 0.5px;
   cursor: pointer;
   user-select: none;
-  transition: color 0.1s, border-color 0.1s, opacity 0.1s;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: filter 0.1s, opacity 0.1s, transform 0.05s;
 }
 
 .workspace-icon-marker:hover {
-  color: var(--fg);
-  border-bottom-color: var(--accent);
+  filter: brightness(1.1);
+}
+
+.workspace-icon-marker:active {
+  transform: scale(0.96);
 }
 
 .workspace-icon-marker.collapsed {
-  border-bottom-style: dashed;
   opacity: 0.55;
+  filter: saturate(0.6);
+}
+
+/* 첫 워크스페이스는 위쪽 여백을 줄여서 toolbar 와 너무 떨어지지 않게. */
+.sidebar.icon-only .workspace-list > .workspace.icon-only-card:first-child .workspace-icon-marker {
+  margin-top: 4px;
 }
 
 /* 활성 세션 아이콘 — 첫 글자, 클릭으로 선택, hover 로 이름 풍선. */

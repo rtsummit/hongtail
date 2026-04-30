@@ -11,6 +11,9 @@
   --danger-bg: #5a1d1d;
   --danger-border: #7a2525;
   --danger-fg: #ffb4b4;
+  /* Sidebar icon-only 모드의 워크스페이스 경계 마커 — accent 와 구분되는 별도색. */
+  --workspace-marker-bg: #c89947;
+  --workspace-marker-fg: #1c1c1c;
 }
 
 *,
