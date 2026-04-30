@@ -22,6 +22,7 @@
     "build:win:setup": "powershell -ExecutionPolicy Bypass -File scripts/build-win.ps1 -Target setup",
     "build:win:all": "powershell -ExecutionPolicy Bypass -File scripts/build-win.ps1 -Target both",
     "build:win:clean": "powershell -ExecutionPolicy Bypass -File scripts/build-win.ps1 -Target both -Clean",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux"
   },

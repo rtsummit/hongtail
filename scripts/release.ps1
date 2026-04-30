@@ -1,0 +1,100 @@
+#!/usr/bin/env pwsh
+<#
+.SYNOPSIS
+  hongtail 릴리즈 발행 — version bump + commit + push + Windows 빌드.
+
+.PARAMETER Target
+  portable / setup / both. Default: both.
+
+.PARAMETER BumpType
+  patch / minor / major. Default: patch.
+
+.PARAMETER SkipPush
+  bump·commit 만 하고 push 와 빌드는 건너뜀 (점검용).
+
+.PARAMETER Clean
+  build-win.ps1 의 -Clean 을 그대로 forward.
+
+.EXAMPLE
+  .\scripts\release.ps1
+  .\scripts\release.ps1 -Target portable
+  .\scripts\release.ps1 -BumpType minor -Clean
+#>
+param(
+  [ValidateSet('portable', 'setup', 'both')]
+  [string]$Target = 'both',
+  [ValidateSet('patch', 'minor', 'major')]
+  [string]$BumpType = 'patch',
+  [switch]$SkipPush,
+  [switch]$Clean
+)
+
+$ErrorActionPreference = 'Stop'
+$repoRoot = Resolve-Path "$PSScriptRoot\.."
+Set-Location $repoRoot
+
+function Step($msg) {
+  Write-Host ""
+  Write-Host "▸ $msg" -ForegroundColor Cyan
+}
+
+# 1. preflight
+Step "preflight"
+$status = git status --porcelain
+if ($status) {
+  Write-Host $status
+  throw "working tree 가 dirty — release 전에 정리하세요."
+}
+$branch = (git rev-parse --abbrev-ref HEAD).Trim()
+if ($branch -ne 'main') {
+  Write-Warning "현재 브랜치가 main 이 아닙니다 ($branch). 계속 진행합니다."
+}
+Write-Host "  branch: $branch"
+
+# 2. version bump
+Step "version bump ($BumpType)"
+$pkgPath = Join-Path $repoRoot 'package.json'
+$pkgRaw = Get-Content $pkgPath -Raw
+$old = if ($pkgRaw -match '"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"') {
+  @{ major = [int]$Matches[1]; minor = [int]$Matches[2]; patch = [int]$Matches[3] }
+} else {
+  throw "package.json 에서 version 을 못 찾음"
+}
+$new = switch ($BumpType) {
+  'patch' { @{ major = $old.major; minor = $old.minor; patch = $old.patch + 1 } }
+  'minor' { @{ major = $old.major; minor = $old.minor + 1; patch = 0 } }
+  'major' { @{ major = $old.major + 1; minor = 0; patch = 0 } }
+}
+$oldVer = "$($old.major).$($old.minor).$($old.patch)"
+$newVer = "$($new.major).$($new.minor).$($new.patch)"
+Write-Host "  $oldVer → $newVer"
+$pkgRaw = $pkgRaw -replace '"version"\s*:\s*"\d+\.\d+\.\d+"', "`"version`": `"$newVer`""
+# package.json 끝에 trailing newline 보존
+Set-Content -Path $pkgPath -Value $pkgRaw -NoNewline -Encoding utf8
+
+# 3. commit
+Step "commit"
+git add package.json
+if ($LASTEXITCODE -ne 0) { throw "git add 실패" }
+git commit -m "chore: bump version to $newVer"
+if ($LASTEXITCODE -ne 0) { throw "git commit 실패" }
+
+# 4. push
+if ($SkipPush) {
+  Write-Host ""
+  Write-Host "⚠ -SkipPush — push 와 빌드 건너뜀. 끝." -ForegroundColor Yellow
+  exit 0
+}
+Step "push"
+git push
+if ($LASTEXITCODE -ne 0) { throw "git push 실패" }
+
+# 5. build
+Step "build ($Target)"
+$buildArgs = @('-Target', $Target)
+if ($Clean) { $buildArgs += '-Clean' }
+& "$PSScriptRoot\build-win.ps1" @buildArgs
+if ($LASTEXITCODE -ne 0) { throw "build 실패" }
+
+Write-Host ""
+Write-Host "✓ release v$newVer 완료" -ForegroundColor Green
