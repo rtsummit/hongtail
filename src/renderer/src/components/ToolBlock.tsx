@@ -10,6 +10,14 @@ import { canTokenize, safeLanguage } from '../prismSetup'
 import { HighlightedLine } from './CodeBlock'
 import { PrismBoundary } from './PrismBoundary'
 import { markdownComponents, markdownUrlTransform } from '../markdownComponents'
+import { openOrLoadFile } from '../fileOpenerLogic'
+import {
+  effectiveDiffMode,
+  isSideAllowed,
+  loadDiffMode,
+  saveDiffMode,
+  type DiffMode
+} from '../diffMode'
 import type { Block } from '../types'
 
 function isMarkdownPath(p?: string): boolean {
@@ -192,17 +200,9 @@ function useFileOpener(): {
 } {
   const [viewer, setViewer] = useState<{ path: string; text: string } | null>(null)
   const open = useCallback(async (path: string) => {
-    if (!path) return
-    try {
-      await window.api.files.openExternal(path)
-    } catch {
-      try {
-        const text = await window.api.files.read(path)
-        setViewer({ path, text })
-      } catch (err) {
-        console.error('failed to open file:', err)
-      }
-    }
+    const result = await openOrLoadFile(path, window.api.files)
+    if (result.kind === 'loaded') setViewer({ path, text: result.text })
+    else if (result.kind === 'failed') console.error('failed to open file:', result.error)
   }, [])
   const close = useCallback(() => setViewer(null), [])
   return { open, viewer, close }
@@ -624,17 +624,6 @@ function buildSideBySideDiff(oldText: string, newText: string, contextLines = 2)
   return rows
 }
 
-type DiffMode = 'unified' | 'side'
-const DIFF_MODE_KEY = 'hongtail.diffMode'
-
-function loadDiffMode(): DiffMode {
-  return localStorage.getItem(DIFF_MODE_KEY) === 'side' ? 'side' : 'unified'
-}
-
-function saveDiffMode(m: DiffMode): void {
-  localStorage.setItem(DIFF_MODE_KEY, m)
-}
-
 function DiffBody({
   oldText,
   newText,
@@ -660,8 +649,8 @@ function DiffBody({
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
-  const allowSide = inModal || !isMobile
-  const effectiveMode: DiffMode = mode === 'side' && !allowSide ? 'unified' : mode
+  const allowSide = isSideAllowed(inModal, isMobile)
+  const effectiveMode = effectiveDiffMode(mode, inModal, isMobile)
   const updateMode = (m: DiffMode): void => {
     setMode(m)
     saveDiffMode(m)

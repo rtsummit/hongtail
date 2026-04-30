@@ -25,7 +25,7 @@ function nowStamp(): string {
 
 // 사용자 파일 이름에서 path traversal·OS 예약 문자 제거. 확장자는 보존해서
 // claude 가 파일 종류를 추측할 수 있게.
-function sanitizeName(raw: string): string {
+export function sanitizeName(raw: string): string {
   const cleaned = raw
     .replace(/[\\/]/g, '_')
     .replace(/[<>:"|?*\x00-\x1f]/g, '_')
