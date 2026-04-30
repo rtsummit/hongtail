@@ -106,11 +106,14 @@ function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | nu
   const target = popoverFor ?? sel
   if (!target) return null
 
-  // 위치: 셀렉션 오른쪽 위. viewport 넘치면 클램프.
+  // 위치: 셀렉션 오른쪽 위. viewport 넘치면 클램프. 모바일/좁은 화면에서
+  // 320 폭이 viewport 를 넘는 케이스 (아이폰 SE 320px 등) 는 화면 폭에 맞춰 축소.
   const margin = 8
   const btnH = 28
   const popH = popoverFor ? 180 : btnH
-  const popW = popoverFor ? 320 : 90
+  const popW = popoverFor
+    ? Math.min(320, window.innerWidth - margin * 2)
+    : 90
   let top = target.rect.top - popH - margin
   if (top < margin) top = target.rect.bottom + margin
   let left = target.rect.right - popW
