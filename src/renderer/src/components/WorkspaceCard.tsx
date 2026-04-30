@@ -26,10 +26,9 @@ interface Props {
   // 다른 client 가 세션 시작/종료한 신호. 변경 시 listSessions 재호출.
   refreshTick: number
   // 사이드바가 최소화 (icon-only) 상태인지. true 면 워크스페이스를 첫 글자
-  // 아이콘 하나로만 렌더하고, hover 시 이름 풍선 노출.
+  // 경계 마커로만 렌더하고, 그 아래에 active(라이브) 세션들만 아이콘으로
+  // 나열. 워크스페이스 마커 클릭으로 펼침/접기 토글.
   iconOnly: boolean
-  // iconOnly 모드에서 아이콘 클릭 시 호출. 사이드바를 다시 펼친다.
-  onExpandSidebar: () => void
   onSelect: (s: SelectedSession | null) => void
   onStartClaude: (cwd: string, backend: Backend) => void | Promise<void>
   onStopLive: (sessionId: string) => void | Promise<void>
@@ -55,7 +54,6 @@ function WorkspaceCard({
   dateFilterDays,
   refreshTick,
   iconOnly,
-  onExpandSidebar,
   onSelect,
   onStartClaude,
   onStopLive,
@@ -256,23 +254,52 @@ function WorkspaceCard({
       path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ||
       path
     const iconChar = (displayName[0] || '?').toUpperCase()
-    const hasLive = liveSessions.length > 0
-    const handleIconClick = (): void => {
-      setCollapsed(false)
-      onExpandSidebar()
-    }
     return (
       <section className="workspace icon-only-card">
         <button
           type="button"
-          className="workspace-icon-btn"
-          onClick={handleIconClick}
+          className={`workspace-icon-marker${collapsed ? ' collapsed' : ''}`}
+          onClick={() => setCollapsed((v) => !v)}
+          title={`${displayName} (${liveSessions.length} active)`}
+          aria-expanded={!collapsed}
           aria-label={displayName}
         >
-          <span className="workspace-icon-letter">{iconChar}</span>
-          {hasLive && <span className="workspace-icon-livedot" />}
-          <span className="workspace-icon-tooltip">{displayName}</span>
+          {iconChar}
         </button>
+        {!collapsed &&
+          liveSessions.map((s) => {
+            const aliasEntry = aliasesBySession[s.sessionId]
+            const display = aliasEntry?.alias ?? s.title
+            const sessionChar = (display[0] || '·').toUpperCase()
+            const isThinking = !!statusBySession[s.sessionId]?.thinking
+            const isSelected = selectedId === s.sessionId
+            const cls = [
+              'session-icon-btn',
+              isSelected ? 'active' : '',
+              isThinking ? 'busy' : ''
+            ]
+              .filter(Boolean)
+              .join(' ')
+            return (
+              <button
+                key={s.sessionId}
+                type="button"
+                className={cls}
+                onClick={() =>
+                  onSelect({
+                    workspacePath: path,
+                    sessionId: s.sessionId,
+                    title: display,
+                    mode: 'readonly'
+                  })
+                }
+                aria-label={display}
+              >
+                <span className="session-icon-letter">{sessionChar}</span>
+                <span className="sidebar-icon-tooltip">{display}</span>
+              </button>
+            )
+          })}
       </section>
     )
   }

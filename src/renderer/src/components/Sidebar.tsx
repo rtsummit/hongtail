@@ -174,7 +174,6 @@ function Sidebar({
             dateFilterDays={dateFilter}
             refreshTick={refreshTick}
             iconOnly={iconOnly}
-            onExpandSidebar={() => toggleIconOnly(false)}
             onSelect={onSelect}
             onStartClaude={onStartClaude}
             onStopLive={onStopLive}

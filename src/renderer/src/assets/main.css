@@ -2243,43 +2243,84 @@ details.tool-block:hover > summary > .tool-row-open,
 }
 
 .sidebar.icon-only .workspace.icon-only-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   border: none;
   background: transparent;
   overflow: visible;
 }
 
-.workspace-icon-btn {
+/* 워크스페이스 경계 마커 — 첫 글자, 클릭으로 활성 대화 펼침/접기. */
+.workspace-icon-marker {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  margin: 6px auto 2px;
+  padding: 3px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: calc(var(--font-size, 13px) * 11 / 13);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.workspace-icon-marker:hover {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.workspace-icon-marker.collapsed {
+  border-bottom-style: dashed;
+  opacity: 0.55;
+}
+
+/* 활성 세션 아이콘 — 첫 글자, 클릭으로 선택, hover 로 이름 풍선. */
+.session-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   margin: 0 auto;
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--fg);
   font-family: inherit;
-  font-size: calc(var(--font-size, 13px) * 14 / 13);
+  font-size: calc(var(--font-size, 13px) * 12 / 13);
   font-weight: 500;
   cursor: pointer;
   position: relative;
   user-select: none;
   transition:
     background-color 0.1s,
-    border-color 0.1s;
+    border-color 0.1s,
+    color 0.1s;
 }
 
-.workspace-icon-btn:hover {
+.session-icon-btn:hover {
   background: var(--border);
   border-color: var(--accent);
 }
 
-.workspace-icon-letter {
-  line-height: 1;
+.session-icon-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
-.workspace-icon-livedot {
+.session-icon-btn.busy::before {
+  content: '';
   position: absolute;
   top: -2px;
   right: -2px;
@@ -2288,10 +2329,25 @@ details.tool-block:hover > summary > .tool-row-open,
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--panel);
-  pointer-events: none;
+  animation: sidebar-icon-pulse 1.4s ease-in-out infinite;
+  z-index: 1;
 }
 
-.workspace-icon-tooltip {
+.session-icon-btn.busy.active::before {
+  background: white;
+  border-color: var(--accent);
+}
+
+.session-icon-letter {
+  line-height: 1;
+}
+
+@keyframes sidebar-icon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.sidebar-icon-tooltip {
   position: absolute;
   left: calc(100% + 10px);
   top: 50%;
@@ -2311,7 +2367,7 @@ details.tool-block:hover > summary > .tool-row-open,
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.workspace-icon-btn:hover .workspace-icon-tooltip {
+.session-icon-btn:hover .sidebar-icon-tooltip {
   opacity: 1;
 }
 
