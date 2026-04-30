@@ -525,6 +525,44 @@ function ChatPane({
     }
   }
 
+  // MessageList 에 내려가는 deferred-tool 카드 응답 콜백 4종. 인라인 arrow 로
+  // 두면 매 ChatPane 재렌더(input 키 입력 포함)마다 새 reference 가 생겨
+  // MessageList / ItemView 의 memo 가 깨지고, 그 안의 ToolBlock 까지 cascade 로
+  // 다시 토크나이즈/diff 계산이 돈다. sessionId·핸들러 reference 가 같은 동안은
+  // 함수 reference 도 안정화되도록 useMemo 로 묶음.
+  // ※ 반드시 early return 보다 앞에 둘 것 — 아래 `if (!selected)` 분기 뒤에
+  //    두면 selected 토글 시 hook 호출 개수가 달라져 Rules of Hooks 위반.
+  const messageListAskAnswer = useMemo(
+    () =>
+      sessionId && onAskUserQuestionAnswer
+        ? (rid: string, answers: Record<string, string>): void =>
+            onAskUserQuestionAnswer(sessionId, rid, answers)
+        : undefined,
+    [sessionId, onAskUserQuestionAnswer]
+  )
+  const messageListAskCancel = useMemo(
+    () =>
+      sessionId && onAskUserQuestionCancel
+        ? (rid: string): void => onAskUserQuestionCancel(sessionId, rid)
+        : undefined,
+    [sessionId, onAskUserQuestionCancel]
+  )
+  const messageListPlanApprove = useMemo(
+    () =>
+      sessionId && onExitPlanModeApprove
+        ? (rid: string): void => onExitPlanModeApprove(sessionId, rid)
+        : undefined,
+    [sessionId, onExitPlanModeApprove]
+  )
+  const messageListPlanDeny = useMemo(
+    () =>
+      sessionId && onExitPlanModeDeny
+        ? (rid: string, message: string): void =>
+            onExitPlanModeDeny(sessionId, rid, message)
+        : undefined,
+    [sessionId, onExitPlanModeDeny]
+  )
+
   if (!selected) {
     return (
       <main className="chat-pane">
@@ -583,26 +621,10 @@ function ChatPane({
         )}
         <MessageList
           blocks={messages}
-          onAskUserQuestionAnswer={
-            sessionId && onAskUserQuestionAnswer
-              ? (rid, answers) => onAskUserQuestionAnswer(sessionId, rid, answers)
-              : undefined
-          }
-          onAskUserQuestionCancel={
-            sessionId && onAskUserQuestionCancel
-              ? (rid) => onAskUserQuestionCancel(sessionId, rid)
-              : undefined
-          }
-          onExitPlanModeApprove={
-            sessionId && onExitPlanModeApprove
-              ? (rid) => onExitPlanModeApprove(sessionId, rid)
-              : undefined
-          }
-          onExitPlanModeDeny={
-            sessionId && onExitPlanModeDeny
-              ? (rid, message) => onExitPlanModeDeny(sessionId, rid, message)
-              : undefined
-          }
+          onAskUserQuestionAnswer={messageListAskAnswer}
+          onAskUserQuestionCancel={messageListAskCancel}
+          onExitPlanModeApprove={messageListPlanApprove}
+          onExitPlanModeDeny={messageListPlanDeny}
         />
         {status?.thinking && (
           <ThinkingIndicator
