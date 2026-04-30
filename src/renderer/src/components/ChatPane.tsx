@@ -204,6 +204,28 @@ function ChatPane({
     })
   }, [])
 
+  const ingestImageFiles = useCallback(
+    async (files: File[]): Promise<void> => {
+      if (!selected) return
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) continue
+        try {
+          const buf = new Uint8Array(await file.arrayBuffer())
+          const path = await window.api.images.save(
+            selected.sessionId,
+            buf,
+            file.type || 'image/png'
+          )
+          imageCounterRef.current += 1
+          insertAtCaret(`[Image #${imageCounterRef.current}: ${path}]\n`)
+        } catch (err) {
+          console.error('image ingest failed:', err)
+        }
+      }
+    },
+    [selected, insertAtCaret]
+  )
+
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const items = e.clipboardData?.items
@@ -217,22 +239,23 @@ function ChatPane({
       }
       if (images.length === 0) return
       e.preventDefault()
-      for (const file of images) {
-        try {
-          const buf = new Uint8Array(await file.arrayBuffer())
-          const path = await window.api.images.save(
-            selected.sessionId,
-            buf,
-            file.type || 'image/png'
-          )
-          imageCounterRef.current += 1
-          insertAtCaret(`[Image #${imageCounterRef.current}: ${path}]\n`)
-        } catch (err) {
-          console.error('image paste failed:', err)
-        }
-      }
+      await ingestImageFiles(images)
     },
-    [selected, insertAtCaret]
+    [selected, ingestImageFiles]
+  )
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const handleAttachClick = useCallback((): void => {
+    fileInputRef.current?.click()
+  }, [])
+  const handleFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+      const files = Array.from(e.target.files ?? [])
+      e.target.value = '' // 같은 파일 재선택 가능하게
+      if (files.length === 0) return
+      await ingestImageFiles(files)
+    },
+    [ingestImageFiles]
   )
 
   const todoState = useMemo(() => extractTodoState(messages), [messages])
@@ -652,6 +675,24 @@ function ChatPane({
               />
             )}
             <div className="chat-input">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => void handleFileInputChange(e)}
+              />
+              <button
+                type="button"
+                className="attach-btn"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleAttachClick}
+                title="이미지 첨부"
+                aria-label="이미지 첨부"
+              >
+                📎
+              </button>
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -671,7 +712,7 @@ function ChatPane({
                 }}
                 onBlur={() => setSlashCtx(null)}
                 onKeyDown={handleKeyDown}
-                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, Ctrl+V: 이미지)"
+                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, 📎: 이미지)"
                 rows={3}
               />
               {status?.thinking ? (

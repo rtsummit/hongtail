@@ -1229,6 +1229,8 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   border-radius: 4px;
   max-height: 360px;
   overflow-y: auto;
+  /* 긴 줄이 viewport 밖으로 흘러 페이지 자체가 가로 스크롤되지 않게 컨테이너 안에 가둔다. */
+  overflow-x: auto;
   white-space: pre;
 }
 
@@ -2109,6 +2111,30 @@ details.tool-block:hover > summary > .tool-row-open,
 }
 
 .chat-input textarea:focus {
+  border-color: var(--accent);
+}
+
+.attach-btn {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: calc(var(--font-size, 13px) * 16 / 13);
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-btn:hover {
+  background: var(--panel-2);
+  color: var(--fg);
   border-color: var(--accent);
 }
 
@@ -3362,6 +3388,34 @@ details.tool-block:hover > summary > .tool-row-open,
 
   .activate-btn {
     padding: 10px 18px;
+    min-height: 44px;
+  }
+
+  /* 사이드바 항목들 — 데스크톱 hover 기준 작은 padding 으로 탭 타겟이 작다. */
+  .session {
+    padding: 10px 8px 10px 10px;
+  }
+
+  .session.live {
+    padding-left: 8px;
+  }
+
+  .workspace-header {
+    padding: 12px 10px;
+  }
+
+  .new-session-btn {
+    padding: 12px;
+    min-height: 44px;
+  }
+
+  .settings-btn {
+    padding: 10px 12px;
+    min-height: 40px;
+  }
+
+  .new-conversation {
+    padding: 12px;
     min-height: 44px;
   }
 }
