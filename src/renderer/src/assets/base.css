@@ -28,7 +28,10 @@ html,
 body,
 #root {
   width: 100%;
+  /* iOS Safari 의 URL 바 축소·확장 때문에 100vh 는 실제 화면보다 크게 잡힌다.
+     100dvh (dynamic viewport height) 가 현재 보이는 영역에 정확히 맞춤. */
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 

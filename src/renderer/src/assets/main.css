@@ -1308,8 +1308,8 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
 .modal.modal-wide {
   width: 100vw;
   height: 100vh;
-  min-width: 400px;
-  min-height: 300px;
+  min-width: min(400px, 100vw);
+  min-height: min(300px, 100vh);
   max-width: 100vw;
   max-height: 100vh;
   border-radius: 0;
@@ -3091,37 +3091,59 @@ details.tool-block:hover > summary > .tool-row-open,
 }
 
 /* === Mobile layout === */
-.mobile-sidebar-toggle {
+.mobile-sidebar-toggle,
+.mobile-sidechat-toggle {
   display: none;
 }
 
-.mobile-sidebar-backdrop {
+.mobile-sidebar-backdrop,
+.mobile-sidechat-backdrop {
   display: none;
 }
 
 @media (max-width: 768px) {
-  .mobile-sidebar-toggle {
+  .mobile-sidebar-toggle,
+  .mobile-sidechat-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
     position: fixed;
-    top: 8px;
-    left: 8px;
+    /* iOS notch / 상태바 영역을 피한다. env() 미지원 브라우저는 8px 로 fallback. */
+    top: max(8px, env(safe-area-inset-top));
     z-index: 100;
-    width: 36px;
     height: 36px;
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--fg);
-    font-size: calc(var(--font-size, 13px) * 18 / 13);
     line-height: 1;
     cursor: pointer;
     user-select: none;
   }
 
-  .mobile-sidebar-toggle:active {
+  .mobile-sidebar-toggle {
+    left: max(8px, env(safe-area-inset-left));
+    width: 36px;
+    font-size: calc(var(--font-size, 13px) * 18 / 13);
+  }
+
+  .mobile-sidechat-toggle {
+    right: max(8px, env(safe-area-inset-right));
+    padding: 0 10px;
+    font-size: calc(var(--font-size, 13px) * 12 / 13);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .mobile-sidebar-toggle:active,
+  .mobile-sidechat-toggle:active {
     background: var(--panel);
+  }
+
+  .app.side-chat-open .mobile-sidechat-toggle {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
   }
 
   .app .sidebar {
@@ -3141,6 +3163,42 @@ details.tool-block:hover > summary > .tool-row-open,
     transform: translateX(0);
   }
 
+  /* 사이드바 brand (좌상단 로고) 영역이 햄버거 (top:8 left:8 36x36) 와 겹쳐
+     로고를 가리는 문제. brand 의 좌측에 햄버거 폭 + 여백만큼 padding. */
+  .sidebar .sidebar-brand {
+    padding-left: 52px;
+  }
+
+  /* 사이드 챗 — 모바일에선 우측에서 슬라이드 인하는 overlay 로 동작.
+     collapsed sliver (28px) 는 모바일에선 의미 없어서 숨긴다. */
+  .app .side-chat-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(360px, 90vw);
+    flex: none;
+    z-index: 60;
+    transform: translateX(100%);
+    transition: transform 0.18s ease;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .app.side-chat-open .side-chat-panel {
+    transform: translateX(0);
+  }
+
+  .app .side-chat-collapsed {
+    display: none;
+  }
+
+  /* 사이드 챗 헤더 우측 actions 영역이 BTW 토글 (top:8 right:8) 와 겹친다.
+     overlay 가 슬라이드 인하면 panel 좌상단부터 그려져서 BTW 토글이 actions
+     를 덮는 모양새. 헤더 우측에 토글 폭 + 여백만큼 padding 으로 밀어준다. */
+  .side-chat-panel .side-chat-header {
+    padding-right: 60px;
+  }
+
   .splitter {
     display: none;
   }
@@ -3151,7 +3209,8 @@ details.tool-block:hover > summary > .tool-row-open,
     padding-top: 0;
   }
 
-  .app.sidebar-open .mobile-sidebar-backdrop {
+  .app.sidebar-open .mobile-sidebar-backdrop,
+  .app.side-chat-open .mobile-sidechat-backdrop {
     display: block;
     position: fixed;
     inset: 0;
