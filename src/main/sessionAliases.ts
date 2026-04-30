@@ -1,8 +1,8 @@
 import { app } from 'electron'
 import { promises as fs, createReadStream } from 'fs'
-import { homedir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
+import { projectDir } from './claude'
 import { registerInvoke } from './ipc'
 
 export interface SessionAlias {
@@ -14,15 +14,6 @@ type Store = Record<string, SessionAlias>
 
 function aliasesFile(): string {
   return join(app.getPath('userData'), 'session-aliases.json')
-}
-
-function encodeCwd(path: string): string {
-  // Same encoding as claude.ts: non-alphanumeric (except . and -) → -
-  return path.replace(/[^a-zA-Z0-9.-]/g, '-')
-}
-
-function projectDir(cwd: string): string {
-  return join(homedir(), '.claude', 'projects', encodeCwd(cwd))
 }
 
 let cache: Store | null = null
