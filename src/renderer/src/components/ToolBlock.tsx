@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ToolDefaultOpenContext } from '../toolContext'
 import { detectLanguage } from '../langDetect'
-import { safeLanguage } from '../prismSetup'
+import { canTokenize, safeLanguage } from '../prismSetup'
 import { HighlightedLine } from './CodeBlock'
 import { PrismBoundary } from './PrismBoundary'
 import { markdownComponents } from '../markdownComponents'
@@ -393,6 +393,7 @@ function ReadBody({ filePath, text }: { filePath: string; text: string }): React
       ))}
     </>
   )
+  if (!canTokenize(code, lang)) return <pre className="tool-out-text tool-out-code">{fallback}</pre>
   return (
     <pre className="tool-out-text tool-out-code">
       <PrismBoundary fallback={fallback}>
@@ -944,6 +945,7 @@ function HighlightedCode({
   className: string
 }): React.JSX.Element {
   const lang: Language = safeLanguage(language)
+  if (!canTokenize(code, lang)) return <pre className={className}>{code}</pre>
   return (
     <pre className={className}>
       <PrismBoundary fallback={<>{code}</>}>

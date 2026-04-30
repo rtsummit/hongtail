@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Highlight, themes } from 'prism-react-renderer'
-import { safeLanguage } from './prismSetup'
+import { canTokenize, safeLanguage } from './prismSetup'
 import { PrismBoundary } from './components/PrismBoundary'
 
 interface CodeProps {
@@ -19,6 +19,7 @@ function MarkdownCode({ className, children, ...rest }: CodeProps): React.JSX.El
   }
   const lang = safeLanguage(match[1])
   const code = String(children).replace(/\n$/, '')
+  if (!canTokenize(code, lang)) return <code className={className}>{code}</code>
   return (
     <PrismBoundary fallback={<code className={className}>{code}</code>}>
       <Highlight code={code} language={lang} theme={themes.vsDark}>

@@ -1,4 +1,4 @@
-import { safeLanguage } from '../prismSetup'
+import { canTokenize, safeLanguage } from '../prismSetup'
 import 'prismjs/components/prism-bash'
 import 'prismjs/components/prism-diff'
 import 'prismjs/components/prism-ini'
@@ -24,6 +24,7 @@ interface CodeProps {
 // Renders tokenized lines as <div class="token-line"> children. Caller wraps with <pre>.
 export function CodeLines({ code, language }: CodeProps): React.JSX.Element {
   const lang = safeLanguage(language)
+  if (!canTokenize(code, lang)) return <>{code}</>
   return (
     <PrismBoundary fallback={<>{code}</>}>
       <Highlight code={code} language={lang} theme={theme}>
@@ -48,6 +49,7 @@ export function CodeLines({ code, language }: CodeProps): React.JSX.Element {
 // Renders inline highlighted spans for a single line. No line wrapping.
 export function HighlightedLine({ code, language }: CodeProps): React.JSX.Element {
   const lang = safeLanguage(language)
+  if (!canTokenize(code, lang)) return <>{code}</>
   return (
     <PrismBoundary fallback={<>{code}</>}>
       <Highlight code={code} language={lang} theme={theme}>

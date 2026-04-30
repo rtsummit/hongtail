@@ -17,3 +17,21 @@ export function safeLanguage(lang: Language | string | null | undefined): Langua
   // truthy. helper (extend, insertBefore, DFS) 는 lang 키로 안 들어옴.
   return (Prism.languages as Record<string, unknown>)[key] ? (key as Language) : 'markup'
 }
+
+// 어떤 (code, lang) 조합은 prism 의 grammar 가 특정 입력에서 throw 한다 (관측:
+// matchGrammar → currentNode.value.length undefined). PrismBoundary 가 React
+// 트리 unmount 는 막지만, React 는 boundary 가 catch 한 에러도 무조건 console
+// 에 logging 한다 — 콘솔이 시끄럽고 user 입장에서 "뻗었다" 처럼 보임. Highlight
+// 가 사용하는 동일한 Prism 인스턴스로 미리 tokenize 를 시도해서 throw 면 false
+// 를 리턴 — 호출처에서 plain text fallback 으로 분기시켜 throw 자체를 회피.
+export function canTokenize(code: string, lang: Language): boolean {
+  if (typeof code !== 'string') return false
+  const grammar = (Prism.languages as Record<string, unknown>)[lang]
+  if (!grammar || typeof grammar !== 'object') return false
+  try {
+    Prism.tokenize(code, grammar as never)
+    return true
+  } catch {
+    return false
+  }
+}
