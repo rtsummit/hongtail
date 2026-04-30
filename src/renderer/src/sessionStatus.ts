@@ -1,4 +1,4 @@
-import type { RateLimitInfo, Usage } from './types'
+import type { RateLimitInfo, SessionStatus, Usage } from './types'
 
 const VERBS = [
   'Pondering',
@@ -272,4 +272,31 @@ export function formatRateLimit(info: RateLimitInfo, nowMs: number = Date.now())
   else if (info.status === 'rejected') parts.push('🚫 차단')
   if (info.isUsingOverage) parts.push('overage')
   return parts.join(' · ')
+}
+
+// 세션의 SessionStatus 를 부분 갱신하는 표준 보일러플레이트.
+// - patch 가 함수면 현재 status 를 받아 partial 또는 null 반환 (null = no-op).
+// - 결과 status 의 thinking 은 partial 이 명시하지 않으면 기존값 (없으면 false) 유지 —
+//   App.tsx 의 setStatusBySession 호출 16+곳이 모두 같은 default 를 풀어쓰던 패턴.
+type StatusPatch = Partial<SessionStatus>
+type StatusUpdater =
+  | StatusPatch
+  | ((cur: SessionStatus | undefined) => StatusPatch | null)
+
+export function patchSessionStatus(
+  prev: Record<string, SessionStatus>,
+  sessionId: string,
+  patch: StatusUpdater
+): Record<string, SessionStatus> {
+  const cur = prev[sessionId]
+  const next = typeof patch === 'function' ? patch(cur) : patch
+  if (next === null) return prev
+  return {
+    ...prev,
+    [sessionId]: {
+      ...cur,
+      thinking: cur?.thinking ?? false,
+      ...next
+    }
+  }
 }

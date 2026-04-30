@@ -22,6 +22,7 @@ import {
   isAssistantTurnEnd,
   isResultEvent,
   parseContextWindowFromModel,
+  patchSessionStatus,
   pickVerb
 } from './sessionStatus'
 import {
@@ -288,87 +289,58 @@ function App(): React.JSX.Element {
       if (!readonly) {
         const usage = extractUsage(event)
         if (usage?.outputTokens !== undefined) {
-          setStatusBySession((prev) => ({
-            ...prev,
-            [sessionId]: {
-              ...prev[sessionId],
-              thinking: prev[sessionId]?.thinking ?? false,
-              outputTokens: usage.outputTokens
-            }
-          }))
+          setStatusBySession((prev) =>
+            patchSessionStatus(prev, sessionId, { outputTokens: usage.outputTokens })
+          )
         }
 
         const rateLimit = extractRateLimit(event)
         if (rateLimit) {
-          setStatusBySession((prev) => ({
-            ...prev,
-            [sessionId]: {
-              ...prev[sessionId],
-              thinking: prev[sessionId]?.thinking ?? false,
-              rateLimit
-            }
-          }))
+          setStatusBySession((prev) => patchSessionStatus(prev, sessionId, { rateLimit }))
         }
       }
 
       const init = extractInit(event)
       if (init) {
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, (cur) => ({
             model: init.model,
-            permissionMode: readonly
-              ? prev[sessionId]?.permissionMode
-              : init.permissionMode,
-            contextWindow: init.contextWindow ?? prev[sessionId]?.contextWindow
-          }
-        }))
+            permissionMode: readonly ? cur?.permissionMode : init.permissionMode,
+            contextWindow: init.contextWindow ?? cur?.contextWindow
+          }))
+        )
       } else {
         // Fallbacks for the case where the system/init event was missed
         // (resume mode, subscription race, etc).
         const assistantModel = extractAssistantModel(event)
         if (assistantModel) {
-          setStatusBySession((prev) => {
-            if (prev[sessionId]?.model) return prev
-            return {
-              ...prev,
-              [sessionId]: {
-                ...prev[sessionId],
-                thinking: prev[sessionId]?.thinking ?? false,
-                model: assistantModel,
-                contextWindow:
-                  prev[sessionId]?.contextWindow ?? parseContextWindowFromModel(assistantModel)
-              }
-            }
-          })
+          setStatusBySession((prev) =>
+            patchSessionStatus(prev, sessionId, (cur) =>
+              cur?.model
+                ? null
+                : {
+                    model: assistantModel,
+                    contextWindow:
+                      cur?.contextWindow ?? parseContextWindowFromModel(assistantModel)
+                  }
+            )
+          )
         }
         if (!readonly) {
           const pmode = extractPermissionModeEvent(event)
           if (pmode) {
-            setStatusBySession((prev) => ({
-              ...prev,
-              [sessionId]: {
-                ...prev[sessionId],
-                thinking: prev[sessionId]?.thinking ?? false,
-                permissionMode: pmode
-              }
-            }))
+            setStatusBySession((prev) =>
+              patchSessionStatus(prev, sessionId, { permissionMode: pmode })
+            )
           }
         }
       }
 
       const ctxTokens = extractContextTokens(event)
       if (ctxTokens != null) {
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            contextUsedTokens: ctxTokens
-          }
-        }))
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, { contextUsedTokens: ctxTokens })
+        )
       }
 
       const ctxWindow = extractContextWindowFromResult(
@@ -376,14 +348,9 @@ function App(): React.JSX.Element {
         statusBySession[sessionId]?.model
       )
       if (ctxWindow != null) {
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            contextWindow: ctxWindow
-          }
-        }))
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, { contextWindow: ctxWindow })
+        )
       }
 
       if (readonly) return
@@ -414,56 +381,47 @@ function App(): React.JSX.Element {
         ev.isSidechain !== true &&
         !isAssistantTurnEnd(event)
       ) {
-        setStatusBySession((prev) => {
-          const cur = prev[sessionId]
-          if (cur?.thinking) return prev
-          return {
-            ...prev,
-            [sessionId]: { ...cur, thinking: true }
-          }
-        })
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, (cur) =>
+            cur?.thinking ? null : { thinking: true }
+          )
+        )
       }
 
       // 'terminal' 백엔드는 stream-json result 이벤트가 없으니 assistant
       // record 의 stop_reason='end_turn'/'stop_sequence' 로 turn 종료를 감지.
       // stream-json 모드에서도 결국 result 가 곧 따라오니 idempotent.
       if (isAssistantTurnEnd(event)) {
-        setStatusBySession((prev) => {
-          const cur = prev[sessionId]
-          if (!cur || cur.thinking === false) return prev
-          return {
-            ...prev,
-            [sessionId]: { ...cur, thinking: false }
-          }
-        })
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, (cur) =>
+            !cur || cur.thinking === false ? null : { thinking: false }
+          )
+        )
       }
 
       if (isResultEvent(event)) {
         const finalUsage = extractUsage(event)
         const totals = extractResultTotals(event)
-        setStatusBySession((prev) => {
-          const cur = prev[sessionId]
-          const cumulative = totals
-            ? {
-                sessionInputTokens: (cur?.sessionInputTokens ?? 0) + totals.inputTokens,
-                sessionCacheTokens:
-                  (cur?.sessionCacheTokens ?? 0) +
-                  totals.cacheReadTokens +
-                  totals.cacheCreationTokens,
-                sessionOutputTokens: (cur?.sessionOutputTokens ?? 0) + totals.outputTokens,
-                sessionCostUsd: (cur?.sessionCostUsd ?? 0) + totals.costUsd
-              }
-            : null
-          return {
-            ...prev,
-            [sessionId]: {
-              ...cur,
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, (cur) => {
+            const cumulative = totals
+              ? {
+                  sessionInputTokens: (cur?.sessionInputTokens ?? 0) + totals.inputTokens,
+                  sessionCacheTokens:
+                    (cur?.sessionCacheTokens ?? 0) +
+                    totals.cacheReadTokens +
+                    totals.cacheCreationTokens,
+                  sessionOutputTokens: (cur?.sessionOutputTokens ?? 0) + totals.outputTokens,
+                  sessionCostUsd: (cur?.sessionCostUsd ?? 0) + totals.costUsd
+                }
+              : null
+            return {
               thinking: false,
               usage: finalUsage ?? cur?.usage,
               ...(cumulative ?? {})
             }
-          }
-        })
+          })
+        )
 
         const waiter = waitersRef.current.get(sessionId)
         if (waiter) {
@@ -935,17 +893,11 @@ function App(): React.JSX.Element {
       // permission mode now (main/session.ts forces bypassPermissions on spawn)
       // — model fills in once init arrives; UsageBar shows a "default" placeholder
       // in the meantime.
-      setStatusBySession((prev) => {
-        if (prev[sessionId]?.permissionMode) return prev
-        return {
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            permissionMode: 'bypassPermissions'
-          }
-        }
-      })
+      setStatusBySession((prev) =>
+        patchSessionStatus(prev, sessionId, (cur) =>
+          cur?.permissionMode ? null : { permissionMode: 'bypassPermissions' }
+        )
+      )
       try {
         await window.api.claude.startSession(
           workspacePath,
@@ -1107,26 +1059,16 @@ function App(): React.JSX.Element {
   const handleSetPermissionMode = useCallback(
     async (sessionId: string, mode: string) => {
       let prevMode: string | undefined
-      setStatusBySession((prev) => {
-        prevMode = prev[sessionId]?.permissionMode
-        return {
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            permissionMode: mode
-          }
-        }
-      })
+      setStatusBySession((prev) =>
+        patchSessionStatus(prev, sessionId, (cur) => {
+          prevMode = cur?.permissionMode
+          return { permissionMode: mode }
+        })
+      )
       const rollback = (): void =>
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            permissionMode: prevMode
-          }
-        }))
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, { permissionMode: prevMode })
+        )
       try {
         const requestId = await window.api.claude.controlRequest(sessionId, {
           subtype: 'set_permission_mode',
@@ -1144,26 +1086,16 @@ function App(): React.JSX.Element {
   const handleSetModel = useCallback(
     async (sessionId: string, model: string) => {
       let prevModel: string | undefined
-      setStatusBySession((prev) => {
-        prevModel = prev[sessionId]?.model
-        return {
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            model
-          }
-        }
-      })
+      setStatusBySession((prev) =>
+        patchSessionStatus(prev, sessionId, (cur) => {
+          prevModel = cur?.model
+          return { model }
+        })
+      )
       const rollback = (): void =>
-        setStatusBySession((prev) => ({
-          ...prev,
-          [sessionId]: {
-            ...prev[sessionId],
-            thinking: prev[sessionId]?.thinking ?? false,
-            model: prevModel
-          }
-        }))
+        setStatusBySession((prev) =>
+          patchSessionStatus(prev, sessionId, { model: prevModel })
+        )
       try {
         const requestId = await window.api.claude.controlRequest(sessionId, {
           subtype: 'set_model',
@@ -1210,17 +1142,15 @@ function App(): React.JSX.Element {
   }, [])
 
   const handleTurnStart = useCallback((sessionId: string) => {
-    setStatusBySession((prev) => ({
-      ...prev,
-      [sessionId]: {
-        ...prev[sessionId],
+    setStatusBySession((prev) =>
+      patchSessionStatus(prev, sessionId, (cur) => ({
         thinking: true,
         turnStart: Date.now(),
         verb: pickVerb(),
         outputTokens: undefined,
-        usage: prev[sessionId]?.usage
-      }
-    }))
+        usage: cur?.usage
+      }))
+    )
   }, [])
 
   const handleSelect = useCallback(
