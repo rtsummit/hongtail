@@ -2,12 +2,61 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { diffLines } from 'diff'
 import { Highlight, themes } from 'prism-react-renderer'
 import type { Language } from 'prism-react-renderer'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { ToolDefaultOpenContext } from '../toolContext'
 import { detectLanguage } from '../langDetect'
 import { safeLanguage } from '../prismSetup'
 import { HighlightedLine } from './CodeBlock'
 import { PrismBoundary } from './PrismBoundary'
+import { markdownComponents } from '../markdownComponents'
 import type { Block } from '../types'
+
+function isMarkdownPath(p?: string): boolean {
+  if (!p) return false
+  const m = /\.([a-zA-Z0-9]+)$/.exec(p)
+  if (!m) return false
+  const ext = m[1].toLowerCase()
+  return ext === 'md' || ext === 'mdx' || ext === 'markdown'
+}
+
+type MdView = 'preview' | 'raw'
+const MD_VIEW_KEY = 'hongtail.mdView'
+
+function loadMdView(): MdView {
+  return localStorage.getItem(MD_VIEW_KEY) === 'raw' ? 'raw' : 'preview'
+}
+
+function saveMdView(v: MdView): void {
+  localStorage.setItem(MD_VIEW_KEY, v)
+}
+
+function MdViewToggle({
+  mode,
+  onChange
+}: {
+  mode: MdView
+  onChange: (m: MdView) => void
+}): React.JSX.Element {
+  return (
+    <div className="diff-toolbar" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        className={`diff-mode-btn${mode === 'preview' ? ' active' : ''}`}
+        onClick={() => onChange('preview')}
+      >
+        preview
+      </button>
+      <button
+        type="button"
+        className={`diff-mode-btn${mode === 'raw' ? ' active' : ''}`}
+        onClick={() => onChange('raw')}
+      >
+        raw
+      </button>
+    </div>
+  )
+}
 
 type ToolUseBlock = Extract<Block, { kind: 'tool-use' }>
 type ToolResultBlock = Extract<Block, { kind: 'tool-result' }>
@@ -53,6 +102,26 @@ interface TodoItem {
 }
 interface TodoWriteInput {
   todos?: TodoItem[]
+}
+
+function ExternalLinkIcon(): React.JSX.Element {
+  return (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M9 3h4v4" />
+      <path d="M13 3l-7 7" />
+      <path d="M11 8.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4.5" />
+    </svg>
+  )
 }
 
 function shortenPath(p: string): string {
@@ -106,6 +175,27 @@ interface RowProps {
   isError?: boolean
   body?: React.ReactNode
   defaultOpen?: boolean
+  // 있으면 row 우측에 호버 시 외부 열기 아이콘 button 노출. details 토글과
+  // 분리되도록 click 시 preventDefault + stopPropagation.
+  onOpen?: () => void
+}
+
+function OpenButton({ onOpen }: { onOpen: () => void }): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className="tool-row-open"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onOpen()
+      }}
+      title="별도 창으로 열기"
+      aria-label="별도 창으로 열기"
+    >
+      <ExternalLinkIcon />
+    </button>
+  )
 }
 
 function ToolRow({
@@ -116,7 +206,8 @@ function ToolRow({
   summary,
   isError,
   body,
-  defaultOpen
+  defaultOpen,
+  onOpen
 }: RowProps): React.JSX.Element {
   const ctxDefaultOpen = useContext(ToolDefaultOpenContext)
   const open = defaultOpen ?? ctxDefaultOpen.has(name)
@@ -134,6 +225,7 @@ function ToolRow({
             </span>
           ) : null}
           {summary ? <span className="tool-row-summary">⎿ {summary}</span> : null}
+          {onOpen ? <OpenButton onOpen={onOpen} /> : null}
         </summary>
         <div className="tool-row-body">{body}</div>
       </details>
@@ -150,6 +242,7 @@ function ToolRow({
           </span>
         ) : null}
         {summary ? <span className="tool-row-summary">⎿ {summary}</span> : null}
+        {onOpen ? <OpenButton onOpen={onOpen} /> : null}
       </div>
     </div>
   )
@@ -222,18 +315,66 @@ function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBloc
     text && text.length > 0
       ? isError
         ? <pre className="tool-out-text">{text}</pre>
-        : <ReadBody filePath={filePath} text={text} />
+        : isMarkdownPath(filePath)
+          ? <ReadMarkdownBody filePath={filePath} text={text} />
+          : <ReadBody filePath={filePath} text={text} />
       : null
+  const [modalOpen, setModalOpen] = useState(false)
+  const canOpen = !!text && !isError
   return (
-    <ToolRow
-      toolClass="read"
-      name="Read"
-      args={args}
-      argsTitle={filePath}
-      summary={summary}
-      isError={isError}
-      body={body}
-    />
+    <>
+      <ToolRow
+        toolClass="read"
+        name="Read"
+        args={args}
+        argsTitle={filePath}
+        summary={summary}
+        isError={isError}
+        body={body}
+        onOpen={canOpen ? () => setModalOpen(true) : undefined}
+      />
+      {modalOpen && (
+        <CodeModal
+          code={parseCatN(text).map((l) => l.code).join('\n')}
+          language={safeLanguage(detectLanguage(filePath))}
+          title={filePath}
+          isMarkdown={isMarkdownPath(filePath)}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+    </>
+  )
+}
+
+function ReadMarkdownBody({
+  filePath,
+  text
+}: {
+  filePath: string
+  text: string
+}): React.JSX.Element {
+  const [mode, setMode] = useState<MdView>(() => loadMdView())
+  const updateMode = (m: MdView): void => {
+    setMode(m)
+    saveMdView(m)
+  }
+  const md = useMemo(() => {
+    const lines = parseCatN(text)
+    return lines.map((l) => l.code).join('\n')
+  }, [text])
+  return (
+    <div className="md-wrap">
+      <MdViewToggle mode={mode} onChange={updateMode} />
+      {mode === 'preview' ? (
+        <div className="bubble-markdown tool-md-preview">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {md}
+          </ReactMarkdown>
+        </div>
+      ) : (
+        <ReadBody filePath={filePath} text={text} />
+      )}
+    </div>
   )
 }
 
@@ -548,6 +689,73 @@ function DiffModal({
   )
 }
 
+function CodeModal({
+  code,
+  language,
+  title,
+  isMarkdown,
+  onClose
+}: {
+  code: string
+  language: Language
+  title: string
+  isMarkdown: boolean
+  onClose: () => void
+}): React.JSX.Element {
+  // .md 파일은 카드와 동일한 preview/raw 토글 — 사용자 마지막 선택 (localStorage) 유지.
+  const [mode, setMode] = useState<MdView>(() => loadMdView())
+  const updateMode = (m: MdView): void => {
+    setMode(m)
+    saveMdView(m)
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      if (e.isComposing || e.keyCode === 229) return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
+  return (
+    <div
+      className="modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal modal-wide" role="dialog" aria-label="코드 보기">
+        <header className="modal-header">
+          <h2 className="modal-title-path" title={title}>
+            {title}
+          </h2>
+          <div className="modal-header-actions">
+            {isMarkdown && <MdViewToggle mode={mode} onChange={updateMode} />}
+            <button type="button" className="modal-close" onClick={onClose} title="닫기">
+              ×
+            </button>
+          </div>
+        </header>
+        <div className="modal-body code-modal-body">
+          {isMarkdown && mode === 'preview' ? (
+            <div className="bubble-markdown tool-md-preview">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {code}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <HighlightedCode code={code} language={language} className="tool-cmd" />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SideBySideDiff({
   oldText,
   newText,
@@ -653,6 +861,34 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
   )
 }
 
+function WriteMarkdownBody({
+  filePath,
+  content
+}: {
+  filePath: string
+  content: string
+}): React.JSX.Element {
+  const [mode, setMode] = useState<MdView>(() => loadMdView())
+  const updateMode = (m: MdView): void => {
+    setMode(m)
+    saveMdView(m)
+  }
+  return (
+    <div className="md-wrap">
+      <MdViewToggle mode={mode} onChange={updateMode} />
+      {mode === 'preview' ? (
+        <div className="bubble-markdown tool-md-preview">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      ) : (
+        <HighlightedCode code={content} language={detectLanguage(filePath)} className="tool-cmd" />
+      )}
+    </div>
+  )
+}
+
 function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBlock }): React.JSX.Element {
   const content = input.content ?? ''
   const lines = countLines(content)
@@ -661,22 +897,40 @@ function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBl
   const summary = result?.isError ? '오류' : `${lines} 줄 작성`
   const body = content ? (
     <>
-      <HighlightedCode code={content} language={detectLanguage(filePath)} className="tool-cmd" />
+      {isMarkdownPath(filePath) ? (
+        <WriteMarkdownBody filePath={filePath} content={content} />
+      ) : (
+        <HighlightedCode code={content} language={detectLanguage(filePath)} className="tool-cmd" />
+      )}
       {result?.isError && <pre className="tool-out-text">{resultText(result)}</pre>}
     </>
   ) : result?.isError ? (
     <pre className="tool-out-text">{resultText(result)}</pre>
   ) : null
+  const [modalOpen, setModalOpen] = useState(false)
+  const canOpen = content.length > 0
   return (
-    <ToolRow
-      toolClass="write"
-      name="Write"
-      args={args}
-      argsTitle={filePath}
-      summary={summary}
-      isError={result?.isError}
-      body={body}
-    />
+    <>
+      <ToolRow
+        toolClass="write"
+        name="Write"
+        args={args}
+        argsTitle={filePath}
+        summary={summary}
+        isError={result?.isError}
+        body={body}
+        onOpen={canOpen ? () => setModalOpen(true) : undefined}
+      />
+      {modalOpen && (
+        <CodeModal
+          code={content}
+          language={safeLanguage(detectLanguage(filePath))}
+          title={filePath}
+          isMarkdown={isMarkdownPath(filePath)}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+    </>
   )
 }
 
