@@ -1,15 +1,19 @@
-import {
-  promises as fs,
-  createReadStream,
-  mkdir as fsMkdir,
-  watch as fsWatch,
-  type FSWatcher
-} from 'fs'
+import { promises as fs, createReadStream } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { registerInvoke } from './ipc'
-import { broadcast } from './dispatch'
+import { startWatch, stopWatch } from './claudeWatch'
 import { createInterface } from 'readline'
+
+// jsonl 한 라인을 파싱. blank/parse-fail 은 null. 호출자는 빈 라인을 skip.
+function tryParseJsonLine(line: string): unknown | null {
+  if (!line.trim()) return null
+  try {
+    return JSON.parse(line)
+  } catch {
+    return null
+  }
+}
 
 export interface ClaudeSessionMeta {
   id: string
@@ -152,19 +156,14 @@ async function deleteSession(cwd: string, sessionId: string): Promise<void> {
 }
 
 async function readSession(cwd: string, sessionId: string): Promise<unknown[]> {
-  const dir = projectDir(cwd)
-  const file = join(dir, `${sessionId}.jsonl`)
+  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
   const events: unknown[] = []
   try {
     const stream = createReadStream(file, { encoding: 'utf-8' })
     const rl = createInterface({ input: stream, crlfDelay: Infinity })
     for await (const line of rl) {
-      if (!line.trim()) continue
-      try {
-        events.push(JSON.parse(line))
-      } catch {
-        /* skip invalid line */
-      }
+      const v = tryParseJsonLine(line)
+      if (v !== null) events.push(v)
     }
     rl.close()
     stream.destroy()
@@ -205,11 +204,8 @@ async function readSessionRange(
       if (!line.trim()) continue
       if (total >= endLine) break
       if (total >= startLine) {
-        try {
-          events.push(JSON.parse(line))
-        } catch {
-          /* skip */
-        }
+        const v = tryParseJsonLine(line)
+        if (v !== null) events.push(v)
       }
       total++
     }
@@ -253,11 +249,8 @@ async function readSessionTail(
   const start = Math.max(0, writeIdx - tailLines)
   const events: unknown[] = []
   for (let i = start; i < writeIdx; i++) {
-    try {
-      events.push(JSON.parse(ring[i % tailLines]))
-    } catch {
-      /* skip */
-    }
+    const v = tryParseJsonLine(ring[i % tailLines])
+    if (v !== null) events.push(v)
   }
   return {
     events,
@@ -299,80 +292,12 @@ async function readSessionFromOffset(
   const events: unknown[] = []
   if (completePart) {
     for (const line of completePart.split('\n')) {
-      if (!line.trim()) continue
-      try {
-        events.push(JSON.parse(line))
-      } catch {
-        /* skip */
-      }
+      const v = tryParseJsonLine(line)
+      if (v !== null) events.push(v)
     }
   }
   const consumedBytes = Buffer.byteLength(completePart, 'utf-8')
   return { events, newOffset: fromOffset + consumedBytes, truncated: false }
-}
-
-interface WatchEntry {
-  watcher: FSWatcher
-  debounceTimer: NodeJS.Timeout | null
-}
-
-// sessionId 하나당 watcher 하나 (idempotent). 모든 BrowserWindow + web SSE 가 같은
-// 채널을 구독하므로 sender 별로 중복 watcher 를 만들 필요가 없다.
-const watches = new Map<string, WatchEntry>()
-
-function stopWatch(sessionId: string): void {
-  const entry = watches.get(sessionId)
-  if (!entry) return
-  if (entry.debounceTimer) clearTimeout(entry.debounceTimer)
-  try {
-    entry.watcher.close()
-  } catch {
-    /* ignore */
-  }
-  watches.delete(sessionId)
-}
-
-function startWatch(cwd: string, sessionId: string): void {
-  if (watches.has(sessionId)) return
-  // jsonl 이 아직 없는 상태에서도 watch 가 가능해야 한다. 파일을 직접 watch 하면
-  // ENOENT 로 실패하므로 디렉토리를 watch 하고 filename 으로 필터링한다 — fs.watch
-  // 가 파일 replace (truncate/recreate) 시 끊어지는 문제도 디렉토리 watch 가
-  // 더 견디므로 양쪽에 robust.
-  const dir = projectDir(cwd)
-  const targetFileName = `${sessionId}.jsonl`
-  try {
-    fsMkdir(dir, { recursive: true }, () => {
-      /* ignore — projectDir 가 이미 있으면 OK, 만들기 실패해도 watch 시도 자체는 진행 */
-    })
-  } catch {
-    /* ignore */
-  }
-  let watcher: FSWatcher
-  try {
-    watcher = fsWatch(dir, { persistent: false })
-  } catch (err) {
-    console.error('watch start failed:', err)
-    return
-  }
-  const entry: WatchEntry = { watcher, debounceTimer: null }
-  watches.set(sessionId, entry)
-
-  const channel = `claude:session-changed:${sessionId}`
-  watcher.on('change', (_event, filename) => {
-    // 디렉토리에 다른 세션 jsonl 변경도 fire 되므로 우리가 보는 파일만 필터.
-    // Windows/Linux/macOS 모두 non-recursive watch 에선 filename 이 들어오는 게
-    // 일반적이지만, null 이면 (안 들어오면) 보수적으로 fire.
-    if (filename && filename !== targetFileName) return
-    if (entry.debounceTimer) clearTimeout(entry.debounceTimer)
-    entry.debounceTimer = setTimeout(() => {
-      entry.debounceTimer = null
-      broadcast(channel)
-    }, 150)
-  })
-  watcher.on('error', (err) => {
-    console.error('watch error:', err)
-    stopWatch(sessionId)
-  })
 }
 
 export function registerClaudeHandlers(): void {
@@ -406,6 +331,3 @@ export function registerClaudeHandlers(): void {
   })
 }
 
-export function killAllClaudeWatches(): void {
-  for (const key of Array.from(watches.keys())) stopWatch(key)
-}
