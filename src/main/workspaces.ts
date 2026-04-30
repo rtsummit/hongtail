@@ -16,7 +16,7 @@ function workspacesFile(): string {
 // 으로 들어와 중복 entry 가 되는 걸 막기 위해 forward slash 표기로 통일.
 // encodeCwd 입장에선 둘 다 '-' 로 매핑돼 같은 jsonl 디렉토리를 가리키므로
 // 정규화 결과만 안 어긋나면 OK.
-function normalizePath(p: string): string {
+export function normalizePath(p: string): string {
   let s = p.trim()
   if (!s) return s
   s = s.replace(/\\/g, '/')
@@ -25,7 +25,7 @@ function normalizePath(p: string): string {
   return s
 }
 
-function dedupe(entries: WorkspaceEntry[]): WorkspaceEntry[] {
+export function dedupeWorkspaces(entries: WorkspaceEntry[]): WorkspaceEntry[] {
   const map = new Map<string, WorkspaceEntry>()
   for (const e of entries) {
     const existing = map.get(e.path)
@@ -39,7 +39,7 @@ function dedupe(entries: WorkspaceEntry[]): WorkspaceEntry[] {
   return Array.from(map.values())
 }
 
-function normalizeEntry(raw: unknown): WorkspaceEntry | null {
+export function normalizeWorkspaceEntry(raw: unknown): WorkspaceEntry | null {
   if (typeof raw === 'string') {
     const p = normalizePath(raw)
     return p ? { path: p } : null
@@ -61,10 +61,10 @@ async function loadWorkspaces(): Promise<WorkspaceEntry[]> {
   if (!Array.isArray(parsed)) return []
   const out: WorkspaceEntry[] = []
   for (const item of parsed) {
-    const normalized = normalizeEntry(item)
+    const normalized = normalizeWorkspaceEntry(item)
     if (normalized) out.push(normalized)
   }
-  return dedupe(out)
+  return dedupeWorkspaces(out)
 }
 
 async function saveWorkspaces(entries: WorkspaceEntry[]): Promise<void> {
@@ -82,10 +82,10 @@ export function registerWorkspaceHandlers(): void {
     if (!Array.isArray(entries)) return
     const normalized: WorkspaceEntry[] = []
     for (const item of entries) {
-      const e = normalizeEntry(item)
+      const e = normalizeWorkspaceEntry(item)
       if (e) normalized.push(e)
     }
-    await saveWorkspaces(dedupe(normalized))
+    await saveWorkspaces(dedupeWorkspaces(normalized))
   })
 
   // pick-directory 는 OS 다이얼로그라 web 에서는 의미 무. ipcMain 에만.
