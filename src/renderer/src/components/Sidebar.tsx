@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import WorkspaceCard from './WorkspaceCard'
+import logoUrl from '../assets/logo.svg'
 import type {
   Backend,
   Block,
@@ -119,6 +120,10 @@ function Sidebar({
 
   return (
     <aside className={`sidebar${iconOnly ? ' icon-only' : ''}`}>
+      <div className="sidebar-brand" title="hongtail">
+        <img src={logoUrl} alt="hongtail" className="sidebar-brand-logo" />
+        <span className="sidebar-brand-name">hongtail</span>
+      </div>
       <div className="sidebar-toolbar">
         <button
           type="button"

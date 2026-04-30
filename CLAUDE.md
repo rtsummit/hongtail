@@ -65,6 +65,7 @@ src/renderer/src/
 | 세션 별칭 sync 규칙 | `docs/session-aliases.md` |
 | Plan mode·AskUserQuestion 의 호스트 confirm UI (핵심 — `--permission-prompt-tool stdio`) | `docs/host-confirm-ui-plan.md` |
 | 위 문제의 원래 진단·임시 회피 (history) | `docs/plan-mode-askuserquestion.md` |
+| 로고 자산 (master SVG, ICO/PNG 변환, 적용 위치) | `docs/logo.md` |
 
 ## 자주 쓰는 명령
 

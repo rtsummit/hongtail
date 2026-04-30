@@ -23,6 +23,7 @@
     "build:win:all": "powershell -ExecutionPolicy Bypass -File scripts/build-win.ps1 -Target both",
     "build:win:clean": "powershell -ExecutionPolicy Bypass -File scripts/build-win.ps1 -Target both -Clean",
     "release": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1",
+    "build:icons": "node scripts/build-icons.mjs",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux"
   },
@@ -57,9 +58,11 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "png-to-ico": "^3.0.1",
     "prettier": "^3.7.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "sharp": "^0.34.5",
     "typescript": "^5.9.3",
     "vite": "^7.2.6"
   }
