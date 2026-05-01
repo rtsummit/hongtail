@@ -69,8 +69,11 @@ $oldVer = "$($old.major).$($old.minor).$($old.patch)"
 $newVer = "$($new.major).$($new.minor).$($new.patch)"
 Write-Host "  $oldVer → $newVer"
 $pkgRaw = $pkgRaw -replace '"version"\s*:\s*"\d+\.\d+\.\d+"', "`"version`": `"$newVer`""
-# package.json 끝에 trailing newline 보존
-Set-Content -Path $pkgPath -Value $pkgRaw -NoNewline -Encoding utf8
+# package.json 끝에 trailing newline 보존. PS 5.1 의 -Encoding utf8 은 BOM 을
+# 넣어서 vite/node 의 JSON parser 가 깨진다 (PostCSS config 도 같이). .NET API
+# 로 BOM 없는 UTF-8 으로 직접 쓴다.
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($pkgPath, $pkgRaw, $utf8NoBom)
 
 # 3. commit
 Step "commit"
