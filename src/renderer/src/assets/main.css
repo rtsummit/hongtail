@@ -861,11 +861,12 @@
   opacity: 1;
 }
 
-/* 터치 디바이스 (hover 불가) — hover 로만 노출되던 액션 버튼들이 모바일·태블릿
-   에서 영영 안 보이는 문제. hover 가 없으면 항상 보이게. width 분기와 별개라
-   태블릿 landscape (>768px) 도 같이 다룸. */
+/* 터치 디바이스 (hover 불가) — bubble-actions 는 모바일에서 자동으로 떠있던
+   게 본문을 가리거나 다른 요소에 가려져 거추장스러웠다. 기본 가림으로 두고
+   설정에서 .app.show-mobile-bubble-actions 가 켜진 경우에만 보이게. 세션
+   액션은 hover-only 면 영영 못 누르므로 그대로 항상 노출. */
 @media (hover: none) {
-  .bubble-actions {
+  .app.show-mobile-bubble-actions .bubble-actions {
     opacity: 1;
   }
 
@@ -3317,20 +3318,9 @@ details.tool-block:hover > summary > .tool-row-open,
     height: 32px;
   }
 
-  /* bubble-actions — 데스크톱은 hover 로 bubble 외부 위쪽 (-26) 에 잠깐
-     노출되지만, 모바일은 항상 보이는 데다 위쪽 외부 (-36) 에 두면 이전 메시지
-     / 햄버거 영역에 가려진다. bubble 우측 외부에 세로 일자로 나열하고
-     bubble 의 max-width 를 actions 폭만큼 줄여서 공간 확보. */
   .bubble-actions {
-    top: 4px;
-    left: auto;
-    right: -38px;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .bubble.assistant {
-    max-width: calc(95% - 44px);
+    /* action 박스가 32 로 커지면서 -26 으로는 위로 안 올라감. 살짝 더 위로. */
+    top: -36px;
   }
 
   /* 팝업 / 메뉴 — slash command, usage mode, confirm card 액션 등 데스크톱

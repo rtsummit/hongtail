@@ -4,6 +4,9 @@ export interface AppSettings {
   readonlyChunkSize: number
   // Tool 이름 (Bash, Read, ...) 의 배열. 비면 모두 접힘.
   toolCardsDefaultOpen: string[]
+  // 모바일 (hover 없는 터치 디바이스) 에서 bubble-actions (복사/접기/모달) 노출.
+  // default false — 기본은 가린다. 데스크톱 hover 동작엔 영향 없음.
+  showMobileBubbleActions: boolean
 }
 
 // SettingsModal 의 도구 카드 토글에 노출되는 이름들.
@@ -13,7 +16,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fonts: [],
   fontSize: 13,
   readonlyChunkSize: 100,
-  toolCardsDefaultOpen: []
+  toolCardsDefaultOpen: [],
+  showMobileBubbleActions: false
 }
 
 const KEY = 'hongtail.settings'
@@ -69,7 +73,11 @@ export function loadSettings(): AppSettings {
           : DEFAULT_SETTINGS.readonlyChunkSize,
       toolCardsDefaultOpen: migrateToolCardsDefaultOpen(
         (parsed as Record<string, unknown>).toolCardsDefaultOpen
-      )
+      ),
+      showMobileBubbleActions:
+        typeof parsed.showMobileBubbleActions === 'boolean'
+          ? parsed.showMobileBubbleActions
+          : DEFAULT_SETTINGS.showMobileBubbleActions
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
