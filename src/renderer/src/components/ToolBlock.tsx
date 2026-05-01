@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { diffLines } from 'diff'
 import { Highlight, themes } from 'prism-react-renderer'
 import type { Language } from 'prism-react-renderer'
@@ -209,6 +210,7 @@ function useFileOpener(): {
 }
 
 function OpenButton({ onOpen }: { onOpen: () => void }): React.JSX.Element {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
@@ -218,8 +220,8 @@ function OpenButton({ onOpen }: { onOpen: () => void }): React.JSX.Element {
         e.stopPropagation()
         onOpen()
       }}
-      title="별도 창으로 열기"
-      aria-label="별도 창으로 열기"
+      title={t('tool.openInWindow')}
+      aria-label={t('tool.openInWindow')}
     >
       <ExternalLinkIcon />
     </button>
@@ -238,6 +240,7 @@ function ToolRow({
   onOpen,
   onArgsCtrlClick
 }: RowProps): React.JSX.Element {
+  const { t } = useTranslation()
   const ctxDefaultOpen = useContext(ToolDefaultOpenContext)
   const open = defaultOpen ?? ctxDefaultOpen.has(name)
   const hasBody = body != null
@@ -245,7 +248,7 @@ function ToolRow({
   // args span 의 Ctrl/Cmd+click 핸들러. 일반 클릭은 details toggle 그대로
   // 가도록 modifier 검사 후에만 preventDefault + stopPropagation.
   const argsTitleText = onArgsCtrlClick
-    ? `${argsTitle ?? args ?? ''}\n(Ctrl/⌘+클릭: 파일 열기)`
+    ? `${argsTitle ?? args ?? ''}${t('tool.argsHint.openFile')}`
     : argsTitle ?? args
   const argsClickHandler = onArgsCtrlClick
     ? (e: React.MouseEvent): void => {
@@ -299,16 +302,17 @@ function ToolRow({
 }
 
 function BashCard({ input, result }: { input: BashInput; result?: ToolResultBlock }): React.JSX.Element {
+  const { t } = useTranslation()
   const text = resultText(result)
   const lines = text ? countLines(text) : 0
   const cmd = input.command ?? ''
   const args = oneLine(cmd, 100) || (input.description ?? '')
   const summary = result?.isError
-    ? '오류'
+    ? t('tool.error')
     : result
       ? lines === 0
-        ? '출력 없음'
-        : `출력 ${lines} 줄`
+        ? t('tool.bash.noOutput')
+        : t('tool.bash.linesOutput', { n: lines })
       : undefined
   const body = (
     <>
@@ -346,6 +350,7 @@ function parseCatN(text: string): NumberedLine[] {
 }
 
 function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBlock }): React.JSX.Element {
+  const { t } = useTranslation()
   const text = resultText(result)
   const lineCount = text ? countLines(text) : 0
   const filePath = input.file_path ?? ''
@@ -356,9 +361,9 @@ function ReadCard({ input, result }: { input: ReadInput; result?: ToolResultBloc
       : ''
   const args = `${shortenPath(filePath)}${range}`
   const summary = result?.isError
-    ? '오류'
+    ? t('tool.error')
     : result?.isError === false || result
-      ? `${lineCount} 줄 읽음`
+      ? t('tool.read.linesRead', { n: lineCount })
       : undefined
   const isError = result?.isError
   const body =
@@ -637,6 +642,7 @@ function DiffBody({
   onExpand?: () => void
   inModal?: boolean
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<DiffMode>(() => loadDiffMode())
   // 모바일 인라인 (inModal=false) 에선 side-by-side 가 좁은 폭에서 의미 없으므로
   // unified 강제. 모달 안에선 가로 스크롤로 양쪽을 볼 수 있어 양 모드 허용.
@@ -679,7 +685,7 @@ function DiffBody({
           <button
             type="button"
             className="diff-expand-btn"
-            title="모달로 보기"
+            title={t('tool.modal.expand')}
             onClick={onExpand}
           >
             ⤢
@@ -720,6 +726,7 @@ function DiffModal({
   title: string
   onClose: () => void
 }): React.JSX.Element {
+  const { t } = useTranslation()
   // ESC 로 닫기. capture + stopPropagation 으로 글로벌 ESC interrupt 보다 먼저 잡음.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -745,7 +752,12 @@ function DiffModal({
           <h2 className="modal-title-path" title={title}>
             {title}
           </h2>
-          <button type="button" className="modal-close" onClick={onClose} title="닫기">
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            title={t('tool.modal.close')}
+          >
             ×
           </button>
         </header>
@@ -775,6 +787,7 @@ function CodeModal({
   isMarkdown: boolean
   onClose: () => void
 }): React.JSX.Element {
+  const { t } = useTranslation()
   // .md 파일은 카드와 동일한 preview/raw 토글 — 사용자 마지막 선택 (localStorage) 유지.
   const [mode, setMode] = useState<MdView>(() => loadMdView())
   const updateMode = (m: MdView): void => {
@@ -801,14 +814,19 @@ function CodeModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal modal-wide" role="dialog" aria-label="코드 보기">
+      <div className="modal modal-wide" role="dialog" aria-label={t('tool.modal.codeView')}>
         <header className="modal-header">
           <h2 className="modal-title-path" title={title}>
             {title}
           </h2>
           <div className="modal-header-actions">
             {isMarkdown && <MdViewToggle mode={mode} onChange={updateMode} />}
-            <button type="button" className="modal-close" onClick={onClose} title="닫기">
+            <button
+              type="button"
+              className="modal-close"
+              onClick={onClose}
+              title={t('tool.modal.close')}
+            >
               ×
             </button>
           </div>
@@ -889,6 +907,7 @@ function SideBySideDiff({
 }
 
 function EditCard({ input, result }: { input: EditInput; result?: ToolResultBlock }): React.JSX.Element {
+  const { t } = useTranslation()
   const filePath = input.file_path ?? ''
   const args = `${shortenPath(filePath)}${input.replace_all ? ' (all)' : ''}`
   const oldText = input.old_string ?? ''
@@ -897,7 +916,7 @@ function EditCard({ input, result }: { input: EditInput; result?: ToolResultBloc
   const unified = buildUnifiedDiff(oldText, newText)
   const added = unified.filter((d) => d.marker === '+').length
   const removed = unified.filter((d) => d.marker === '-').length
-  const summary = result?.isError ? '오류' : `-${removed} +${added}`
+  const summary = result?.isError ? t('tool.error') : `-${removed} +${added}`
   const [modalOpen, setModalOpen] = useState(false)
   const opener = useFileOpener()
   const body = (
@@ -974,11 +993,12 @@ function WriteMarkdownBody({
 }
 
 function WriteCard({ input, result }: { input: WriteInput; result?: ToolResultBlock }): React.JSX.Element {
+  const { t } = useTranslation()
   const content = input.content ?? ''
   const lines = countLines(content)
   const filePath = input.file_path ?? ''
   const args = shortenPath(filePath)
-  const summary = result?.isError ? '오류' : `${lines} 줄 작성`
+  const summary = result?.isError ? t('tool.error') : t('tool.write.linesWritten', { n: lines })
   const body = content ? (
     <>
       {isMarkdownPath(filePath) ? (
@@ -1064,10 +1084,15 @@ function HighlightedCode({
 }
 
 function GrepCard({ input, result }: { input: GrepInput; result?: ToolResultBlock }): React.JSX.Element {
+  const { t } = useTranslation()
   const text = resultText(result)
   const lines = text ? countLines(text) : 0
   const args = `${input.pattern ?? ''}${input.glob ? ` · ${input.glob}` : ''}${input.path ? ` · ${shortenPath(input.path)}` : ''}`
-  const summary = result?.isError ? '오류' : text ? `${lines} 결과` : '결과 없음'
+  const summary = result?.isError
+    ? t('tool.error')
+    : text
+      ? t('tool.search.results', { n: lines })
+      : t('tool.search.noResults')
   const body = text ? (
     <pre className="tool-out-text">
       <GrepHighlightedText text={text} pattern={input.pattern} caseInsensitive={input['-i']} />
@@ -1126,10 +1151,15 @@ function GrepHighlightedText({
 }
 
 function GlobCard({ input, result }: { input: GlobInput; result?: ToolResultBlock }): React.JSX.Element {
+  const { t } = useTranslation()
   const text = resultText(result)
   const fileLines = text ? text.split('\n').filter((l) => l.trim()).length : 0
   const args = `${input.pattern ?? ''}${input.path ? ` · ${shortenPath(input.path)}` : ''}`
-  const summary = result?.isError ? '오류' : text ? `${fileLines} 파일` : '결과 없음'
+  const summary = result?.isError
+    ? t('tool.error')
+    : text
+      ? t('tool.glob.files', { n: fileLines })
+      : t('tool.search.noResults')
   const body = text ? <pre className="tool-out-text">{text}</pre> : null
   return (
     <ToolRow
@@ -1179,6 +1209,7 @@ function TodoWriteCard({ input }: { input: TodoWriteInput; result?: ToolResultBl
 }
 
 function FallbackCard({ use, result }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const text = resultText(result)
   let argPreview = ''
   if (use.input && typeof use.input === 'object') {
@@ -1189,7 +1220,11 @@ function FallbackCard({ use, result }: Props): React.JSX.Element {
       argPreview = `${k}=${oneLine(vs, 60)}`
     }
   }
-  const summary = result?.isError ? '오류' : result ? '결과 있음' : undefined
+  const summary = result?.isError
+    ? t('tool.error')
+    : result
+      ? t('tool.todo.hasResult')
+      : undefined
   const inputJson = (() => {
     try {
       return JSON.stringify(use.input, null, 2)

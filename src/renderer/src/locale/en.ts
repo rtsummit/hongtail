@@ -55,6 +55,38 @@ export const en: Record<string, string> = {
   'sidebar.filter.days': '{n}d',
   'sidebar.toggle.aria': 'Open/close sidebar',
 
+  // === System / event messages ===
+  'system.interrupted': '— interrupted —',
+  'system.result': 'Result: {subtype}',
+  'system.stderr': '[stderr] {data}',
+  'system.spawnFailed': 'Failed to start process: {error}',
+  'system.processExit': '[process exited code={code}]',
+  'system.code.unknown': '?',
+
+  // === Tool cards ===
+  'tool.error': 'Error',
+  'tool.openInWindow': 'Open in window',
+  'tool.modal.expand': 'Expand to modal',
+  'tool.modal.close': 'Close',
+  'tool.modal.codeView': 'Code view',
+  'tool.modal.response': 'Response',
+  'tool.bash.noOutput': 'No output',
+  'tool.bash.linesOutput': '{n} line output',
+  'tool.read.linesRead': 'Read {n} lines',
+  'tool.write.linesWritten': 'Wrote {n} lines',
+  'tool.search.results': '{n} results',
+  'tool.search.noResults': 'No results',
+  'tool.glob.files': '{n} files',
+  'tool.todo.hasResult': 'Has result',
+  'tool.argsHint.openFile': '\n(Ctrl/⌘-click: open file)',
+
+  // === Bubble (assistant message) actions ===
+  'bubble.copy': 'Copy',
+  'bubble.copied': 'Copied',
+  'bubble.collapse': 'Collapse',
+  'bubble.expand': 'Expand',
+  'bubble.collapsed': '··· (collapsed — click to expand)',
+
   // === Side chat ===
   'sideChat.toggle.aria': 'Open/close BTW side chat',
   'sideChat.subtitle': 'Side question without interrupting main work',

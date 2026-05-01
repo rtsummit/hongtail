@@ -37,7 +37,12 @@ void i18n.use(initReactI18next).init({
   },
   lng: detectBrowserLang(), // 초기는 자동 감지. AppSettings 로드 후 LanguageSync 가 덮어씀.
   fallbackLng: 'ko',
-  interpolation: { escapeValue: false },
+  interpolation: {
+    escapeValue: false,
+    // 기본 i18next 는 {{key}} 인데 우리 dict 는 단일 {key} 사용. 가독성 + grep 편함.
+    prefix: '{',
+    suffix: '}'
+  },
   keySeparator: false,
   nsSeparator: false,
   returnEmptyString: false

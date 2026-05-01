@@ -56,6 +56,38 @@ export const ko: Record<string, string> = {
   'sidebar.filter.days': '{n}일',
   'sidebar.toggle.aria': '사이드바 열기/닫기',
 
+  // === System / event messages ===
+  'system.interrupted': '— 중단됨 —',
+  'system.result': '결과: {subtype}',
+  'system.stderr': '[stderr] {data}',
+  'system.spawnFailed': '프로세스 시작 실패: {error}',
+  'system.processExit': '[프로세스 종료 code={code}]',
+  'system.code.unknown': '?',
+
+  // === Tool cards ===
+  'tool.error': '오류',
+  'tool.openInWindow': '별도 창으로 열기',
+  'tool.modal.expand': '모달로 보기',
+  'tool.modal.close': '닫기',
+  'tool.modal.codeView': '코드 보기',
+  'tool.modal.response': '응답',
+  'tool.bash.noOutput': '출력 없음',
+  'tool.bash.linesOutput': '출력 {n} 줄',
+  'tool.read.linesRead': '{n} 줄 읽음',
+  'tool.write.linesWritten': '{n} 줄 작성',
+  'tool.search.results': '{n} 결과',
+  'tool.search.noResults': '결과 없음',
+  'tool.glob.files': '{n} 파일',
+  'tool.todo.hasResult': '결과 있음',
+  'tool.argsHint.openFile': '\n(Ctrl/⌘+클릭: 파일 열기)',
+
+  // === Bubble (assistant message) actions ===
+  'bubble.copy': '복사',
+  'bubble.copied': '복사됨',
+  'bubble.collapse': '접기',
+  'bubble.expand': '펼치기',
+  'bubble.collapsed': '··· (접힘 — 클릭해서 펼치기)',
+
   // === Side chat ===
   'sideChat.toggle.aria': 'BTW 사이드 챗 열기/닫기',
   'sideChat.subtitle': '메인 작업을 멈추지 않는 사이드 질문',

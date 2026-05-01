@@ -1,3 +1,4 @@
+import { i18n } from './locale'
 import type { Block } from './types'
 
 interface ContentBlock {
@@ -45,17 +46,36 @@ export function parseClaudeEvent(raw: unknown): Block[] {
       return []
     case 'result':
       if (event.subtype && event.subtype !== 'success') {
-        return [{ kind: 'system', text: `Result: ${event.subtype}` }]
+        return [
+          {
+            kind: 'system',
+            text: i18n.t('system.result', { subtype: String(event.subtype) })
+          }
+        ]
       }
       return []
     case 'stderr':
-      return [{ kind: 'system', text: `[stderr] ${event.data ?? ''}` }]
+      return [
+        { kind: 'system', text: i18n.t('system.stderr', { data: String(event.data ?? '') }) }
+      ]
     case 'parse_error':
       return [{ kind: 'system', text: `[parse_error] ${event.raw?.slice(0, 200) ?? ''}` }]
     case 'spawn_error':
-      return [{ kind: 'error', text: `프로세스 시작 실패: ${event.error}` }]
+      return [
+        {
+          kind: 'error',
+          text: i18n.t('system.spawnFailed', { error: String(event.error ?? '') })
+        }
+      ]
     case 'closed':
-      return [{ kind: 'system', text: `[프로세스 종료 code=${event.code ?? '?'}]` }]
+      return [
+        {
+          kind: 'system',
+          text: i18n.t('system.processExit', {
+            code: event.code != null ? String(event.code) : i18n.t('system.code.unknown')
+          })
+        }
+      ]
     default:
       return []
   }
@@ -96,7 +116,7 @@ function processUserText(text: string): Block[] {
   }
 
   if (trimmed === '[Request interrupted by user]') {
-    return [{ kind: 'system', text: '— 중단됨 —' }]
+    return [{ kind: 'system', text: i18n.t('system.interrupted') }]
   }
 
   return [{ kind: 'user-text', text }]
