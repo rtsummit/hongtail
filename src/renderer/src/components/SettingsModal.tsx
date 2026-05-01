@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AppSettings } from '../settings'
 import { DEFAULT_SETTINGS, KNOWN_TOOL_NAMES } from '../settings'
 import type { WebSettings } from '../../../preload/index.d'
@@ -169,6 +170,7 @@ function ToolCardsDefaultOpenEditor({
 }
 
 function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.Element | null {
+  const { t } = useTranslation()
   const [available, setAvailable] = useState<string[]>([])
   const [loadingFonts, setLoadingFonts] = useState(false)
   const [web, setWeb] = useState<WebSettings | null>(null)
@@ -301,26 +303,49 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal" role="dialog" aria-label="설정">
+      <div className="modal" role="dialog" aria-label={t('settings.title')}>
         <header className="modal-header">
-          <h2>설정</h2>
-          <button type="button" className="modal-close" onClick={onClose} title="닫기">
+          <h2>{t('settings.title')}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            title={t('settings.close')}
+          >
             ×
           </button>
         </header>
         <div className="modal-body">
+          <label className="settings-row">
+            <span className="settings-label">{t('settings.language')}</span>
+            <select
+              value={settings.language}
+              onChange={(e) =>
+                onChange({
+                  ...settings,
+                  language: e.target.value as AppSettings['language']
+                })
+              }
+            >
+              <option value="auto">{t('settings.language.auto')}</option>
+              <option value="ko">{t('settings.language.ko')}</option>
+              <option value="en">{t('settings.language.en')}</option>
+            </select>
+          </label>
+          <hr className="settings-divider" />
           {loadingFonts && (
-            <p className="settings-hint">시스템 폰트 목록 가져오는 중…</p>
+            <p className="settings-hint">{t('settings.loadingFonts')}</p>
           )}
           <FontStackEditor
-            label="폰트"
+            label={t('settings.font')}
             fonts={settings.fonts}
             available={available}
             onUpdate={(next) => onChange({ ...settings, fonts: next })}
           />
           <label className="settings-row">
             <span className="settings-label">
-              글자 크기 <span className="settings-value">{settings.fontSize}px</span>
+              {t('settings.fontSize')}{' '}
+              <span className="settings-value">{settings.fontSize}px</span>
             </span>
             <input
               type="number"
@@ -338,13 +363,11 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               }}
             />
           </label>
-          <p className="settings-hint">
-            폰트는 추가한 순서대로 fallback 됩니다 (왼쪽이 우선). ‹ › 로 우선순위 변경.
-          </p>
+          <p className="settings-hint">{t('settings.fontHint')}</p>
           <hr className="settings-divider" />
           <label className="settings-row">
             <span className="settings-label">
-              읽기 전용 한 번에 불러올 줄 수
+              {t('settings.readonlyChunkSize')}
               <span className="settings-value">{settings.readonlyChunkSize}</span>
             </span>
             <input

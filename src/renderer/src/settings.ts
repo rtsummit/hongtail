@@ -1,9 +1,13 @@
+export type LangSetting = 'auto' | 'ko' | 'en'
+
 export interface AppSettings {
   fonts: string[]
   fontSize: number
   readonlyChunkSize: number
   // Tool 이름 (Bash, Read, ...) 의 배열. 비면 모두 접힘.
   toolCardsDefaultOpen: string[]
+  // 'auto' 면 navigator.language 로 ko/en 결정. 명시 ko/en 이면 그대로.
+  language: LangSetting
 }
 
 // SettingsModal 의 도구 카드 토글에 노출되는 이름들.
@@ -13,7 +17,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fonts: [],
   fontSize: 13,
   readonlyChunkSize: 100,
-  toolCardsDefaultOpen: []
+  toolCardsDefaultOpen: [],
+  language: 'auto'
 }
 
 const KEY = 'hongtail.settings'
@@ -69,7 +74,11 @@ export function loadSettings(): AppSettings {
           : DEFAULT_SETTINGS.readonlyChunkSize,
       toolCardsDefaultOpen: migrateToolCardsDefaultOpen(
         (parsed as Record<string, unknown>).toolCardsDefaultOpen
-      )
+      ),
+      language:
+        parsed.language === 'ko' || parsed.language === 'en' || parsed.language === 'auto'
+          ? parsed.language
+          : DEFAULT_SETTINGS.language
     }
   } catch {
     return { ...DEFAULT_SETTINGS }

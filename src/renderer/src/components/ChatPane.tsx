@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import MessageList from './MessageList'
 import ThinkingIndicator from './ThinkingIndicator'
 import TodoPanel from './TodoPanel'
@@ -116,6 +117,7 @@ function ChatPane({
   onExitPlanModeApprove,
   onExitPlanModeDeny
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const sessionId = selected?.sessionId
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -704,8 +706,8 @@ function ChatPane({
                   className="attach-btn"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={handleAttachClick}
-                  title="파일 첨부 (이미지 / 일반 파일)"
-                  aria-label="파일 첨부"
+                  title={t('chat.attach.title')}
+                  aria-label={t('chat.attach.aria')}
                 >
                   📎
                 </button>
@@ -742,9 +744,7 @@ function ChatPane({
                 onBlur={() => setSlashCtx(null)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  isMobile
-                    ? '메시지 입력 (전송 버튼으로 보내기)'
-                    : '메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, 📎: 파일)'
+                  isMobile ? t('chat.placeholder.mobile') : t('chat.placeholder.desktop')
                 }
                 rows={3}
               />
@@ -754,7 +754,7 @@ function ChatPane({
                   className="send-btn interrupt"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => selected && onInterrupt(selected.sessionId)}
-                  title="진행 중 turn 중단 (세션은 유지)"
+                  title={t('chat.interrupt')}
                 >
                   ◼
                 </button>
@@ -766,7 +766,7 @@ function ChatPane({
                   onClick={() => void handleSend()}
                   disabled={(!input.trim() && quotes.length === 0) || sending}
                 >
-                  {sending ? '…' : '전송'}
+                  {sending ? '…' : t('chat.send')}
                 </button>
               )}
             </div>
@@ -774,31 +774,33 @@ function ChatPane({
         </>
       ) : (
         <div className="chat-activate">
-          <div className="chat-activate-label">이전 대화 — 읽기 전용</div>
+          <div className="chat-activate-label">{t('chat.readonly.label')}</div>
           <div className="chat-activate-buttons">
             <button
               type="button"
               className="activate-btn full"
               onClick={() => onActivate('resume-full', 'app')}
             >
-              <span className="activate-label-full">Full로 활성화</span>
-              <span className="activate-label-short">Full</span>
+              <span className="activate-label-full">{t('chat.activate.full')}</span>
+              <span className="activate-label-short">{t('chat.activate.full.short')}</span>
             </button>
             <button
               type="button"
               className="activate-btn summary"
               onClick={() => onActivate('resume-summary', 'app')}
             >
-              <span className="activate-label-full">Summary로 활성화</span>
-              <span className="activate-label-short">Summary</span>
+              <span className="activate-label-full">{t('chat.activate.summary')}</span>
+              <span className="activate-label-short">{t('chat.activate.summary.short')}</span>
             </button>
             <button
               type="button"
               className="activate-btn terminal"
               onClick={() => onActivate('resume-full', 'terminal')}
             >
-              <span className="activate-label-full">터미널로 열기</span>
-              <span className="activate-label-short">Terminal</span>
+              <span className="activate-label-full">{t('chat.activate.terminal')}</span>
+              <span className="activate-label-short">
+                {t('chat.activate.terminal.short')}
+              </span>
             </button>
           </div>
         </div>

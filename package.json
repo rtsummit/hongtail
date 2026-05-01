@@ -39,9 +39,11 @@
     "@xterm/xterm": "^6.0.0",
     "diff": "^9.0.0",
     "electron-log": "^5.4.3",
+    "i18next": "^26.0.8",
     "node-pty": "^1.1.0",
     "prism-react-renderer": "^2.4.1",
     "prismjs": "^1.30.0",
+    "react-i18next": "^17.0.6",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },

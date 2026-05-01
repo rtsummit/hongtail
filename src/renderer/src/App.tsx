@@ -8,6 +8,7 @@ import SettingsModal from './components/SettingsModal'
 import FindBar from './components/FindBar'
 import { buildBtwSystemPrompt } from './btwPrompt'
 import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
+import { i18n, resolveLang } from './locale'
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
 import {
@@ -118,6 +119,11 @@ function App(): React.JSX.Element {
   // 이 state 는 무관.
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
+  // settings.language 변화 시 i18n 동기화. 'auto' 면 browser locale 로 해석.
+  useEffect(() => {
+    const target = resolveLang(settings.language)
+    if (i18n.language !== target) void i18n.changeLanguage(target)
+  }, [settings.language])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
   const [btwMessagesBySession, setBtwMessagesBySession] = useState<Record<string, Block[]>>({})
@@ -1510,7 +1516,7 @@ function App(): React.JSX.Element {
       <button
         type="button"
         className="mobile-sidebar-toggle"
-        aria-label="사이드바 열기/닫기"
+        aria-label={i18n.t('sidebar.toggle.aria')}
         onClick={() => setSidebarOpen((v) => !v)}
       >
         ☰
@@ -1519,7 +1525,7 @@ function App(): React.JSX.Element {
         <button
           type="button"
           className="mobile-sidechat-toggle"
-          aria-label="BTW 사이드 챗 열기/닫기"
+          aria-label={i18n.t('sideChat.toggle.aria')}
           onClick={() => handleToggleSideChat()}
         >
           BTW

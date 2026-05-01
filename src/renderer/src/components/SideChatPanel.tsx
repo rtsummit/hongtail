@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import MessageList from './MessageList'
 import type { Block } from '../types'
 
@@ -23,6 +24,7 @@ function SideChatPanel({
   onCancel,
   onClear
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
@@ -40,7 +42,7 @@ function SideChatPanel({
           type="button"
           className="side-chat-collapsed-toggle"
           onClick={onToggleCollapse}
-          title="BTW 사이드 챗 펼치기"
+          title={t('sideChat.expandTitle')}
         >
           ◀
         </button>
@@ -68,7 +70,7 @@ function SideChatPanel({
       <div className="side-chat-header">
         <div className="side-chat-title">
           <span className="side-chat-badge">BTW</span>
-          <span className="side-chat-subtitle">메인 작업을 멈추지 않는 사이드 질문</span>
+          <span className="side-chat-subtitle">{t('sideChat.subtitle')}</span>
         </div>
         <div className="side-chat-actions">
           <button
@@ -76,15 +78,15 @@ function SideChatPanel({
             className="side-chat-btn"
             onClick={onClear}
             disabled={messages.length === 0 && !thinking}
-            title="대화 비우기"
+            title={t('sideChat.clear')}
           >
-            지우기
+            {t('sideChat.clear')}
           </button>
           <button
             type="button"
             className="side-chat-btn"
             onClick={onToggleCollapse}
-            title="패널 접기"
+            title={t('sideChat.collapseTitle')}
           >
             ▶
           </button>
@@ -93,26 +95,24 @@ function SideChatPanel({
 
       <div className="side-chat-messages" ref={scrollRef}>
         {!enabled && (
-          <div className="side-chat-empty">
-            메인 세션을 선택하면 그 컨텍스트로 BTW 질문을 할 수 있습니다.
-          </div>
+          <div className="side-chat-empty">{t('sideChat.empty.noSession')}</div>
         )}
         {enabled && messages.length === 0 && !thinking && (
-          <div className="side-chat-empty">
-            도구 없이, 메인 대화 컨텍스트만 보고 답하는 사이드 채팅입니다.
-            <br />
-            메인 작업을 방해하지 않고 자유롭게 질문하세요.
+          <div className="side-chat-empty" style={{ whiteSpace: 'pre-line' }}>
+            {t('sideChat.empty.helper')}
           </div>
         )}
         <MessageList blocks={messages} />
-        {thinking && <div className="side-chat-thinking">생각 중…</div>}
+        {thinking && <div className="side-chat-thinking">{t('sideChat.thinking')}</div>}
       </div>
 
       <div className="side-chat-input-wrap">
         <textarea
           ref={taRef}
           className="side-chat-input"
-          placeholder={enabled ? 'BTW 질문 (Enter 전송)' : '메인 세션을 먼저 선택하세요'}
+          placeholder={
+            enabled ? t('sideChat.placeholder.enabled') : t('sideChat.placeholder.disabled')
+          }
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -122,7 +122,7 @@ function SideChatPanel({
         <div className="side-chat-input-actions">
           {thinking ? (
             <button type="button" className="side-chat-send cancel" onClick={onCancel}>
-              중단
+              {t('sideChat.cancel')}
             </button>
           ) : (
             <button
@@ -131,7 +131,7 @@ function SideChatPanel({
               onClick={handleSend}
               disabled={!enabled || !input.trim()}
             >
-              보내기
+              {t('sideChat.send')}
             </button>
           )}
         </div>
