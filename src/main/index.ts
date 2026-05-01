@@ -13,6 +13,7 @@ import { registerFontHandlers } from './fonts'
 import { registerSlashCommandHandlers } from './slashCommands'
 import { registerUsageCacheHandlers } from './usageCache'
 import { registerImageHandlers } from './images'
+import { registerFileHandlers } from './files'
 import { registerSessionAliasHandlers } from './sessionAliases'
 import { startRpcServer, stopRpcServer } from './rpc'
 import { startWebServer, stopWebServer, setPassword, isPasswordSet } from './web'
@@ -100,6 +101,7 @@ app.whenReady().then(() => {
   registerSlashCommandHandlers()
   registerUsageCacheHandlers()
   registerImageHandlers()
+  registerFileHandlers()
   registerSessionAliasHandlers()
 
   createWindow()

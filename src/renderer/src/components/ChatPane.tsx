@@ -204,22 +204,32 @@ function ChatPane({
     })
   }, [])
 
-  const ingestImageFiles = useCallback(
+  // image 는 image-cache 에, 일반 파일은 file-cache 에 저장 후 path 를
+   // textarea 에 삽입. paste / file picker 양쪽이 공유.
+  const ingestFiles = useCallback(
     async (files: File[]): Promise<void> => {
       if (!selected) return
       for (const file of files) {
-        if (!file.type.startsWith('image/')) continue
         try {
           const buf = new Uint8Array(await file.arrayBuffer())
-          const path = await window.api.images.save(
-            selected.sessionId,
-            buf,
-            file.type || 'image/png'
-          )
-          imageCounterRef.current += 1
-          insertAtCaret(`[Image #${imageCounterRef.current}: ${path}]\n`)
+          if (file.type.startsWith('image/')) {
+            const path = await window.api.images.save(
+              selected.sessionId,
+              buf,
+              file.type || 'image/png'
+            )
+            imageCounterRef.current += 1
+            insertAtCaret(`[Image #${imageCounterRef.current}: ${path}]\n`)
+          } else {
+            const path = await window.api.files.save(
+              selected.sessionId,
+              buf,
+              file.name || 'attachment'
+            )
+            insertAtCaret(`[File: ${path}]\n`)
+          }
         } catch (err) {
-          console.error('image ingest failed:', err)
+          console.error('attachment ingest failed:', err)
         }
       }
     },
@@ -230,6 +240,8 @@ function ChatPane({
     async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const items = e.clipboardData?.items
       if (!items || !selected) return
+      // paste 는 이미지만 받는다 — 일반 파일 paste 는 OS·브라우저 따라 동작이
+      // 들쭉날쭉하고 사용자가 textarea 에 텍스트를 붙여넣는 흐름과 충돌하므로.
       const images: File[] = []
       for (const item of Array.from(items)) {
         if (item.kind === 'file' && item.type.startsWith('image/')) {
@@ -239,9 +251,9 @@ function ChatPane({
       }
       if (images.length === 0) return
       e.preventDefault()
-      await ingestImageFiles(images)
+      await ingestFiles(images)
     },
-    [selected, ingestImageFiles]
+    [selected, ingestFiles]
   )
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -253,9 +265,9 @@ function ChatPane({
       const files = Array.from(e.target.files ?? [])
       e.target.value = '' // 같은 파일 재선택 가능하게
       if (files.length === 0) return
-      await ingestImageFiles(files)
+      await ingestFiles(files)
     },
-    [ingestImageFiles]
+    [ingestFiles]
   )
 
   const todoState = useMemo(() => extractTodoState(messages), [messages])
@@ -678,7 +690,6 @@ function ChatPane({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
                 multiple
                 style={{ display: 'none' }}
                 onChange={(e) => void handleFileInputChange(e)}
@@ -688,8 +699,8 @@ function ChatPane({
                 className="attach-btn"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleAttachClick}
-                title="이미지 첨부"
-                aria-label="이미지 첨부"
+                title="파일 첨부 (이미지 / 일반 파일)"
+                aria-label="파일 첨부"
               >
                 📎
               </button>
@@ -712,7 +723,7 @@ function ChatPane({
                 }}
                 onBlur={() => setSlashCtx(null)}
                 onKeyDown={handleKeyDown}
-                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, 📎: 이미지)"
+                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, 📎: 파일)"
                 rows={3}
               />
               {status?.thinking ? (

@@ -111,6 +111,15 @@ export const webApi: ExposedApi = {
     save: (sid, bytes, mimeType) =>
       rpc('images:save', [sid, bytesToBase64(bytes), mimeType])
   },
+  files: {
+    save: (sid, bytes, fileName) =>
+      rpc('files:save', [sid, bytesToBase64(bytes), fileName]),
+    // openExternal 은 web 에선 의미가 없다 (host PC OS 에서 열려도 사용자
+    // 화면엔 안 보임) — reject 해서 호출자가 read 모달 fallback 으로 가도록.
+    openExternal: () =>
+      Promise.reject(new Error('openExternal not supported in web')),
+    read: (path) => rpc('files:read', [path])
+  },
   sessionAliases: {
     list: () => rpc('session-aliases:list', []),
     set: (sid, alias) => rpc('session-aliases:set', [sid, alias]),
