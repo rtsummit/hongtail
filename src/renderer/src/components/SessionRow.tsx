@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import SessionTitleArea from './SessionTitleArea'
 import type { ClaudeSessionMeta } from '../types'
 import type { SessionAlias } from '../../../preload/index.d'
@@ -33,6 +34,7 @@ function SessionRow({
   onDelete,
   onSetAlias
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const display = aliasEntry?.alias ?? meta.title
   return (
     <div className={`session${active ? ' active' : ''}`} onClick={onClick}>
@@ -46,7 +48,7 @@ function SessionRow({
       <button
         type="button"
         className="session-remove"
-        title="대화 삭제"
+        title={t('session.deleteTitle')}
         onClick={(e) => {
           e.stopPropagation()
           onDelete()

@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AskUserQuestionDef } from '../types'
 
 interface Props {
@@ -20,6 +21,7 @@ function AskUserQuestionCard({
   onSubmit,
   onCancel
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   // 각 질문별 선택 상태 — 단일 (string) 또는 다중 (Set<string>)
   const initial = useMemo(() => {
     const map = new Map<string, Set<string>>()
@@ -64,11 +66,13 @@ function AskUserQuestionCard({
     <div className={`confirm-card ask-user-question${disabled ? ' resolved' : ''}`}>
       <div className="confirm-header">
         <span className="confirm-icon">?</span>
-        <span className="confirm-title">사용자 입력 요청</span>
+        <span className="confirm-title">{t('confirm.askUserQuestion.title')}</span>
         {disabled && !wasCancelled ? (
-          <span className="confirm-status approved">응답됨</span>
+          <span className="confirm-status approved">{t('confirm.answered')}</span>
         ) : null}
-        {wasCancelled ? <span className="confirm-status denied">취소됨</span> : null}
+        {wasCancelled ? (
+          <span className="confirm-status denied">{t('confirm.cancelled')}</span>
+        ) : null}
       </div>
       <div className="confirm-body">
         {questions.map((q, qi) => {
@@ -123,10 +127,10 @@ function AskUserQuestionCard({
             disabled={!allAnswered}
             onClick={handleSubmit}
           >
-            제출
+            {t('confirm.submit')}
           </button>
           <button type="button" className="btn" onClick={onCancel}>
-            취소
+            {t('confirm.cancel')}
           </button>
         </div>
       ) : null}

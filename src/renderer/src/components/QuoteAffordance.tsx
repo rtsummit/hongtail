@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   containerRef: React.RefObject<HTMLElement | null>
@@ -11,6 +12,7 @@ interface SelInfo {
 }
 
 function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | null {
+  const { t } = useTranslation()
   const [sel, setSel] = useState<SelInfo | null>(null)
   const [popoverFor, setPopoverFor] = useState<SelInfo | null>(null)
   const [comment, setComment] = useState('')
@@ -140,12 +142,12 @@ function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | nu
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="코멘트 (Ctrl/⌘+Enter 추가, Esc 취소)"
+          placeholder={t('quote.placeholder')}
           rows={3}
         />
         <div className="quote-popover-actions">
           <button type="button" className="quote-btn-cancel" onClick={cancel}>
-            취소
+            {t('confirm.cancel')}
           </button>
           <button
             type="button"
@@ -153,7 +155,7 @@ function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | nu
             onClick={submit}
             disabled={!comment.trim()}
           >
-            추가
+            {t('quote.add')}
           </button>
         </div>
       </div>
@@ -168,7 +170,7 @@ function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | nu
       onMouseDown={(e) => e.preventDefault()}
       onClick={openPopover}
     >
-      💬 인용
+      {t('quote.affordance')}
     </button>
   )
 }

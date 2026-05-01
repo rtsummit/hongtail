@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { i18n as i18nStatic } from '../locale'
 import WorkspaceCard from './WorkspaceCard'
 import logoUrl from '../assets/logo.svg'
 import type {
@@ -38,6 +39,8 @@ interface Props {
   onStopLive: (sessionId: string) => void | Promise<void>
 }
 
+// i18n.t() 직접 호출 — pure 함수라 hook 못 씀. 사용자가 lang 변경 후 새로
+// derive 되는 시점부터 새 lang.
 function deriveLiveTitle(blocks: Block[] | undefined): string {
   if (blocks) {
     for (const b of blocks) {
@@ -47,7 +50,7 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
       }
     }
   }
-  return '새로운 대화'
+  return i18nStatic.t('session.titleNew')
 }
 
 // 사이드바 필터 옵션:
@@ -164,7 +167,7 @@ function Sidebar({
       </div>
 
       {!effectiveIconOnly && (
-        <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
+        <div className="date-filter" role="radiogroup" aria-label={t('sidebar.dateFilterAria')}>
           {([1, 3, 7, 'active', null] as const).map((v) => {
             const label =
               v == null

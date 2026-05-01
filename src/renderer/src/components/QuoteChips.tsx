@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 export interface Quote {
   id: string
   text: string
@@ -15,6 +17,7 @@ function previewText(s: string, n = 40): string {
 }
 
 function QuoteChips({ quotes, onRemove }: Props): React.JSX.Element | null {
+  const { t } = useTranslation()
   if (quotes.length === 0) return null
   return (
     <div className="quote-chips">
@@ -32,7 +35,7 @@ function QuoteChips({ quotes, onRemove }: Props): React.JSX.Element | null {
             type="button"
             className="quote-chip-remove"
             onClick={() => onRemove(q.id)}
-            aria-label="인용 제거"
+            aria-label={t('quote.remove')}
           >
             ✕
           </button>

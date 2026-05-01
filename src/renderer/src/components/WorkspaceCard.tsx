@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import SessionRow from './SessionRow'
 import SessionTitleArea from './SessionTitleArea'
 import type {
@@ -68,6 +69,7 @@ function WorkspaceCard({
   onDragLeaveHeader,
   onDropHeader
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const [editingAlias, setEditingAlias] = useState(false)
   const [aliasDraft, setAliasDraft] = useState('')
   const aliasInputRef = useRef<HTMLInputElement>(null)
@@ -338,7 +340,7 @@ function WorkspaceCard({
           setCollapsed((v) => !v)
         }}
       >
-        <span className="drag-handle" title="드래그하여 순서 변경">⋮⋮</span>
+        <span className="drag-handle" title={t('workspace.dragHint')}>⋮⋮</span>
         <span className="chevron">▾</span>
         <div
           className="workspace-meta"
@@ -354,7 +356,7 @@ function WorkspaceCard({
               className="workspace-alias-input"
               type="text"
               value={aliasDraft}
-              placeholder="별칭 (비우면 제거)"
+              placeholder={t('workspace.aliasPlaceholder')}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => setAliasDraft(e.target.value)}
               onBlur={commitAlias}
@@ -379,7 +381,7 @@ function WorkspaceCard({
         <button
           type="button"
           className="workspace-remove"
-          title="이 워크스페이스를 목록에서 제거"
+          title={t('workspace.removeTitle')}
           onClick={(e) => {
             e.stopPropagation()
             void onRemove(path)
@@ -396,13 +398,11 @@ function WorkspaceCard({
               className={newConversationClasses.join(' ')}
               onClick={handleNewConversationClick}
               title={
-                fresh
-                  ? '대기 중인 새 대화 (선택)'
-                  : '이 디렉터리에서 새 대화 시작 (앱 모드)'
+                fresh ? t('workspace.newSessionPending') : t('workspace.newSessionStart')
               }
             >
               <span className="new-conversation-plus">+</span>
-              <span className="new-conversation-label">새 대화</span>
+              <span className="new-conversation-label">{t('workspace.newConversation')}</span>
               {fresh && (
                 <span className="live-dot" title={`${fresh.backend} · waiting`}>
                   ●
@@ -412,10 +412,10 @@ function WorkspaceCard({
             <div
               className="new-conversation new-conversation-terminal"
               onClick={handleTerminalClick}
-              title="이 디렉터리에서 새 터미널 세션 시작"
+              title={t('workspace.newTerminalStart')}
             >
               <span className="new-conversation-plus">+</span>
-              <span className="new-conversation-label">새 터미널</span>
+              <span className="new-conversation-label">{t('workspace.newTerminal')}</span>
             </div>
           </div>
 
@@ -496,7 +496,7 @@ function WorkspaceCard({
                 <button
                   type="button"
                   className="session-stop"
-                  title="이 라이브 대화 중지"
+                  title={t('workspace.stopSession')}
                   onClick={(e) => {
                     e.stopPropagation()
                     void onStopLive(s.sessionId)
