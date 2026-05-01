@@ -2231,6 +2231,12 @@ details.tool-block:hover > summary > .tool-row-open,
   border-color: var(--accent-hover);
 }
 
+/* 모바일에서만 짧은 라벨 (Full / Summary / Terminal). 데스크톱은 긴 한글 라벨
+   ("Full로 활성화" 등). 같은 button 안에 두 span 을 두고 CSS 로 토글. */
+.activate-label-short {
+  display: none;
+}
+
 .activate-btn.summary {
   background: transparent;
   border-color: var(--border);
@@ -3389,6 +3395,14 @@ details.tool-block:hover > summary > .tool-row-open,
   .activate-btn {
     padding: 10px 18px;
     min-height: 44px;
+  }
+
+  .activate-label-full {
+    display: none;
+  }
+
+  .activate-label-short {
+    display: inline;
   }
 
   /* 사이드바 항목들 — 데스크톱 hover 기준 작은 padding 으로 탭 타겟이 작다. */

@@ -759,21 +759,24 @@ function ChatPane({
               className="activate-btn full"
               onClick={() => onActivate('resume-full', 'app')}
             >
-              Full로 활성화
+              <span className="activate-label-full">Full로 활성화</span>
+              <span className="activate-label-short">Full</span>
             </button>
             <button
               type="button"
               className="activate-btn summary"
               onClick={() => onActivate('resume-summary', 'app')}
             >
-              Summary로 활성화
+              <span className="activate-label-full">Summary로 활성화</span>
+              <span className="activate-label-short">Summary</span>
             </button>
             <button
               type="button"
               className="activate-btn terminal"
               onClick={() => onActivate('resume-full', 'terminal')}
             >
-              터미널로 열기
+              <span className="activate-label-full">터미널로 열기</span>
+              <span className="activate-label-short">Terminal</span>
             </button>
           </div>
         </div>
