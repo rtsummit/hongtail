@@ -3317,17 +3317,20 @@ details.tool-block:hover > summary > .tool-row-open,
     height: 32px;
   }
 
-  /* bubble-actions — 데스크톱은 hover 로 bubble 외부 위쪽 (-26) 에 잠깐 노출
-     되지만, 모바일은 항상 보이는 데다 위쪽 외부 (-36) 에 두면 이전 메시지 /
-     햄버거 영역에 가려진다. bubble 내부 우측 상단 코너로 옮기고 본문은
-     padding-top 으로 자리 확보. */
+  /* bubble-actions — 데스크톱은 hover 로 bubble 외부 위쪽 (-26) 에 잠깐
+     노출되지만, 모바일은 항상 보이는 데다 위쪽 외부 (-36) 에 두면 이전 메시지
+     / 햄버거 영역에 가려진다. bubble 우측 외부에 세로 일자로 나열하고
+     bubble 의 max-width 를 actions 폭만큼 줄여서 공간 확보. */
   .bubble-actions {
-    top: 6px;
-    right: 6px;
+    top: 4px;
+    left: auto;
+    right: -38px;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .bubble.assistant {
-    padding-top: 44px;
+    max-width: calc(95% - 44px);
   }
 
   /* 팝업 / 메뉴 — slash command, usage mode, confirm card 액션 등 데스크톱
