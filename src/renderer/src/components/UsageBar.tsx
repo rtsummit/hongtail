@@ -7,6 +7,8 @@ interface Props {
   status?: SessionStatus
   onSetPermissionMode?: (mode: string) => void
   onSetModel?: (model: string) => void
+  // usage bar 의 우측 끝에 붙는 추가 element (예: 파일 첨부 버튼).
+  trailing?: React.ReactNode
 }
 
 const MODEL_OPTIONS: { value: string; label: string; hint: string }[] = [
@@ -76,12 +78,16 @@ function ContextBar({ percent }: { percent: number }): React.JSX.Element {
 function UsageBar({
   status,
   onSetPermissionMode,
-  onSetModel
+  onSetModel,
+  trailing
 }: Props): React.JSX.Element | null {
   const [usage, setUsage] = useState<UsageData | null>(null)
   const [, setTick] = useState(0)
   const [modeOpen, setModeOpen] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
+  // 모바일에서 reset 시간은 평소 가려두고 % 클릭 시 잠깐 (3초) 위에 띄움.
+  // 데스크톱은 CSS 로 항상 inline 표시 — 이 state 영향 없음.
+  const [openReset, setOpenReset] = useState<'fiveHour' | 'sevenDay' | null>(null)
   const lastSigRef = useRef<string>('')
 
   // close dropdowns on outside click
@@ -128,6 +134,14 @@ function UsageBar({
     const id = window.setInterval(() => setTick((t) => t + 1), 60_000)
     return () => window.clearInterval(id)
   }, [])
+
+  // 모바일에서 % 클릭 → reset 시간 popover 3초 노출 후 자동 hide. 같은 % 다시
+  // 클릭하면 즉시 닫힘 (toggle).
+  useEffect(() => {
+    if (!openReset) return
+    const id = window.setTimeout(() => setOpenReset(null), 3000)
+    return () => window.clearTimeout(id)
+  }, [openReset])
 
   const modelDisplay = status?.model ? formatModelDisplay(status.model) : null
   const currentFamily = modelFamily(status?.model)
@@ -218,9 +232,17 @@ function UsageBar({
       {usage?.planName && <span className="usage-plan">{usage.planName}</span>}
 
       {usage?.fiveHour != null && (
-        <span className="usage-window">
+        <span className={`usage-window${openReset === 'fiveHour' ? ' show-reset' : ''}`}>
           <span className="usage-label">5h</span>
-          <span className={`usage-pct ${pctClass(usage.fiveHour)}`}>{usage.fiveHour}%</span>
+          <button
+            type="button"
+            className={`usage-pct ${pctClass(usage.fiveHour)}`}
+            onClick={() =>
+              setOpenReset((prev) => (prev === 'fiveHour' ? null : 'fiveHour'))
+            }
+          >
+            {usage.fiveHour}%
+          </button>
           {usage.fiveHourResetAt != null && (
             <span className="usage-reset">({formatRemaining(usage.fiveHourResetAt, now)})</span>
           )}
@@ -228,9 +250,17 @@ function UsageBar({
       )}
 
       {usage?.sevenDay != null && (
-        <span className="usage-window">
+        <span className={`usage-window${openReset === 'sevenDay' ? ' show-reset' : ''}`}>
           <span className="usage-label">7d</span>
-          <span className={`usage-pct ${pctClass(usage.sevenDay)}`}>{usage.sevenDay}%</span>
+          <button
+            type="button"
+            className={`usage-pct ${pctClass(usage.sevenDay)}`}
+            onClick={() =>
+              setOpenReset((prev) => (prev === 'sevenDay' ? null : 'sevenDay'))
+            }
+          >
+            {usage.sevenDay}%
+          </button>
           {usage.sevenDayResetAt != null && (
             <span className="usage-reset">({formatRemaining(usage.sevenDayResetAt, now)})</span>
           )}
@@ -270,6 +300,8 @@ function UsageBar({
           )}
         </span>
       )}
+
+      {trailing && <span className="usage-trailing">{trailing}</span>}
     </div>
   )
 }

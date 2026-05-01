@@ -1673,6 +1673,7 @@ details.tool-block:hover > summary > .tool-row-open,
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
+  position: relative;
 }
 
 .usage-label {
@@ -1681,6 +1682,23 @@ details.tool-block:hover > summary > .tool-row-open,
 
 .usage-pct {
   font-weight: 600;
+}
+
+/* % 가 button 일 때 (5h / 7d — 클릭으로 reset 시간 토글) browser default 제거. */
+button.usage-pct {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* usage-bar 의 우측 끝 영역 — 첨부 버튼 등이 여기 들어감. wrap 되어도
+   줄 끝에 정렬. */
+.usage-trailing {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
 }
 
 .usage-pct.ok {
@@ -3380,6 +3398,31 @@ details.tool-block:hover > summary > .tool-row-open,
   .usage-bar {
     padding: 6px 10px 0;
     gap: 8px;
+  }
+
+  /* 사용중인 요금제는 모바일에선 화면 좁아 의미 적음 — 감춤. */
+  .usage-plan {
+    display: none;
+  }
+
+  /* reset 시간은 평소 가려두고 % 클릭 시 위에 popover 로 잠깐 (3초) 노출. */
+  .usage-window .usage-reset {
+    display: none;
+  }
+
+  .usage-window.show-reset .usage-reset {
+    display: inline-block;
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    z-index: 10;
+    color: var(--fg);
   }
 
   /* readonly 세션 활성화 버튼 — 좁은 화면에서 두 버튼 나란히 못 들어가는 케이스

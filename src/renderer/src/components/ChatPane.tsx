@@ -119,6 +119,15 @@ function ChatPane({
   const sessionId = selected?.sessionId
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const handler = (e: MediaQueryListEvent): void => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
   const [shownFromLine, setShownFromLine] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
@@ -545,7 +554,14 @@ function ChatPane({
         return
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    // 모바일은 가상 키보드의 Enter 가 newline 인 게 자연스러움 (Shift 키 없어
+     // 줄바꿈 분기 불가능). 전송은 send 버튼으로만.
+    if (
+      !isMobile &&
+      e.key === 'Enter' &&
+      !e.shiftKey &&
+      !e.nativeEvent.isComposing
+    ) {
       e.preventDefault()
       void handleSend()
     }
@@ -665,6 +681,13 @@ function ChatPane({
         <>
           <QuoteAffordance containerRef={scrollRef} onAdd={handleAddQuote} />
           <div className="chat-input-wrap">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => void handleFileInputChange(e)}
+            />
             <UsageBar
               status={status}
               onSetPermissionMode={
@@ -674,6 +697,18 @@ function ChatPane({
               }
               onSetModel={
                 selected ? (model) => onSetModel(selected.sessionId, model) : undefined
+              }
+              trailing={
+                <button
+                  type="button"
+                  className="attach-btn"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleAttachClick}
+                  title="파일 첨부 (이미지 / 일반 파일)"
+                  aria-label="파일 첨부"
+                >
+                  📎
+                </button>
               }
             />
             <QuoteChips quotes={quotes} onRemove={handleRemoveQuote} />
@@ -687,23 +722,6 @@ function ChatPane({
               />
             )}
             <div className="chat-input">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                style={{ display: 'none' }}
-                onChange={(e) => void handleFileInputChange(e)}
-              />
-              <button
-                type="button"
-                className="attach-btn"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleAttachClick}
-                title="파일 첨부 (이미지 / 일반 파일)"
-                aria-label="파일 첨부"
-              >
-                📎
-              </button>
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -723,7 +741,11 @@ function ChatPane({
                 }}
                 onBlur={() => setSlashCtx(null)}
                 onKeyDown={handleKeyDown}
-                placeholder="메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, 📎: 파일)"
+                placeholder={
+                  isMobile
+                    ? '메시지 입력 (전송 버튼으로 보내기)'
+                    : '메시지 입력 (Enter: 전송, Shift+Enter: 줄바꿈, /: 명령, 📎: 파일)'
+                }
                 rows={3}
               />
               {status?.thinking ? (
