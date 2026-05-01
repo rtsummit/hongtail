@@ -30,6 +30,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# git bash / npm script 에서 PowerShell 호출 시 한글 출력이 cp949 로 나가
+# UTF-8 로 해석되는 자식 stdout 에서 깨진다. 명시적으로 UTF-8 강제.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $repoRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $repoRoot
 
@@ -93,10 +97,15 @@ git push
 if ($LASTEXITCODE -ne 0) { throw "git push 실패" }
 
 # 5. build
+# splat (@buildArgs) 으로 넘기면 PS 5.1 에서 자식 ps1 의 ValidateSet 검증이
+# 깨지는 케이스가 있다 (Target 인자가 array 로 넘어가서 매칭 실패). 명시적으로
+# named 인자로 호출.
 Step "build ($Target)"
-$buildArgs = @('-Target', $Target)
-if ($Clean) { $buildArgs += '-Clean' }
-& "$PSScriptRoot\build-win.ps1" @buildArgs
+if ($Clean) {
+  & "$PSScriptRoot\build-win.ps1" -Target $Target -Clean
+} else {
+  & "$PSScriptRoot\build-win.ps1" -Target $Target
+}
 if ($LASTEXITCODE -ne 0) { throw "build 실패" }
 
 Write-Host ""

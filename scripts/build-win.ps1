@@ -21,6 +21,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# git bash / npm script 에서 PowerShell 호출 시 한글 출력이 cp949 로 나가
+# UTF-8 로 해석되는 자식 stdout 에서 깨진다. 명시적으로 UTF-8 강제.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $repoRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $repoRoot
 
