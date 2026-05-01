@@ -195,7 +195,7 @@ describe('parseClaudeEvent — 시스템 이벤트', () => {
   })
   it('result 의 다른 subtype 은 system 노트로', () => {
     expect(parseClaudeEvent({ type: 'result', subtype: 'error_during_execution' })).toEqual([
-      { kind: 'system', text: 'Result: error_during_execution' }
+      { kind: 'system', text: '결과: error_during_execution' }
     ])
   })
   it('stderr → system block', () => {

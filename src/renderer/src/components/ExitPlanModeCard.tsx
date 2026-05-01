@@ -1,4 +1,5 @@
 import { memo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { markdownUrlTransform } from '../markdownComponents'
@@ -21,6 +22,7 @@ function ExitPlanModeCard({
   onApprove,
   onDeny
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const [denyMode, setDenyMode] = useState(false)
   const [feedback, setFeedback] = useState('')
 
@@ -32,25 +34,29 @@ function ExitPlanModeCard({
     <div className={`confirm-card exit-plan-mode${disabled ? ' resolved' : ''}`}>
       <div className="confirm-header">
         <span className="confirm-icon">▤</span>
-        <span className="confirm-title">Plan 승인 요청</span>
-        {approved ? <span className="confirm-status approved">승인됨</span> : null}
-        {denied ? <span className="confirm-status denied">거절됨</span> : null}
+        <span className="confirm-title">{t('confirm.exitPlan.title')}</span>
+        {approved ? (
+          <span className="confirm-status approved">{t('confirm.approved')}</span>
+        ) : null}
+        {denied ? (
+          <span className="confirm-status denied">{t('confirm.denied')}</span>
+        ) : null}
       </div>
       <div className="confirm-body bubble-markdown">
         <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrlTransform}>{plan}</ReactMarkdown>
       </div>
       {planFilePath ? (
         <div className="confirm-meta">
-          저장 위치: <code>{planFilePath}</code>
+          {t('confirm.savedTo')}: <code>{planFilePath}</code>
         </div>
       ) : null}
       {!disabled && !denyMode ? (
         <div className="confirm-actions">
           <button type="button" className="btn primary" onClick={onApprove}>
-            승인하고 진행
+            {t('confirm.approveAndProceed')}
           </button>
           <button type="button" className="btn" onClick={() => setDenyMode(true)}>
-            거절하고 피드백
+            {t('confirm.denyWithFeedback')}
           </button>
         </div>
       ) : null}
@@ -59,7 +65,7 @@ function ExitPlanModeCard({
           <textarea
             className="confirm-feedback"
             value={feedback}
-            placeholder="plan 의 어떤 부분을 고쳐야 하는지 적어주세요."
+            placeholder={t('confirm.feedbackPlaceholder')}
             onChange={(e) => setFeedback(e.target.value)}
             rows={3}
             autoFocus
@@ -71,7 +77,7 @@ function ExitPlanModeCard({
               disabled={!feedback.trim()}
               onClick={() => onDeny(feedback.trim())}
             >
-              거절 보내기
+              {t('confirm.sendDenial')}
             </button>
             <button
               type="button"
@@ -81,7 +87,7 @@ function ExitPlanModeCard({
                 setFeedback('')
               }}
             >
-              취소
+              {t('confirm.cancel')}
             </button>
           </div>
         </div>

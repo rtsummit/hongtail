@@ -247,29 +247,43 @@ export function extractRateLimit(event: unknown): RateLimitInfo | null {
   }
 }
 
-const WINDOW_LABELS: Record<string, string> = {
+// pure helper — i18n.t() 직접 호출. component 밖이라 hook 못 씀. lang 변경
+// 후 새 호출부터 새 lang 적용.
+import { i18n as i18nGlobal } from './locale'
+
+const WINDOW_LABEL_KEYS: Record<string, string> = {
   five_hour: '5h',
   one_hour: '1h',
-  weekly: '주간'
+  weekly: 'usage.weekly'
+}
+
+function localizeWindowLabel(key: string): string {
+  // '5h'/'1h' 는 그대로 — 짧은 영문 라벨이 양 언어 다 자연스러움.
+  // 'usage.weekly' 등 i18n 키는 lookup.
+  if (key.startsWith('usage.')) return i18nGlobal.t(key)
+  return key
 }
 
 export function formatRateLimit(info: RateLimitInfo, nowMs: number = Date.now()): string {
   const parts: string[] = []
-  const win = info.rateLimitType ? (WINDOW_LABELS[info.rateLimitType] ?? info.rateLimitType) : null
-  if (win) parts.push(win)
+  const winRaw = info.rateLimitType
+    ? (WINDOW_LABEL_KEYS[info.rateLimitType] ?? info.rateLimitType)
+    : null
+  if (winRaw) parts.push(localizeWindowLabel(winRaw))
   if (info.resetsAt) {
     const ms = info.resetsAt * 1000 - nowMs
     if (ms > 0) {
       const totalMin = Math.floor(ms / 60000)
       const h = Math.floor(totalMin / 60)
       const m = totalMin % 60
-      parts.push(`리셋 ${h > 0 ? `${h}h ${m}m` : `${m}m`}`)
+      const time = h > 0 ? `${h}h ${m}m` : `${m}m`
+      parts.push(i18nGlobal.t('usage.reset', { time }))
     } else {
-      parts.push('리셋됨')
+      parts.push(i18nGlobal.t('usage.resetDone'))
     }
   }
-  if (info.status === 'warned') parts.push('⚠ 한도 임박')
-  else if (info.status === 'rejected') parts.push('🚫 차단')
+  if (info.status === 'warned') parts.push(i18nGlobal.t('usage.warned'))
+  else if (info.status === 'rejected') parts.push(i18nGlobal.t('usage.rejected'))
   if (info.isUsingOverage) parts.push('overage')
   return parts.join(' · ')
 }

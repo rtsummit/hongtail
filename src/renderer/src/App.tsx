@@ -8,6 +8,7 @@ import SettingsModal from './components/SettingsModal'
 import FindBar from './components/FindBar'
 import { buildBtwSystemPrompt } from './btwPrompt'
 import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
+import { i18n, resolveLang } from './locale'
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
 import {
@@ -118,6 +119,11 @@ function App(): React.JSX.Element {
   // 이 state 는 무관.
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
+  // settings.language 변화 시 i18n 동기화. 'auto' 면 browser locale 로 해석.
+  useEffect(() => {
+    const target = resolveLang(settings.language)
+    if (i18n.language !== target) void i18n.changeLanguage(target)
+  }, [settings.language])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
   const [btwMessagesBySession, setBtwMessagesBySession] = useState<Record<string, Block[]>>({})
@@ -231,7 +237,7 @@ function App(): React.JSX.Element {
     // Web 환경에서는 OS 다이얼로그가 없어 null 이 돌아온다 → 텍스트 입력으로
     // fallback. 호스트 머신 기준 절대 경로를 받는다.
     if (!picked) {
-      const typed = window.prompt('워크스페이스 디렉토리 경로 (호스트 PC 기준 절대 경로)')
+      const typed = window.prompt(i18n.t('app.workspacePathPrompt'))
       if (!typed) return
       picked = typed.trim()
       if (!picked) return
@@ -866,7 +872,7 @@ function App(): React.JSX.Element {
         if (mode === 'resume-summary') {
           await new Promise((r) => setTimeout(r, 500))
           await window.api.claude.sendInput(sessionId, '/compact')
-          appendBlocks(sessionId, [{ kind: 'system', text: '▸ /compact 요청됨' }])
+          appendBlocks(sessionId, [{ kind: 'system', text: i18n.t('app.compactRequested') }])
         }
       } catch (err) {
         appendBlocks(sessionId, [
@@ -988,9 +994,7 @@ function App(): React.JSX.Element {
     async (sessionId: string) => {
       const a = active[sessionId]
       if (!a) return
-      const ok = window.confirm(
-        '이 라이브 대화를 중지할까요? (기록은 유지됩니다)'
-      )
+      const ok = window.confirm(i18n.t('app.confirmStopSession'))
       if (!ok) return
       try {
         if (a.backend === 'terminal') {
@@ -1510,7 +1514,7 @@ function App(): React.JSX.Element {
       <button
         type="button"
         className="mobile-sidebar-toggle"
-        aria-label="사이드바 열기/닫기"
+        aria-label={i18n.t('sidebar.toggle.aria')}
         onClick={() => setSidebarOpen((v) => !v)}
       >
         ☰
@@ -1519,7 +1523,7 @@ function App(): React.JSX.Element {
         <button
           type="button"
           className="mobile-sidechat-toggle"
-          aria-label="BTW 사이드 챗 열기/닫기"
+          aria-label={i18n.t('sideChat.toggle.aria')}
           onClick={() => handleToggleSideChat()}
         >
           BTW
@@ -1554,7 +1558,7 @@ function App(): React.JSX.Element {
       <div
         className="splitter"
         onPointerDown={handleSplitterPointerDown}
-        title="드래그하여 사이드바 너비 조정"
+        title={i18n.t('splitter.title')}
       />
       <div className="main-area">
         {terminalSessionList.map((t) => {

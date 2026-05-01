@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { TerminalSearchHandle } from './TerminalSession'
 
 interface Props {
@@ -66,6 +67,7 @@ function findRanges(scope: HTMLElement, query: string): Range[] {
 }
 
 function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element | null {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const [matchCount, setMatchCount] = useState(0)
@@ -265,9 +267,9 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
 
   const counter = useMemo(() => {
     if (!query.trim()) return ''
-    if (matchCount === 0) return '없음'
+    if (matchCount === 0) return t('find.notFound')
     return `${active + 1}/${matchCount}`
-  }, [active, matchCount, query])
+  }, [active, matchCount, query, t])
 
   if (!open) return null
 
@@ -300,7 +302,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
         type="text"
         className="find-input"
         value={query}
-        placeholder={mode === 'terminal' ? '터미널 검색…' : '메시지 검색…'}
+        placeholder={mode === 'terminal' ? t('find.placeholder.terminal') : t('find.placeholder.app')}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
       />
@@ -308,7 +310,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
       <button
         type="button"
         className="find-btn"
-        title="이전 (Shift+Enter)"
+        title={t('find.prev')}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => navigate(-1)}
         disabled={!query.trim() || matchCount === 0}
@@ -318,7 +320,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
       <button
         type="button"
         className="find-btn"
-        title="다음 (Enter)"
+        title={t('find.next')}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => navigate(1)}
         disabled={!query.trim() || matchCount === 0}
@@ -328,7 +330,7 @@ function FindBar({ open, mode, terminalRef, onClose }: Props): React.JSX.Element
       <button
         type="button"
         className="find-btn close"
-        title="닫기 (Esc)"
+        title={t('find.close')}
         onMouseDown={(e) => e.preventDefault()}
         onClick={onClose}
       >

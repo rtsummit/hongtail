@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { i18n as i18nStatic } from '../locale'
 import WorkspaceCard from './WorkspaceCard'
 import logoUrl from '../assets/logo.svg'
 import type {
@@ -37,6 +39,8 @@ interface Props {
   onStopLive: (sessionId: string) => void | Promise<void>
 }
 
+// i18n.t() 직접 호출 — pure 함수라 hook 못 씀. 사용자가 lang 변경 후 새로
+// derive 되는 시점부터 새 lang.
 function deriveLiveTitle(blocks: Block[] | undefined): string {
   if (blocks) {
     for (const b of blocks) {
@@ -46,7 +50,7 @@ function deriveLiveTitle(blocks: Block[] | undefined): string {
       }
     }
   }
-  return '새로운 대화'
+  return i18nStatic.t('session.titleNew')
 }
 
 // 사이드바 필터 옵션:
@@ -77,6 +81,7 @@ function Sidebar({
   onStartClaude,
   onStopLive
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const [draggingPath, setDraggingPath] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<{ path: string; before: boolean } | null>(null)
   const [dateFilter, setDateFilter] = useState<DateFilter>(() => {
@@ -143,18 +148,18 @@ function Sidebar({
           type="button"
           className="new-session-btn"
           onClick={() => void onAddWorkspace()}
-          title="Workspace 추가"
+          title={t('sidebar.addWorkspace')}
         >
           <span className="plus">+</span>
-          <span className="sidebar-label">Workspace 추가</span>
+          <span className="sidebar-label">{t('sidebar.addWorkspace')}</span>
         </button>
         {!isMobile && (
           <button
             type="button"
             className="sidebar-minimize-btn"
             onClick={() => toggleIconOnly(!iconOnly)}
-            title={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
-            aria-label={iconOnly ? '사이드바 펼치기' : '사이드바 접기'}
+            title={iconOnly ? t('sidebar.expand') : t('sidebar.minimize')}
+            aria-label={iconOnly ? t('sidebar.expand') : t('sidebar.minimize')}
           >
             {iconOnly ? '›' : '‹'}
           </button>
@@ -162,9 +167,14 @@ function Sidebar({
       </div>
 
       {!effectiveIconOnly && (
-        <div className="date-filter" role="radiogroup" aria-label="활동 기간 필터">
+        <div className="date-filter" role="radiogroup" aria-label={t('sidebar.dateFilterAria')}>
           {([1, 3, 7, 'active', null] as const).map((v) => {
-            const label = v == null ? '모두' : v === 'active' ? '활성' : `${v}일`
+            const label =
+              v == null
+                ? t('sidebar.filter.all')
+                : v === 'active'
+                  ? t('sidebar.filter.active')
+                  : t('sidebar.filter.days', { n: v })
             const active = dateFilter === v
             return (
               <button
@@ -233,10 +243,10 @@ function Sidebar({
           type="button"
           className="settings-btn"
           onClick={onOpenSettings}
-          title="설정"
+          title={t('sidebar.settings')}
         >
           <span className="settings-icon">⚙</span>
-          <span className="sidebar-label">설정</span>
+          <span className="sidebar-label">{t('sidebar.settings')}</span>
         </button>
       </div>
     </aside>

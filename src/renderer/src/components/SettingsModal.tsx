@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { AppSettings } from '../settings'
 import { DEFAULT_SETTINGS, KNOWN_TOOL_NAMES } from '../settings'
 import type { WebSettings } from '../../../preload/index.d'
@@ -21,6 +22,7 @@ function FontStackEditor({
   available: string[]
   onUpdate: (next: string[]) => void
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const [pick, setPick] = useState<string>('')
 
   // Reset selection when fonts change so the picker doesn't stick on a now-added entry
@@ -54,7 +56,7 @@ function FontStackEditor({
       <span className="settings-label">{label}</span>
       <div className="font-chips">
         {fonts.length === 0 ? (
-          <span className="font-chips-empty">기본값 사용 (시스템 폰트)</span>
+          <span className="font-chips-empty">{t('settings.fontChip.empty')}</span>
         ) : (
           fonts.map((f, i) => (
             <span
@@ -65,7 +67,7 @@ function FontStackEditor({
               <button
                 type="button"
                 className="font-chip-move"
-                title="우선순위 올리기"
+                title={t('settings.fontChip.up')}
                 disabled={i === 0}
                 onClick={() => move(i, -1)}
               >
@@ -75,7 +77,7 @@ function FontStackEditor({
               <button
                 type="button"
                 className="font-chip-move"
-                title="우선순위 내리기"
+                title={t('settings.fontChip.down')}
                 disabled={i === fonts.length - 1}
                 onClick={() => move(i, 1)}
               >
@@ -84,7 +86,7 @@ function FontStackEditor({
               <button
                 type="button"
                 className="font-chip-remove"
-                title="제거"
+                title={t('settings.fontChip.remove')}
                 onClick={() => remove(f)}
               >
                 ×
@@ -99,7 +101,7 @@ function FontStackEditor({
           value={pick}
           onChange={(e) => setPick(e.target.value)}
         >
-          <option value="">— 폰트 선택 —</option>
+          <option value="">{t('settings.fontChip.pick')}</option>
           {remaining.map((f) => (
             <option key={f} value={f}>
               {f}
@@ -111,7 +113,7 @@ function FontStackEditor({
           className="font-add-btn"
           onClick={handleAdd}
           disabled={!pick}
-          title="추가"
+          title={t('settings.fontChip.add')}
         >
           +
         </button>
@@ -169,6 +171,7 @@ function ToolCardsDefaultOpenEditor({
 }
 
 function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.Element | null {
+  const { t } = useTranslation()
   const [available, setAvailable] = useState<string[]>([])
   const [loadingFonts, setLoadingFonts] = useState(false)
   const [web, setWeb] = useState<WebSettings | null>(null)
@@ -245,11 +248,11 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
   const submitPassword = (): void => {
     setPwMessage('')
     if (pwDraft.length < 8) {
-      setPwMessage('비밀번호는 8자 이상이어야 합니다')
+      setPwMessage(t('settings.password.tooShort'))
       return
     }
     if (pwDraft !== pwConfirm) {
-      setPwMessage('두 비밀번호가 일치하지 않습니다')
+      setPwMessage(t('settings.password.mismatch'))
       return
     }
     void window.api.web
@@ -258,7 +261,7 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
         setHasPassword(true)
         setPwDraft('')
         setPwConfirm('')
-        setPwMessage('변경됨. 모든 기존 세션 무효화.')
+        setPwMessage(t('settings.password.changed'))
       })
       .catch((err) => {
         setPwMessage(String(err))
@@ -301,26 +304,49 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal" role="dialog" aria-label="설정">
+      <div className="modal" role="dialog" aria-label={t('settings.title')}>
         <header className="modal-header">
-          <h2>설정</h2>
-          <button type="button" className="modal-close" onClick={onClose} title="닫기">
+          <h2>{t('settings.title')}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            title={t('settings.close')}
+          >
             ×
           </button>
         </header>
         <div className="modal-body">
+          <label className="settings-row">
+            <span className="settings-label">{t('settings.language')}</span>
+            <select
+              value={settings.language}
+              onChange={(e) =>
+                onChange({
+                  ...settings,
+                  language: e.target.value as AppSettings['language']
+                })
+              }
+            >
+              <option value="auto">{t('settings.language.auto')}</option>
+              <option value="ko">{t('settings.language.ko')}</option>
+              <option value="en">{t('settings.language.en')}</option>
+            </select>
+          </label>
+          <hr className="settings-divider" />
           {loadingFonts && (
-            <p className="settings-hint">시스템 폰트 목록 가져오는 중…</p>
+            <p className="settings-hint">{t('settings.loadingFonts')}</p>
           )}
           <FontStackEditor
-            label="폰트"
+            label={t('settings.font')}
             fonts={settings.fonts}
             available={available}
             onUpdate={(next) => onChange({ ...settings, fonts: next })}
           />
           <label className="settings-row">
             <span className="settings-label">
-              글자 크기 <span className="settings-value">{settings.fontSize}px</span>
+              {t('settings.fontSize')}{' '}
+              <span className="settings-value">{settings.fontSize}px</span>
             </span>
             <input
               type="number"
@@ -338,13 +364,11 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               }}
             />
           </label>
-          <p className="settings-hint">
-            폰트는 추가한 순서대로 fallback 됩니다 (왼쪽이 우선). ‹ › 로 우선순위 변경.
-          </p>
+          <p className="settings-hint">{t('settings.fontHint')}</p>
           <hr className="settings-divider" />
           <label className="settings-row">
             <span className="settings-label">
-              읽기 전용 한 번에 불러올 줄 수
+              {t('settings.readonlyChunkSize')}
               <span className="settings-value">{settings.readonlyChunkSize}</span>
             </span>
             <input
@@ -366,23 +390,26 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
           {web && (
             <>
               <hr className="settings-divider" />
-              <h3 className="settings-section-title">웹 모드</h3>
+              <h3 className="settings-section-title">{t('settings.web.title')}</h3>
               <div className="settings-row">
                 <span className="settings-label">
-                  비밀번호 {hasPassword ? '(설정됨)' : '— 미설정'}
+                  {t('settings.web.password')}{' '}
+                  {hasPassword
+                    ? t('settings.web.passwordSet')
+                    : t('settings.web.passwordUnset')}
                 </span>
                 <input
                   type="password"
                   value={pwDraft}
                   onChange={(e) => setPwDraft(e.target.value)}
-                  placeholder="새 비밀번호 (8자 이상)"
+                  placeholder={t('settings.web.passwordPlaceholder')}
                   autoComplete="new-password"
                 />
                 <input
                   type="password"
                   value={pwConfirm}
                   onChange={(e) => setPwConfirm(e.target.value)}
-                  placeholder="비밀번호 확인"
+                  placeholder={t('settings.web.passwordConfirm')}
                   autoComplete="new-password"
                 />
                 <button
@@ -391,7 +418,9 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
                   onClick={submitPassword}
                   disabled={!pwDraft || !pwConfirm}
                 >
-                  {hasPassword ? '변경' : '설정'}
+                  {hasPassword
+                    ? t('settings.web.passwordSubmitChange')
+                    : t('settings.web.passwordSubmitSet')}
                 </button>
                 {pwMessage && <p className="settings-hint">{pwMessage}</p>}
               </div>

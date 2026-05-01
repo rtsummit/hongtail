@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   display: string
@@ -15,6 +16,7 @@ function SessionTitleArea({
   subtitle,
   onCommitAlias
 }: Props): React.JSX.Element {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -45,8 +47,8 @@ function SessionTitleArea({
   }, [])
 
   const tooltip = isAlias
-    ? `${display}\n원본 제목: ${baseTitle}\n\n더블클릭: 별칭 편집`
-    : `${baseTitle}\n\n더블클릭: 별칭 추가`
+    ? `${display}${t('session.aliasHintEdit', { base: baseTitle })}`
+    : `${baseTitle}${t('session.aliasHintAdd')}`
 
   return (
     <div
@@ -63,7 +65,7 @@ function SessionTitleArea({
           className="session-alias-input"
           type="text"
           value={draft}
-          placeholder="별칭 (비우면 제거)"
+          placeholder={t('session.aliasPlaceholder')}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}

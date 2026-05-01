@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ToolBlock from './ToolBlock'
@@ -139,6 +140,7 @@ const AssistantText = memo(function AssistantText({
 }: {
   text: string
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
   const [opened, setOpened] = useState(false)
@@ -185,8 +187,8 @@ const AssistantText = memo(function AssistantText({
           type="button"
           className="bubble-action"
           onClick={onCopy}
-          title={copied ? '복사됨' : '복사'}
-          aria-label={copied ? '복사됨' : '복사'}
+          title={copied ? t('bubble.copied') : t('bubble.copy')}
+          aria-label={copied ? t('bubble.copied') : t('bubble.copy')}
         >
           {copied ? <CheckIcon /> : <CopyIcon />}
         </button>
@@ -194,8 +196,8 @@ const AssistantText = memo(function AssistantText({
           type="button"
           className="bubble-action"
           onClick={toggleCollapsed}
-          title={collapsed ? '펼치기' : '접기'}
-          aria-label={collapsed ? '펼치기' : '접기'}
+          title={collapsed ? t('bubble.expand') : t('bubble.collapse')}
+          aria-label={collapsed ? t('bubble.expand') : t('bubble.collapse')}
         >
           {collapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
         </button>
@@ -203,15 +205,15 @@ const AssistantText = memo(function AssistantText({
           type="button"
           className="bubble-action"
           onClick={() => setOpened(true)}
-          title="별도 창으로 열기"
-          aria-label="별도 창으로 열기"
+          title={t('tool.openInWindow')}
+          aria-label={t('tool.openInWindow')}
         >
           <ExternalLinkIcon />
         </button>
       </div>
       {collapsed ? (
         <div className="bubble-collapsed" onClick={expandFromCollapsed}>
-          ··· (접힘 — 클릭해서 펼치기)
+          {t('bubble.collapsed')}
         </div>
       ) : (
         <div className="bubble-markdown">
@@ -232,6 +234,7 @@ function AssistantTextModal({
   text: string
   onClose: () => void
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -263,16 +266,16 @@ function AssistantTextModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal modal-wide" role="dialog" aria-label="응답 보기">
+      <div className="modal modal-wide" role="dialog" aria-label={t('tool.modal.response')}>
         <header className="modal-header">
-          <h2 className="modal-title-path">응답</h2>
+          <h2 className="modal-title-path">{t('tool.modal.response')}</h2>
           <div className="modal-header-actions">
             <button
               type="button"
               className="bubble-action"
               onClick={onCopy}
-              title={copied ? '복사됨' : '복사'}
-              aria-label={copied ? '복사됨' : '복사'}
+              title={copied ? t('bubble.copied') : t('bubble.copy')}
+              aria-label={copied ? t('bubble.copied') : t('bubble.copy')}
             >
               {copied ? <CheckIcon /> : <CopyIcon />}
             </button>
@@ -280,8 +283,8 @@ function AssistantTextModal({
               type="button"
               className="bubble-action"
               onClick={onClose}
-              title="닫기"
-              aria-label="닫기"
+              title={t('tool.modal.close')}
+              aria-label={t('tool.modal.close')}
             >
               <CloseIcon />
             </button>

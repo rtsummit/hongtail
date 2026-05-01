@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { formatModelDisplay, formatTokens, pctClass } from '../sessionStatus'
 import type { SessionStatus } from '../types'
 import type { UsageData } from '../../../preload/index.d'
@@ -11,11 +12,12 @@ interface Props {
   trailing?: React.ReactNode
 }
 
-const MODEL_OPTIONS: { value: string; label: string; hint: string }[] = [
-  { value: 'default', label: 'default', hint: '기본 (대화 시작 시 모델)' },
-  { value: 'opus', label: 'Opus', hint: '최고 성능 — 비싸고 느림' },
-  { value: 'sonnet', label: 'Sonnet', hint: '균형 — 일상 작업' },
-  { value: 'haiku', label: 'Haiku', hint: '빠르고 저렴 — 단순 작업' }
+// hintKey 는 i18n dict 의 키. 렌더 시 t(hintKey) 로 lookup.
+const MODEL_OPTIONS: { value: string; label: string; hintKey: string }[] = [
+  { value: 'default', label: 'default', hintKey: 'usage.model.default.hint' },
+  { value: 'opus', label: 'Opus', hintKey: 'usage.model.opus.hint' },
+  { value: 'sonnet', label: 'Sonnet', hintKey: 'usage.model.sonnet.hint' },
+  { value: 'haiku', label: 'Haiku', hintKey: 'usage.model.haiku.hint' }
 ]
 
 function modelFamily(model: string | undefined): string | null {
@@ -33,12 +35,12 @@ const MODE_LABEL: Record<string, string> = {
   dontAsk: 'dont-ask'
 }
 
-const MODE_OPTIONS: { value: string; label: string; hint: string }[] = [
-  { value: 'default', label: 'default', hint: '기본 — 매 도구 호출 확인' },
-  { value: 'auto', label: 'auto', hint: '자동 분류 (안전한 건 통과)' },
-  { value: 'plan', label: 'plan', hint: '도구 차단, 계획만 작성' },
-  { value: 'acceptEdits', label: 'accept', hint: '파일 편집 자동 승인' },
-  { value: 'bypassPermissions', label: 'bypass', hint: '⚠ 모든 권한 무시' }
+const MODE_OPTIONS: { value: string; label: string; hintKey: string }[] = [
+  { value: 'default', label: 'default', hintKey: 'usage.mode.default.hint' },
+  { value: 'auto', label: 'auto', hintKey: 'usage.mode.auto.hint' },
+  { value: 'plan', label: 'plan', hintKey: 'usage.mode.plan.hint' },
+  { value: 'acceptEdits', label: 'accept', hintKey: 'usage.mode.acceptEdits.hint' },
+  { value: 'bypassPermissions', label: 'bypass', hintKey: 'usage.mode.bypassPermissions.hint' }
 ]
 
 function modeClass(mode: string): string {
@@ -49,19 +51,20 @@ function modeClass(mode: string): string {
   return 'default'
 }
 
-function formatRemaining(resetMs: number, nowMs: number): string {
+// pure helper — usage.reset / usage.resetDone 키는 컴포넌트에서 t() 로 wrap.
+function formatRemaining(resetMs: number, nowMs: number): { time: string | null } {
   const ms = resetMs - nowMs
-  if (ms <= 0) return '리셋됨'
+  if (ms <= 0) return { time: null }
   const totalMin = Math.floor(ms / 60000)
   const days = Math.floor(totalMin / (60 * 24))
   if (days >= 1) {
     const h = Math.floor((totalMin - days * 60 * 24) / 60)
-    return `${days}d ${h}h`
+    return { time: `${days}d ${h}h` }
   }
   const h = Math.floor(totalMin / 60)
   const m = totalMin % 60
-  if (h >= 1) return `${h}h ${m}m`
-  return `${m}m`
+  if (h >= 1) return { time: `${h}h ${m}m` }
+  return { time: `${m}m` }
 }
 
 function ContextBar({ percent }: { percent: number }): React.JSX.Element {
@@ -81,6 +84,7 @@ function UsageBar({
   onSetModel,
   trailing
 }: Props): React.JSX.Element | null {
+  const { t } = useTranslation()
   const [usage, setUsage] = useState<UsageData | null>(null)
   const [, setTick] = useState(0)
   const [modeOpen, setModeOpen] = useState(false)
@@ -172,6 +176,10 @@ function UsageBar({
     return null
 
   const now = Date.now()
+  const remainingLabel = (resetMs: number): string => {
+    const r = formatRemaining(resetMs, now)
+    return r.time ? t('usage.reset', { time: r.time }) : t('usage.resetDone')
+  }
   return (
     <div className={`usage-bar ${usage?.stale ? 'stale' : ''}`}>
       {modelDisplay && !showModel && <span className="usage-model">[{modelDisplay}]</span>}
@@ -181,7 +189,7 @@ function UsageBar({
             type="button"
             className="usage-model"
             onClick={() => setModelOpen((o) => !o)}
-            title="모델 변경"
+            title={t('usage.modelChange')}
           >
             [{modelLabel}] ▾
           </button>
@@ -203,7 +211,7 @@ function UsageBar({
                     }}
                   >
                     <span className="usage-mode-label">{opt.label}</span>
-                    <span className="usage-mode-hint">{opt.hint}</span>
+                    <span className="usage-mode-hint">{t(opt.hintKey)}</span>
                   </button>
                 )
               })}
@@ -221,7 +229,7 @@ function UsageBar({
       )}
 
       {hasSessionTokens && (
-        <span className="usage-window" title="이 세션 누적 (sub-agent 포함)">
+        <span className="usage-window" title={t('usage.sessionTotalTitle')}>
           <span className="usage-label">Σ</span>
           <span className="usage-tokens">
             ↑{formatTokens(sessionInTokens)} ↓{formatTokens(sessionOutTokens)}
@@ -244,7 +252,7 @@ function UsageBar({
             {usage.fiveHour}%
           </button>
           {usage.fiveHourResetAt != null && (
-            <span className="usage-reset">({formatRemaining(usage.fiveHourResetAt, now)})</span>
+            <span className="usage-reset">({remainingLabel(usage.fiveHourResetAt)})</span>
           )}
         </span>
       )}
@@ -262,7 +270,7 @@ function UsageBar({
             {usage.sevenDay}%
           </button>
           {usage.sevenDayResetAt != null && (
-            <span className="usage-reset">({formatRemaining(usage.sevenDayResetAt, now)})</span>
+            <span className="usage-reset">({remainingLabel(usage.sevenDayResetAt)})</span>
           )}
         </span>
       )}
@@ -275,7 +283,7 @@ function UsageBar({
             type="button"
             className={`usage-mode ${modeClass(mode!)}`}
             onClick={() => setModeOpen((o) => !o)}
-            title="권한 모드 변경"
+            title={t('usage.modeChange')}
           >
             {MODE_LABEL[mode!] ?? mode} ▾
           </button>
@@ -293,7 +301,7 @@ function UsageBar({
                 >
                   <span className={`usage-mode-dot ${modeClass(opt.value)}`} />
                   <span className="usage-mode-label">{opt.label}</span>
-                  <span className="usage-mode-hint">{opt.hint}</span>
+                  <span className="usage-mode-hint">{t(opt.hintKey)}</span>
                 </button>
               ))}
             </div>
