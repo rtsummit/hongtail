@@ -1504,7 +1504,7 @@ function App(): React.JSX.Element {
     <div
       className={`app${sidebarOpen ? ' sidebar-open' : ''}${
         selected && !sideChatCollapsed ? ' side-chat-open' : ''
-      }${settings.showMobileBubbleActions ? ' show-mobile-bubble-actions' : ''}`}
+      }`}
       style={appStyle as React.CSSProperties}
     >
       <button

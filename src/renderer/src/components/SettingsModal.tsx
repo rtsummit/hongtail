@@ -363,18 +363,6 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             value={settings.toolCardsDefaultOpen}
             onUpdate={(next) => onChange({ ...settings, toolCardsDefaultOpen: next })}
           />
-          <label className="settings-row settings-row-inline">
-            <input
-              type="checkbox"
-              checked={settings.showMobileBubbleActions}
-              onChange={(e) =>
-                onChange({ ...settings, showMobileBubbleActions: e.target.checked })
-              }
-            />
-            <span className="settings-label-inline">
-              모바일에서 메시지 액션 버튼 (복사 / 접기 / 별도 창) 보이기
-            </span>
-          </label>
           {web && (
             <>
               <hr className="settings-divider" />

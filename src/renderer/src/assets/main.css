@@ -861,15 +861,11 @@
   opacity: 1;
 }
 
-/* 터치 디바이스 (hover 불가) — bubble-actions 는 모바일에서 자동으로 떠있던
-   게 본문을 가리거나 다른 요소에 가려져 거추장스러웠다. 기본 가림으로 두고
-   설정에서 .app.show-mobile-bubble-actions 가 켜진 경우에만 보이게. 세션
-   액션은 hover-only 면 영영 못 누르므로 그대로 항상 노출. */
+/* 터치 디바이스 (hover 불가) — 세션 액션은 hover 로만 노출되면 영영 못 누르니
+   항상 보이게. bubble-actions 는 일부러 hover-none 분기에서 풀어놓는다 — 모바일
+   에서 사용자가 bubble 을 한 번 tap 하면 :hover 가 sticky 하게 잡혀 actions 가
+   뜨고, 다른 곳을 tap 하면 사라지는 동작이 자연스럽다. */
 @media (hover: none) {
-  .app.show-mobile-bubble-actions .bubble-actions {
-    opacity: 1;
-  }
-
   .session:not(:hover) .session-remove,
   .session:not(:hover) .session-stop {
     visibility: visible;
