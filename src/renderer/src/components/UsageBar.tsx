@@ -221,7 +221,7 @@ function UsageBar({
       )}
 
       {ctxPercent != null && (
-        <span className="usage-window">
+        <span className="usage-window usage-window-context">
           <span className="usage-label">Context</span>
           <ContextBar percent={ctxPercent} />
           <span className={`usage-pct ${pctClass(ctxPercent)}`}>{ctxPercent}%</span>
