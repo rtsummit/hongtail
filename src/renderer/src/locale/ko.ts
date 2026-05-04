@@ -171,7 +171,7 @@ export const ko: Record<string, string> = {
 
   // === UsageBar ===
   'usage.weekly': '주간',
-  'usage.reset': '리셋 {time}',
+  'usage.reset': '{time}',
   'usage.resetDone': '리셋됨',
   'usage.warned': '⚠ 한도 임박',
   'usage.rejected': '🚫 차단',

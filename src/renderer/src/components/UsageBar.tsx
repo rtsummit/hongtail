@@ -255,7 +255,14 @@ function UsageBar({
       {usage?.planName && <span className="usage-plan">{usage.planName}</span>}
 
       {usage?.fiveHour != null && (
-        <span className={`usage-window${openReset === 'fiveHour' ? ' show-reset' : ''}`}>
+        <span
+          className={`usage-window${openReset === 'fiveHour' ? ' show-reset' : ''}`}
+          title={
+            usage.fiveHourResetAt != null
+              ? remainingLabel(usage.fiveHourResetAt)
+              : undefined
+          }
+        >
           <span className="usage-label">5h</span>
           {isMobile ? (
             <button
@@ -279,7 +286,14 @@ function UsageBar({
       )}
 
       {usage?.sevenDay != null && (
-        <span className={`usage-window${openReset === 'sevenDay' ? ' show-reset' : ''}`}>
+        <span
+          className={`usage-window${openReset === 'sevenDay' ? ' show-reset' : ''}`}
+          title={
+            usage.sevenDayResetAt != null
+              ? remainingLabel(usage.sevenDayResetAt)
+              : undefined
+          }
+        >
           <span className="usage-label">7d</span>
           {isMobile ? (
             <button

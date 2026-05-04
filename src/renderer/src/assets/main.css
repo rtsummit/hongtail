@@ -1693,10 +1693,10 @@ button.usage-pct {
   cursor: pointer;
 }
 
-/* usage-bar 의 우측 끝 영역 — 첨부 버튼 등이 여기 들어감. wrap 되어도
-   줄 끝에 정렬. */
+/* usage-bar 의 우측 끝 영역 — 첨부 버튼 등이 여기 들어감. mode-wrap 이
+   margin-left: auto 로 free space 를 독식해 우측으로 가고, trailing 은 그
+   바로 뒤에 따라붙음. */
 .usage-trailing {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
 }
@@ -1713,6 +1713,15 @@ button.usage-pct {
 
 .usage-reset {
   color: var(--fg-dim);
+}
+
+/* 좁은 데스크톱 폭에서 usage-bar 가 두 줄로 wrap 되는 걸 막기 위해 reset
+   시간을 inline 에서 숨김. usage-window 에 붙은 title 로 hover tooltip 에서
+   확인 가능. (모바일은 별도 media query 에서 popover 로 노출) */
+@media (max-width: 1100px) {
+  .usage-window .usage-reset {
+    display: none;
+  }
 }
 
 .usage-tokens {

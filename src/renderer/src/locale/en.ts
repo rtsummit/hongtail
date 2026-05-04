@@ -171,7 +171,7 @@ export const en: Record<string, string> = {
 
   // === UsageBar ===
   'usage.weekly': 'Weekly',
-  'usage.reset': 'Resets in {time}',
+  'usage.reset': '{time}',
   'usage.resetDone': 'Reset',
   'usage.warned': '⚠ Near limit',
   'usage.rejected': '🚫 Blocked',
