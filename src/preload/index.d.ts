@@ -36,7 +36,6 @@ export interface UsageData {
   fiveHourResetAt: number | null
   sevenDayResetAt: number | null
   cachedAt: number
-  stale: boolean
   apiError?: string
 }
 

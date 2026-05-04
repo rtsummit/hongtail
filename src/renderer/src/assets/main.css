@@ -1661,10 +1661,6 @@ details.tool-block:hover > summary > .tool-row-open,
   container-name: usage-bar;
 }
 
-.usage-bar.stale {
-  opacity: 0.55;
-}
-
 .usage-plan {
   font-weight: 600;
   color: var(--fg);
@@ -1743,16 +1739,6 @@ button.usage-pct {
   color: var(--fg-dim);
   margin-left: 4px;
   font-variant-numeric: tabular-nums;
-}
-
-.usage-stale-tag {
-  font-size: calc(var(--font-size, 13px) * 10 / 13);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--fg-dim);
-  border: 1px dashed var(--border);
-  padding: 0 4px;
-  border-radius: 3px;
 }
 
 .usage-model {

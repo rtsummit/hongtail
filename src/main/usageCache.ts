@@ -11,7 +11,6 @@ export interface UsageData {
   fiveHourResetAt: number | null // unix ms
   sevenDayResetAt: number | null
   cachedAt: number
-  stale: boolean
   apiError?: string
 }
 
@@ -42,8 +41,7 @@ function parseDate(s: string | null | undefined): number | null {
 
 // In-memory memo keyed by file mtime — avoid re-reading + re-parsing the cache
 // file when nothing changed. UsageBar polls this once per second.
-type Parsed = Omit<UsageData, 'stale'>
-let memo: { mtimeMs: number; parsed: Parsed } | null = null
+let memo: { mtimeMs: number; parsed: UsageData } | null = null
 
 export async function readUsage(): Promise<UsageData | null> {
   const path = cachePath()
@@ -90,10 +88,7 @@ export async function readUsage(): Promise<UsageData | null> {
     }
   }
 
-  return {
-    ...memo.parsed,
-    stale: Date.now() - memo.parsed.cachedAt > FRESH_TTL_MS
-  }
+  return memo.parsed
 }
 
 // claude-hud's getUsage() honors a 5-minute API cache regardless of how often

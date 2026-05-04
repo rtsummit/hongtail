@@ -127,7 +127,7 @@ function UsageBar({
       try {
         const u = await window.api.usage.get()
         if (cancelled) return
-        const sig = u ? `${u.cachedAt}:${u.stale ? 1 : 0}:${u.apiError ?? ''}` : 'null'
+        const sig = u ? `${u.cachedAt}:${u.apiError ?? ''}` : 'null'
         if (sig === lastSigRef.current) return
         lastSigRef.current = sig
         setUsage(u)
@@ -191,7 +191,7 @@ function UsageBar({
     return r.time ? t('usage.reset', { time: r.time }) : t('usage.resetDone')
   }
   return (
-    <div className={`usage-bar ${usage?.stale ? 'stale' : ''}`}>
+    <div className="usage-bar">
       {modelDisplay && !showModel && <span className="usage-model">[{modelDisplay}]</span>}
       {showModel && (
         <span className="usage-model-wrap">
@@ -315,8 +315,6 @@ function UsageBar({
           )}
         </span>
       )}
-
-      {usage?.stale && <span className="usage-stale-tag">stale</span>}
 
       {showMode && (
         <span className="usage-mode-wrap">
