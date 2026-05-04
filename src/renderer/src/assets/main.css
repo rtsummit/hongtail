@@ -1655,6 +1655,10 @@ details.tool-block:hover > summary > .tool-row-open,
   gap: 12px;
   padding: 6px 16px 0;
   color: var(--fg-dim);
+  /* container query 기준점 — bar 자체 폭 기반 반응. 뷰포트 폭으로는 사이드바
+     너비를 고려할 수 없어 wrap 회피용 룰이 안 먹는 케이스가 있음. */
+  container-type: inline-size;
+  container-name: usage-bar;
 }
 
 .usage-bar.stale {
@@ -1715,10 +1719,11 @@ button.usage-pct {
   color: var(--fg-dim);
 }
 
-/* 좁은 데스크톱 폭에서 usage-bar 가 두 줄로 wrap 되는 걸 막기 위해 reset
-   시간을 inline 에서 숨김. usage-window 에 붙은 title 로 hover tooltip 에서
-   확인 가능. (모바일은 별도 media query 에서 popover 로 노출) */
-@media (max-width: 1100px) {
+/* 좁은 폭에서 usage-bar 가 두 줄로 wrap 되는 걸 막기 위해 reset 시간을
+   inline 에서 숨김. usage-window 에 붙은 title 로 hover tooltip 에서 확인
+   가능. (모바일은 별도 media query 에서 popover 로 노출) — viewport 가 아닌
+   bar 자체 폭 기준 (사이드바 영향 받는 chat-pane 폭에 정확히 반응). */
+@container usage-bar (max-width: 900px) {
   .usage-window .usage-reset {
     display: none;
   }
