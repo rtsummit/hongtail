@@ -12,6 +12,7 @@ import { i18n, resolveLang } from './locale'
 import { ToolDefaultOpenContext } from './toolContext'
 import { parseClaudeEvent } from './claudeEvents'
 import {
+  extractAllModelContextWindows,
   extractAssistantModel,
   extractContextTokens,
   extractContextWindowFromResult,
@@ -27,6 +28,11 @@ import {
   patchSessionStatus,
   pickVerb
 } from './sessionStatus'
+import {
+  cacheContextWindow,
+  getCachedContextWindow,
+  stripModelSuffix
+} from './contextWindowCache'
 import {
   installRpcBridge,
   type ActiveEntry,
@@ -316,6 +322,10 @@ function App(): React.JSX.Element {
 
       const init = extractInit(event)
       if (init) {
+        if (init.contextWindow) {
+          cacheContextWindow(init.model, init.contextWindow)
+          cacheContextWindow(stripModelSuffix(init.model), init.contextWindow)
+        }
         setStatusBySession((prev) =>
           patchSessionStatus(prev, sessionId, (cur) => ({
             model: init.model,
@@ -325,19 +335,37 @@ function App(): React.JSX.Element {
         )
       } else {
         // Fallbacks for the case where the system/init event was missed
-        // (resume mode, subscription race, etc).
+        // (resume mode, subscription race, readonly jsonl tail).
+        // jsonl 에는 system/init·result 이벤트가 없고 assistant.message.model 은
+        // suffix 없는 bare ID 라 parseContextWindowFromModel 이 항상 undefined.
+        // → 라이브 세션이 캐싱해둔 model→contextWindow 로 fallback.
+        //
+        // readonly 와 라이브에서 다르게 동작:
+        // - readonly: tail 의 마지막 assistant 가 이김 (도중 /model 스위치 반영).
+        // - 라이브 (init missed): 첫 assistant 만 잡고 이후엔 안 덮음 — 라이브의
+        //   model 변경은 새 init 이벤트로 처리되므로 fallback 이 끼어들면 race.
         const assistantModel = extractAssistantModel(event)
         if (assistantModel) {
           setStatusBySession((prev) =>
-            patchSessionStatus(prev, sessionId, (cur) =>
-              cur?.model
-                ? null
-                : {
-                    model: assistantModel,
-                    contextWindow:
-                      cur?.contextWindow ?? parseContextWindowFromModel(assistantModel)
-                  }
-            )
+            patchSessionStatus(prev, sessionId, (cur) => {
+              if (readonly) {
+                if (cur?.model === assistantModel) return null
+                return {
+                  model: assistantModel,
+                  contextWindow:
+                    parseContextWindowFromModel(assistantModel) ??
+                    getCachedContextWindow(assistantModel)
+                }
+              }
+              if (cur?.model) return null
+              return {
+                model: assistantModel,
+                contextWindow:
+                  cur?.contextWindow ??
+                  parseContextWindowFromModel(assistantModel) ??
+                  getCachedContextWindow(assistantModel)
+              }
+            })
           )
         }
         if (!readonly) {
@@ -355,6 +383,14 @@ function App(): React.JSX.Element {
         setStatusBySession((prev) =>
           patchSessionStatus(prev, sessionId, { contextUsedTokens: ctxTokens })
         )
+      }
+
+      const allCtxWindows = extractAllModelContextWindows(event)
+      if (allCtxWindows) {
+        for (const [model, cw] of Object.entries(allCtxWindows)) {
+          cacheContextWindow(model, cw)
+          cacheContextWindow(stripModelSuffix(model), cw)
+        }
       }
 
       const ctxWindow = extractContextWindowFromResult(

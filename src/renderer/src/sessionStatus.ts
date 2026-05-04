@@ -190,6 +190,22 @@ export function extractResultTotals(event: unknown): ResultTotals | null {
   }
 }
 
+// result.modelUsage 의 모든 model→contextWindow 매핑을 한 번에 뽑아 cache 에 적재.
+// preferredModel 단일 lookup 만 하는 extractContextWindowFromResult 와 보완 관계.
+export function extractAllModelContextWindows(event: unknown): Record<string, number> | null {
+  if (!event || typeof event !== 'object') return null
+  const e = event as Record<string, unknown>
+  if (e.type !== 'result') return null
+  const mu = e.modelUsage as Record<string, unknown> | undefined
+  if (!mu) return null
+  const out: Record<string, number> = {}
+  for (const [model, info] of Object.entries(mu)) {
+    const w = (info as Record<string, unknown>)?.contextWindow
+    if (typeof w === 'number' && w > 0) out[model] = w
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
 export function extractContextWindowFromResult(
   event: unknown,
   preferredModel?: string
