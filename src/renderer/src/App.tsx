@@ -334,36 +334,29 @@ function App(): React.JSX.Element {
           }))
         )
       } else {
-        // Fallbacks for the case where the system/init event was missed
-        // (resume mode, subscription race, readonly jsonl tail).
-        // jsonl 에는 system/init·result 이벤트가 없고 assistant.message.model 은
-        // suffix 없는 bare ID 라 parseContextWindowFromModel 이 항상 undefined.
-        // → 라이브 세션이 캐싱해둔 model→contextWindow 로 fallback.
+        // assistant.message.model 로 model 추적. init 이 못 오는 케이스:
+        // - readonly jsonl tail (system/init 이 jsonl 에 없음)
+        // - resume / subscription race
+        // - /model 로 mid-session 스위치 (claude CLI 가 새 init 을 다시 emit 안
+        //   하는 듯, 다음 assistant 만 새 model 로 옴)
         //
-        // readonly 와 라이브에서 다르게 동작:
-        // - readonly: tail 의 마지막 assistant 가 이김 (도중 /model 스위치 반영).
-        // - 라이브 (init missed): 첫 assistant 만 잡고 이후엔 안 덮음 — 라이브의
-        //   model 변경은 새 init 이벤트로 처리되므로 fallback 이 끼어들면 race.
+        // 비교는 stripModelSuffix 로. init 이 박은 `claude-opus-4-7[1m]` 와
+        // 다음 assistant 의 bare `claude-opus-4-7` 는 같은 모델로 취급 → no-op.
+        // 다른 family 로 갈아타면 strip 결과가 달라 업데이트. contextWindow 는
+        // 새 model 의 suffix → cache 순서로 추론하고, 둘 다 실패하면 cur 값을
+        // 살려둔다 (라이브에서 init 이 줬던 분모 유지).
         const assistantModel = extractAssistantModel(event)
         if (assistantModel) {
           setStatusBySession((prev) =>
             patchSessionStatus(prev, sessionId, (cur) => {
-              if (readonly) {
-                if (cur?.model === assistantModel) return null
-                return {
-                  model: assistantModel,
-                  contextWindow:
-                    parseContextWindowFromModel(assistantModel) ??
-                    getCachedContextWindow(assistantModel)
-                }
-              }
-              if (cur?.model) return null
+              const curBare = cur?.model ? stripModelSuffix(cur.model) : null
+              if (curBare === assistantModel) return null
               return {
                 model: assistantModel,
                 contextWindow:
-                  cur?.contextWindow ??
                   parseContextWindowFromModel(assistantModel) ??
-                  getCachedContextWindow(assistantModel)
+                  getCachedContextWindow(assistantModel) ??
+                  cur?.contextWindow
               }
             })
           )
