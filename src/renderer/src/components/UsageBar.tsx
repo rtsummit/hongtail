@@ -92,7 +92,17 @@ function UsageBar({
   // 모바일에서 reset 시간은 평소 가려두고 % 클릭 시 잠깐 (3초) 위에 띄움.
   // 데스크톱은 CSS 로 항상 inline 표시 — 이 state 영향 없음.
   const [openReset, setOpenReset] = useState<'fiveHour' | 'sevenDay' | null>(null)
+  // 모바일에서만 % 가 클릭 가능한 button. 데스크톱은 단순 span 으로 렌더.
+  const [isMobile, setIsMobile] = useState(false)
   const lastSigRef = useRef<string>('')
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    setIsMobile(mq.matches)
+    const onChange = (e: MediaQueryListEvent): void => setIsMobile(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   // close dropdowns on outside click
   useEffect(() => {
@@ -247,15 +257,21 @@ function UsageBar({
       {usage?.fiveHour != null && (
         <span className={`usage-window${openReset === 'fiveHour' ? ' show-reset' : ''}`}>
           <span className="usage-label">5h</span>
-          <button
-            type="button"
-            className={`usage-pct ${pctClass(usage.fiveHour)}`}
-            onClick={() =>
-              setOpenReset((prev) => (prev === 'fiveHour' ? null : 'fiveHour'))
-            }
-          >
-            {usage.fiveHour}%
-          </button>
+          {isMobile ? (
+            <button
+              type="button"
+              className={`usage-pct ${pctClass(usage.fiveHour)}`}
+              onClick={() =>
+                setOpenReset((prev) => (prev === 'fiveHour' ? null : 'fiveHour'))
+              }
+            >
+              {usage.fiveHour}%
+            </button>
+          ) : (
+            <span className={`usage-pct ${pctClass(usage.fiveHour)}`}>
+              {usage.fiveHour}%
+            </span>
+          )}
           {usage.fiveHourResetAt != null && (
             <span className="usage-reset">({remainingLabel(usage.fiveHourResetAt)})</span>
           )}
@@ -265,15 +281,21 @@ function UsageBar({
       {usage?.sevenDay != null && (
         <span className={`usage-window${openReset === 'sevenDay' ? ' show-reset' : ''}`}>
           <span className="usage-label">7d</span>
-          <button
-            type="button"
-            className={`usage-pct ${pctClass(usage.sevenDay)}`}
-            onClick={() =>
-              setOpenReset((prev) => (prev === 'sevenDay' ? null : 'sevenDay'))
-            }
-          >
-            {usage.sevenDay}%
-          </button>
+          {isMobile ? (
+            <button
+              type="button"
+              className={`usage-pct ${pctClass(usage.sevenDay)}`}
+              onClick={() =>
+                setOpenReset((prev) => (prev === 'sevenDay' ? null : 'sevenDay'))
+              }
+            >
+              {usage.sevenDay}%
+            </button>
+          ) : (
+            <span className={`usage-pct ${pctClass(usage.sevenDay)}`}>
+              {usage.sevenDay}%
+            </span>
+          )}
           {usage.sevenDayResetAt != null && (
             <span className="usage-reset">({remainingLabel(usage.sevenDayResetAt)})</span>
           )}
