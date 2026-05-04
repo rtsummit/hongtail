@@ -1727,6 +1727,11 @@ button.usage-pct {
   .usage-window .usage-reset {
     display: none;
   }
+  /* Context 의 progress bar (▮▱) 는 폭 큰 편이라 같이 숨김. 'Context 10%' 만
+     남음. */
+  .usage-window-context .ctx-bar {
+    display: none;
+  }
 }
 
 .usage-tokens {
