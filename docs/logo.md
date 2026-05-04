@@ -7,7 +7,7 @@ hongtail 로고는 시안 10종 중 **6번 (한글 ㅎ → 꼬리)** 을 채택.
 
 | 파일 | 용도 |
 |---|---|
-| `build/icon.svg` | **master SVG (1024×1024 + rounded square 배경).** 모든 빌드 아이콘은 이 한 파일에서 파생. |
+| `build/icon.svg` | **master SVG (viewBox 120, 투명 배경).** 모든 빌드 아이콘은 이 한 파일에서 파생. |
 | `build/icon.png` | 1024×1024 PNG. electron-builder Linux/macOS base. |
 | `build/icon.ico` | 16/24/32/48/64/128/256 multi-resolution Windows .ico. |
 | `resources/icon.png` | 256×256. main process 의 BrowserWindow 윈도우 아이콘. |
@@ -27,7 +27,7 @@ npm run build:icons
 사용 (`scripts/build-icons.mjs`).
 
 UI 용은 `src/renderer/src/assets/logo.svg` 를 별도로 갱신. (master 와 자동
-sync 안 함 — UI 는 transparent 배경이라 형태가 다름.)
+sync 안 함 — 현재는 글리프가 동일하지만 둘 다 손으로 맞춰야 함.)
 
 ## 적용 위치
 
