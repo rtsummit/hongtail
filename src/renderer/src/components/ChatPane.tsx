@@ -168,6 +168,19 @@ function ChatPane({
     forceScrollBottomRef.current = false
   }, [selected?.sessionId])
 
+  // 'app' 백엔드 live 모드로 진입할 때 textarea 에 자동 focus.
+  // Why: 세션 전환 / terminal→app 전환 / readonly→live 활성화 / 초기 mount
+  // 시 focus 가 sidebar 버튼·이미 닫힌 모달 input·detached element 에 남아
+  // 키 입력이 사라지는 케이스 방지. textareaRef.current 가 paint 후 잡히도록
+  // rAF 한 tick 미룸.
+  useEffect(() => {
+    if (!selected || selected.backend !== 'app' || !live) return
+    const id = requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [selected?.sessionId, selected?.backend, live])
+
   // Load slash commands for the current workspace.
   useEffect(() => {
     if (!selected) {
