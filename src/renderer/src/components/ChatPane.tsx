@@ -215,28 +215,42 @@ function ChatPane({
     })
   }, [])
 
-  // image 는 image-cache 에, 일반 파일은 file-cache 에 저장 후 path 를
-   // textarea 에 삽입. paste / file picker 양쪽이 공유.
+  // 데스크탑 (Electron) + OS 파일 picker 경로면 webUtils 가 원본 절대경로를
+  // 돌려주므로 캐시 복사 생략. paste 이미지나 web 모드는 빈 문자열이라
+  // 자연스럽게 cache 저장 fallback 으로 간다.
   const ingestFiles = useCallback(
     async (files: File[]): Promise<void> => {
       if (!selected) return
+      const getPath = (
+        window as unknown as {
+          electron?: { webUtils?: { getPathForFile?: (f: File) => string } }
+        }
+      ).electron?.webUtils?.getPathForFile
       for (const file of files) {
         try {
-          const buf = new Uint8Array(await file.arrayBuffer())
-          if (file.type.startsWith('image/')) {
-            const path = await window.api.images.save(
-              selected.sessionId,
-              buf,
-              file.type || 'image/png'
-            )
+          const isImage = file.type.startsWith('image/')
+          const nativePath = getPath?.(file) || ''
+          let path: string
+          if (nativePath) {
+            path = nativePath
+          } else {
+            const buf = new Uint8Array(await file.arrayBuffer())
+            path = isImage
+              ? await window.api.images.save(
+                  selected.sessionId,
+                  buf,
+                  file.type || 'image/png'
+                )
+              : await window.api.files.save(
+                  selected.sessionId,
+                  buf,
+                  file.name || 'attachment'
+                )
+          }
+          if (isImage) {
             imageCounterRef.current += 1
             insertAtCaret(`[Image #${imageCounterRef.current}: ${path}]\n`)
           } else {
-            const path = await window.api.files.save(
-              selected.sessionId,
-              buf,
-              file.name || 'attachment'
-            )
             insertAtCaret(`[File: ${path}]\n`)
           }
         } catch (err) {
