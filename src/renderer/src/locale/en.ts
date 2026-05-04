@@ -38,6 +38,7 @@ export const en: Record<string, string> = {
 
   // === Readonly activation ===
   'chat.readonly.label': 'Previous conversation — read-only',
+  'chat.readonly.label.withCtx': 'Previous conversation (Context {pct}%) — read-only',
   'chat.activate.full': 'Activate (Full)',
   'chat.activate.full.short': 'Full',
   'chat.activate.summary': 'Activate (Summary)',

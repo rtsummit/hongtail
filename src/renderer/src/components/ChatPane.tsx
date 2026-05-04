@@ -801,7 +801,16 @@ function ChatPane({
         </>
       ) : (
         <div className="chat-activate">
-          <div className="chat-activate-label">{t('chat.readonly.label')}</div>
+          <div className="chat-activate-label">
+            {status?.contextUsedTokens != null && status?.contextWindow
+              ? t('chat.readonly.label.withCtx', {
+                  pct: Math.min(
+                    100,
+                    Math.round((status.contextUsedTokens / status.contextWindow) * 100)
+                  )
+                })
+              : t('chat.readonly.label')}
+          </div>
           <div className="chat-activate-buttons">
             <button
               type="button"

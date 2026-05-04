@@ -39,6 +39,7 @@ export const ko: Record<string, string> = {
 
   // === Readonly activation ===
   'chat.readonly.label': '이전 대화 — 읽기 전용',
+  'chat.readonly.label.withCtx': '이전 대화 (Context {pct}%) — 읽기 전용',
   'chat.activate.full': 'Full로 활성화',
   'chat.activate.full.short': 'Full',
   'chat.activate.summary': 'Summary로 활성화',
