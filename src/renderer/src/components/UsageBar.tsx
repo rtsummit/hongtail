@@ -232,7 +232,12 @@ function UsageBar({
         <span className="usage-window" title={t('usage.sessionTotalTitle')}>
           <span className="usage-label">Σ</span>
           <span className="usage-tokens">
-            ↑{formatTokens(sessionInTokens)} ↓{formatTokens(sessionOutTokens)}
+            <span title={t('usage.sessionInputTitle')}>
+              ↑{formatTokens(sessionInTokens)}
+            </span>{' '}
+            <span title={t('usage.sessionOutputTitle')}>
+              ↓{formatTokens(sessionOutTokens)}
+            </span>
           </span>
         </span>
       )}

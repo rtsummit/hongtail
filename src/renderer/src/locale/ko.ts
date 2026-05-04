@@ -178,6 +178,10 @@ export const ko: Record<string, string> = {
   'usage.modelChange': '모델 변경',
   'usage.modeChange': '권한 모드 변경',
   'usage.sessionTotalTitle': '이 세션 누적 (sub-agent 포함)',
+  'usage.sessionInputTitle':
+    '↑ 입력 토큰 — 모델로 올려보낸 누적량 (이전 대화 history + system prompt + 이번 메시지 + cache 읽기/생성)',
+  'usage.sessionOutputTitle':
+    '↓ 출력 토큰 — 모델이 생성한 누적량 (답변 본문 + tool 호출 인자 + thinking)',
   'usage.model.default.hint': '기본 (대화 시작 시 모델)',
   'usage.model.opus.hint': '최고 성능 — 비싸고 느림',
   'usage.model.sonnet.hint': '균형 — 일상 작업',
