@@ -32,8 +32,6 @@ import {
 import {
   cacheContextWindow,
   getCachedContextWindow,
-  getLastLiveModel,
-  setLastLiveModel,
   stripModelSuffix
 } from './contextWindowCache'
 import {
@@ -329,7 +327,6 @@ function App(): React.JSX.Element {
           cacheContextWindow(init.model, init.contextWindow)
           cacheContextWindow(stripModelSuffix(init.model), init.contextWindow)
         }
-        if (!readonly) setLastLiveModel(init.model)
         setStatusBySession((prev) =>
           patchSessionStatus(prev, sessionId, (cur) => ({
             model: init.model,
@@ -888,22 +885,14 @@ function App(): React.JSX.Element {
     async (sessionId: string, workspacePath: string, mode: ActiveMode) => {
       ensureClaudeSubscription(sessionId)
       // claude -p emits system/init only on the first turn, so seed the
-      // permission mode now (main/session.ts forces bypassPermissions on spawn).
-      // model/contextWindow 도 마지막 라이브 세션의 값으로 미리 seed — 첫 메시지
-      // 전에도 UsageBar 의 Context 0% / 모델 라벨이 보이게. 진짜 init 이 오면
-      // 권위값으로 자연스럽게 덮어씀 (대부분 같은 값).
-      const lastModel = getLastLiveModel()
-      const seedCw = lastModel
-        ? parseContextWindowFromModel(lastModel) ?? getCachedContextWindow(lastModel)
-        : undefined
+      // permission mode now (main/session.ts forces bypassPermissions on spawn)
+      // — model fills in once init arrives; UsageBar shows a "default" placeholder
+      // in the meantime. Context 는 분자 0 / 분모 미관측 = 0% 로 그려져서
+      // contextWindow 를 seed 안 해도 첫 turn 전부터 0% 게이지가 보인다.
       setStatusBySession((prev) =>
-        patchSessionStatus(prev, sessionId, (cur) => {
-          const patch: Partial<SessionStatus> = {}
-          if (!cur?.permissionMode) patch.permissionMode = 'bypassPermissions'
-          if (!cur?.model && lastModel) patch.model = lastModel
-          if (!cur?.contextWindow && seedCw) patch.contextWindow = seedCw
-          return Object.keys(patch).length > 0 ? patch : null
-        })
+        patchSessionStatus(prev, sessionId, (cur) =>
+          cur?.permissionMode ? null : { permissionMode: 'bypassPermissions' }
+        )
       )
       try {
         await window.api.claude.startSession(

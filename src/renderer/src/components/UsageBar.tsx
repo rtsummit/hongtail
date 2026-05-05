@@ -161,16 +161,13 @@ function UsageBar({
   const currentFamily = modelFamily(status?.model)
   const showModel = !!onSetModel
   const modelLabel = modelDisplay ?? 'default'
-  // 새 세션은 첫 assistant turn 전엔 contextUsedTokens 가 undefined 인데, 분모
-  // (init 이 박은 contextWindow) 만 알면 0% 로 보여주는 게 자연스러움 — bar 가
-  // 갑자기 등장하기보다 0 부터 차오르는 게 시각적으로 안정적.
+  // UsageBar 는 라이브 세션에서만 렌더된다. contextUsedTokens 가 없으면 = 아직
+  // 어떤 turn 도 일어나지 않음 = 0. 분모 (contextWindow) 가 없어도 0/X = 0 이라
+  // 0% 표시. 첫 init 이 늦게 와도 게이지가 처음부터 0 으로 떠있어 시각적 깜빡임 없음.
   const ctxPercent =
-    status?.contextWindow != null
-      ? Math.min(
-          100,
-          Math.round(((status.contextUsedTokens ?? 0) / status.contextWindow) * 100)
-        )
-      : null
+    status?.contextWindow != null && status?.contextUsedTokens != null
+      ? Math.min(100, Math.round((status.contextUsedTokens / status.contextWindow) * 100))
+      : 0
   const mode = status?.permissionMode
   const showMode = !!mode && !!onSetPermissionMode
 
@@ -238,13 +235,11 @@ function UsageBar({
         </span>
       )}
 
-      {ctxPercent != null && (
-        <span className="usage-window usage-window-context">
-          <span className="usage-label">Context</span>
-          <ContextBar percent={ctxPercent} />
-          <span className={`usage-pct ${pctClass(ctxPercent)}`}>{ctxPercent}%</span>
-        </span>
-      )}
+      <span className="usage-window usage-window-context">
+        <span className="usage-label">Context</span>
+        <ContextBar percent={ctxPercent} />
+        <span className={`usage-pct ${pctClass(ctxPercent)}`}>{ctxPercent}%</span>
+      </span>
 
       {hasSessionTokens && (
         <span className="usage-window" title={t('usage.sessionTotalTitle')}>
