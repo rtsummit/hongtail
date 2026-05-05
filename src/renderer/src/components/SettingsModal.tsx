@@ -181,6 +181,7 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
   const [pwConfirm, setPwConfirm] = useState<string>('')
   const [pwMessage, setPwMessage] = useState<string>('')
   const [sizeDraft, setSizeDraft] = useState<string>(String(settings.fontSize))
+  const [chunkDraft, setChunkDraft] = useState<string>(String(settings.readonlyChunkSize))
   // 호스트가 dev 모드인지 — Electron 창은 import.meta.env.DEV 와 일치하지만
   // web 사용자는 production 빌드를 받기 때문에 RPC 로 따로 물어야 한다.
   const [devAvailable, setDevAvailable] = useState<boolean>(false)
@@ -189,6 +190,10 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
   useEffect(() => {
     setSizeDraft(String(settings.fontSize))
   }, [settings.fontSize])
+
+  useEffect(() => {
+    setChunkDraft(String(settings.readonlyChunkSize))
+  }, [settings.readonlyChunkSize])
 
   useEffect(() => {
     if (!open) return
@@ -297,6 +302,19 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
     if (clamped !== settings.fontSize) onChange({ ...settings, fontSize: clamped })
   }
 
+  const commitChunk = (): void => {
+    const n = Number(chunkDraft)
+    if (!Number.isFinite(n)) {
+      setChunkDraft(String(settings.readonlyChunkSize))
+      return
+    }
+    const clamped = Math.min(2000, Math.max(20, Math.round(n)))
+    setChunkDraft(String(clamped))
+    if (clamped !== settings.readonlyChunkSize) {
+      onChange({ ...settings, readonlyChunkSize: clamped })
+    }
+  }
+
   return (
     <div
       className="modal-backdrop"
@@ -376,10 +394,14 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
               min={20}
               max={2000}
               step={50}
-              value={settings.readonlyChunkSize}
-              onChange={(e) => {
-                const n = Math.min(2000, Math.max(20, Math.round(Number(e.target.value))))
-                if (Number.isFinite(n)) onChange({ ...settings, readonlyChunkSize: n })
+              value={chunkDraft}
+              onChange={(e) => setChunkDraft(e.target.value)}
+              onBlur={commitChunk}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitChunk()
+                }
               }}
             />
           </label>
