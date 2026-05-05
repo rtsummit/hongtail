@@ -67,7 +67,6 @@ export const en: Record<string, string> = {
   // === Tool cards ===
   'tool.error': 'Error',
   'tool.openInWindow': 'Open in window',
-  'tool.modal.expand': 'Expand to modal',
   'tool.modal.close': 'Close',
   'tool.modal.codeView': 'Code view',
   'tool.modal.response': 'Response',

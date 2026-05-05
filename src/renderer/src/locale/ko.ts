@@ -68,7 +68,6 @@ export const ko: Record<string, string> = {
   // === Tool cards ===
   'tool.error': '오류',
   'tool.openInWindow': '별도 창으로 열기',
-  'tool.modal.expand': '모달로 보기',
   'tool.modal.close': '닫기',
   'tool.modal.codeView': '코드 보기',
   'tool.modal.response': '응답',

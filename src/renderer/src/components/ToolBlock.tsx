@@ -685,7 +685,7 @@ function DiffBody({
           <button
             type="button"
             className="diff-expand-btn"
-            title={t('tool.modal.expand')}
+            title={t('tool.openInWindow')}
             onClick={onExpand}
           >
             ⤢
