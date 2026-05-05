@@ -4,6 +4,8 @@ Claude Code CLI 를 데스크톱에서 챗 UI 로 감싼 Electron 앱 (React + T
 한 워크스페이스 안에 여러 Claude 세션·BTW 사이드 챗·터미널을 띄워 쓰는 게 목적.
 v0.1.6+ 부터는 외부 브라우저/모바일에서도 같은 UI 로 접속 가능 (web 모드).
 
+![hongtail 메인 화면](./docs/screenshots/main.png)
+
 > 처음 쓰시는 분은 [**docs/getting-started.md**](./docs/getting-started.md) —
 > 설치·첫 대화·다중 세션·BTW·웹 모드까지 한 페이지로 정리한 한국어 풀 가이드.
 
