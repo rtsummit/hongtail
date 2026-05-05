@@ -1410,10 +1410,22 @@ details.tool-block:hover > summary > .tool-row-open,
   flex-direction: column;
 }
 
+/* "별도 창" 모달 안에선 자식 박스의 max-height cap 을 푼다. 채팅 페인에선 길어
+   지지 않도록 240~480px 로 자르지만, 모달은 cap 을 풀어 모달 크기에 맞춰 펼치는
+   게 의도된 자리. */
+.modal-wide .tool-body,
+.modal-wide .tool-cmd,
+.modal-wide .tool-out-text,
+.modal-wide .tool-md-preview,
+.modal-wide .command-output-text,
+.modal-wide .tool-diff,
+.modal-wide .tool-diff.side {
+  max-height: none;
+}
+
 .diff-modal-body .tool-diff,
 .diff-modal-body .tool-diff.side {
   flex: 1;
-  max-height: none;
 }
 
 .tool-diff.side {
