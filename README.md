@@ -42,6 +42,13 @@ npm run build:win:all         # 둘 다
 - 검색 (Ctrl+F), 슬래시 명령 자동완성, plan mode UI
 - 외부 브라우저/모바일 접속 (`docs/web-mode.md`) — 비밀번호 인증 + 선택적 HTTPS
 
+## 외부 통합 (선택)
+
+- **[claude-hud](https://github.com/jarrodwatts/claude-hud)** — usage bar 의
+  `5h` / `7d` 한도 셀은 이 플러그인이 `~/.claude/plugins/claude-hud/.usage-cache.json`
+  에 쓰는 캐시를 읽음. 없으면 해당 셀만 자동으로 안 보이고 나머지 (모델 / Context % /
+  세션 누적 토큰 / 권한 모드) 는 정상. Claude Code CLI 의 `/plugins` 로 설치.
+
 ## 핵심 docs
 
 자세한 내부 동작은 `docs/`:
