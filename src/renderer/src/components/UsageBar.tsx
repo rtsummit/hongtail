@@ -242,7 +242,10 @@ function UsageBar({
       </span>
 
       {hasSessionTokens && (
-        <span className="usage-window" title={t('usage.sessionTotalTitle')}>
+        <span
+          className="usage-window usage-window-session"
+          title={t('usage.sessionTotalTitle')}
+        >
           <span className="usage-label">Σ</span>
           <span className="usage-tokens">
             <span title={t('usage.sessionInputTitle')}>

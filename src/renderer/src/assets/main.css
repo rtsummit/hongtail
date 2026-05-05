@@ -3456,6 +3456,12 @@ button.usage-pct {
     display: none;
   }
 
+  /* 세션 누적 토큰 (Σ) — 모바일에선 두 줄 wrap 유발 비중이 커서 통째로 숨김.
+     세션 누적은 데스크톱에서 확인. */
+  .usage-window-session {
+    display: none;
+  }
+
   /* reset 시간은 평소 가려두고 % 클릭 시 위에 popover 로 잠깐 (3초) 노출. */
   .usage-window .usage-reset {
     display: none;
