@@ -66,6 +66,20 @@ npm run build:win:all         # 둘 다
 
 프로젝트 인덱스는 [`CLAUDE.md`](./CLAUDE.md).
 
+## Acknowledgements
+
+hongtail 의 구현 과정에서 다음 두 프로젝트를 참고했습니다.
+
+- **[plannotator](https://github.com/backnotprop/plannotator)** — Claude Code
+  플러그인. `PermissionRequest` / `ExitPlanMode` hook 의 stdin/stdout 포맷을
+  plannotator 의 hook 코드에서 확인해, hongtail 의 host-confirm UI
+  (Plan mode · AskUserQuestion 카드) 구현 기준으로 삼음. 자세히는
+  [`docs/host-confirm-ui-plan.md`](./docs/host-confirm-ui-plan.md) §8.4.
+- **[claude-hud](https://github.com/jarrodwatts/claude-hud)** — Claude Code
+  플러그인. UsageBar 의 `5h` / `7d` rate-limit 셀이 claude-hud 가 기록하는
+  `~/.claude/plugins/claude-hud/.usage-cache.json` 캐시 포맷·필드를 그대로
+  읽음. 통합 사용 방식은 위 "외부 통합" 섹션 참조.
+
 ## Recommended IDE Setup
 
 [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
