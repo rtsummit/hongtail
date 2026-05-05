@@ -1,7 +1,7 @@
 {
   "name": "hongtail",
   "version": "0.1.20",
-  "description": "Claude Code CLI ?ㅻ뱶由ъ뒪瑜?梨?UI 濡?媛먯떬 Electron ??,
+  "description": "Claude Code CLI 헤드리스를 챗 UI 로 감싼 Electron 앱",
   "main": "./out/main/index.js",
   "author": "rtsummit",
   "homepage": "https://github.com/rtsummit/hongtail",
