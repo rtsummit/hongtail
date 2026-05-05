@@ -382,9 +382,14 @@ describe('extractContextWindowFromResult', () => {
   it('preferredModel 매칭 우선', () => {
     expect(extractContextWindowFromResult(event, 'claude-opus-4-7[1m]')).toBe(1_000_000)
   })
-  it('preferredModel 없거나 매칭 안 되면 첫 번째 양수 사용', () => {
-    expect(extractContextWindowFromResult(event)).toBe(1_000_000)
-    expect(extractContextWindowFromResult(event, 'unknown')).toBe(1_000_000)
+  it('exact 실패해도 stripModelSuffix 일치하면 매칭', () => {
+    // bare ↔ [1m] 매핑: status.model 이 reconcile fallback 으로 bare 일 때
+    expect(extractContextWindowFromResult(event, 'claude-opus-4-7')).toBe(1_000_000)
+  })
+  it('preferredModel 없거나 family 도 안 맞으면 null — sub-agent flicker 방지', () => {
+    // 임의 fallback (첫 entry) 하면 sub-agent haiku 의 200k 가 잡혀 분모가 튄다.
+    expect(extractContextWindowFromResult(event)).toBeNull()
+    expect(extractContextWindowFromResult(event, 'unknown-model')).toBeNull()
   })
   it('non-result 또는 modelUsage 없음 → null', () => {
     expect(extractContextWindowFromResult({ type: 'assistant' })).toBeNull()

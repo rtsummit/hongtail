@@ -206,6 +206,10 @@ export function extractAllModelContextWindows(event: unknown): Record<string, nu
   return Object.keys(out).length > 0 ? out : null
 }
 
+// preferredModel 의 contextWindow 만 골라 반환. modelUsage 에는 main agent 와
+// sub-agent (Task tool) 가 같이 잡혀있을 수 있어 (e.g. opus[1m] + haiku) 임의
+// fallback 을 하면 분모가 1m ↔ 200k 로 튐. exact match 실패 시 stripModelSuffix
+// 까지만 보고, 그래도 없으면 null — 메인 모델을 못 식별한 result 는 패스.
 export function extractContextWindowFromResult(
   event: unknown,
   preferredModel?: string
@@ -215,11 +219,13 @@ export function extractContextWindowFromResult(
   if (e.type !== 'result') return null
   const mu = e.modelUsage as Record<string, unknown> | undefined
   if (!mu) return null
-  if (preferredModel && mu[preferredModel]) {
-    const w = (mu[preferredModel] as Record<string, unknown>)?.contextWindow
-    if (typeof w === 'number' && w > 0) return w
-  }
-  for (const info of Object.values(mu)) {
+  if (!preferredModel) return null
+  const exact = (mu[preferredModel] as Record<string, unknown>)?.contextWindow
+  if (typeof exact === 'number' && exact > 0) return exact
+  const preferredBare = preferredModel.replace(/\[\d+[mk]\]$/i, '')
+  for (const [model, info] of Object.entries(mu)) {
+    const bare = model.replace(/\[\d+[mk]\]$/i, '')
+    if (bare !== preferredBare) continue
     const w = (info as Record<string, unknown>)?.contextWindow
     if (typeof w === 'number' && w > 0) return w
   }
