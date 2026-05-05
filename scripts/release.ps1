@@ -58,7 +58,11 @@ Write-Host "  branch: $branch"
 # 2. version bump
 Step "version bump ($BumpType)"
 $pkgPath = Join-Path $repoRoot 'package.json'
-$pkgRaw = Get-Content $pkgPath -Raw
+# PS 5.1 의 Get-Content -Raw 는 BOM 없는 파일을 시스템 기본 인코딩 (한글 Windows
+# 의 cp949) 로 읽어서 description 의 한글이 깨진 채 메모리에 들어온다. UTF-8 로
+# 명시 읽기.
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+$pkgRaw = [System.IO.File]::ReadAllText($pkgPath, $utf8NoBom)
 $old = if ($pkgRaw -match '"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"') {
   @{ major = [int]$Matches[1]; minor = [int]$Matches[2]; patch = [int]$Matches[3] }
 } else {
@@ -76,7 +80,6 @@ $pkgRaw = $pkgRaw -replace '"version"\s*:\s*"\d+\.\d+\.\d+"', "`"version`": `"$n
 # package.json 끝에 trailing newline 보존. PS 5.1 의 -Encoding utf8 은 BOM 을
 # 넣어서 vite/node 의 JSON parser 가 깨진다 (PostCSS config 도 같이). .NET API
 # 로 BOM 없는 UTF-8 으로 직접 쓴다.
-$utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText($pkgPath, $pkgRaw, $utf8NoBom)
 
 # 3. commit
