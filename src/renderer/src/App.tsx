@@ -6,6 +6,7 @@ import TerminalSession, { type TerminalSearchHandle } from './components/Termina
 import { useTerminalStatusWatch } from './hooks/useTerminalStatusWatch'
 import SettingsModal from './components/SettingsModal'
 import FindBar from './components/FindBar'
+import { appConfirm, ConfirmHost } from './confirm'
 import { buildBtwSystemPrompt } from './btwPrompt'
 import { fontStackToCss, loadSettings, saveSettings, type AppSettings } from './settings'
 import { i18n, resolveLang } from './locale'
@@ -991,9 +992,10 @@ function App(): React.JSX.Element {
         liveInWorkspace.length > 0
           ? `\n\n진행 중인 라이브 대화 ${liveInWorkspace.length}개도 함께 종료됩니다.`
           : ''
-      const ok = window.confirm(
-        `워크스페이스를 목록에서 제거할까요?\n${path}${livePart}\n\n(저장된 대화 기록 자체는 삭제되지 않습니다)`
-      )
+      const ok = await appConfirm({
+        message: `워크스페이스를 목록에서 제거할까요?\n${path}${livePart}\n\n(저장된 대화 기록 자체는 삭제되지 않습니다)`,
+        destructive: true
+      })
       if (!ok) return
 
       for (const [sessionId, a] of liveInWorkspace) {
@@ -1023,7 +1025,10 @@ function App(): React.JSX.Element {
     async (sessionId: string) => {
       const a = active[sessionId]
       if (!a) return
-      const ok = window.confirm(i18n.t('app.confirmStopSession'))
+      const ok = await appConfirm({
+        message: i18n.t('app.confirmStopSession'),
+        destructive: true
+      })
       if (!ok) return
       try {
         if (a.backend === 'terminal') {
@@ -1668,6 +1673,7 @@ function App(): React.JSX.Element {
         onClose={() => setSettingsOpen(false)}
         onChange={handleSettingsChange}
       />
+      <ConfirmHost />
     </div>
     </ToolDefaultOpenContext.Provider>
   )

@@ -2982,6 +2982,34 @@ button.usage-pct {
   border-color: var(--accent-hover);
 }
 
+/* Confirm modal (in-app native confirm 대체). 기본 modal 보다 좁고 헤더 없음. */
+.modal-confirm {
+  width: 380px;
+}
+
+.modal-confirm .confirm-body {
+  gap: 4px;
+  padding: 18px 20px 16px;
+}
+
+.modal-confirm .confirm-line {
+  margin: 0;
+  font-size: calc(var(--font-size, 13px) * 13 / 13);
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.modal-btn.primary.destructive {
+  background: #c0392b;
+  border-color: #c0392b;
+}
+
+.modal-btn.primary.destructive:hover {
+  background: #a93423;
+  border-color: #a93423;
+}
+
 /* ===== Side chat (BTW) panel ===== */
 
 .side-chat-panel {

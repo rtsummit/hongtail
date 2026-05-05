@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import SessionRow from './SessionRow'
 import SessionTitleArea from './SessionTitleArea'
+import { appConfirm } from '../confirm'
 import type {
   Backend,
   ClaudeSessionMeta,
@@ -137,7 +138,10 @@ function WorkspaceCard({
 
   const handleDelete = useCallback(
     async (sessionId: string, title: string) => {
-      const ok = window.confirm(`"${title}" 대화를 삭제할까요?`)
+      const ok = await appConfirm({
+        message: `"${title}" 대화를 삭제할까요?`,
+        destructive: true
+      })
       if (!ok) return
       try {
         await window.api.claude.deleteSession(path, sessionId)

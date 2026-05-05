@@ -196,5 +196,9 @@ export const en: Record<string, string> = {
   // === App ===
   'app.workspacePathPrompt': 'Workspace directory path (absolute, host PC)',
   'app.compactRequested': '▸ /compact requested',
-  'app.confirmStopSession': 'Stop this live conversation? (history is kept)'
+  'app.confirmStopSession': 'Stop this live conversation? (history is kept)',
+
+  // === Confirm modal (in-app replacement for native window.confirm) ===
+  'dialog.ok': 'OK',
+  'dialog.cancel': 'Cancel'
 }

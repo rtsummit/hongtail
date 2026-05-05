@@ -196,5 +196,9 @@ export const ko: Record<string, string> = {
   // === App ===
   'app.workspacePathPrompt': '워크스페이스 디렉토리 경로 (호스트 PC 기준 절대 경로)',
   'app.compactRequested': '▸ /compact 요청됨',
-  'app.confirmStopSession': '이 라이브 대화를 중지할까요? (기록은 유지됩니다)'
+  'app.confirmStopSession': '이 라이브 대화를 중지할까요? (기록은 유지됩니다)',
+
+  // === Confirm modal (in-app, native window.confirm 대체) ===
+  'dialog.ok': '확인',
+  'dialog.cancel': '취소'
 }
