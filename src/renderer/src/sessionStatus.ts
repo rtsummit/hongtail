@@ -113,10 +113,17 @@ export function extractInit(event: unknown): InitInfo | null {
 // Fallback: assistant turn events always carry model on message.model.
 // Used to populate status.model when the system/init was missed
 // (e.g. resume that doesn't re-emit init, or race with subscription setup).
+//
+// Sub-agent (Task tool) 와 sidechain 은 자기 모델을 따로 emit 한다 (e.g. main
+// 이 opus 인데 Explore sub-agent 가 haiku). 그걸 메인 status.model 에 반영하면
+// 매 sub-agent turn 마다 모델·분모가 튀어 ctxPercent 가 진동한다 — extractContextTokens
+// 와 동일한 필터로 차단.
 export function extractAssistantModel(event: unknown): string | null {
   if (!event || typeof event !== 'object') return null
   const e = event as Record<string, unknown>
   if (e.type !== 'assistant') return null
+  if (e.parent_tool_use_id != null) return null
+  if (e.isSidechain === true) return null
   const msg = e.message as Record<string, unknown> | undefined
   if (!msg) return null
   const model = msg.model

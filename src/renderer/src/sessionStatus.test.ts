@@ -253,6 +253,22 @@ describe('extractAssistantModel', () => {
     expect(extractAssistantModel({ type: 'assistant' })).toBeNull()
     expect(extractAssistantModel({ type: 'assistant', message: {} })).toBeNull()
   })
+  it('sub-agent / sidechain → null (메인 status.model 진동 방지)', () => {
+    expect(
+      extractAssistantModel({
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_xxx',
+        message: { model: 'claude-haiku-4-5' }
+      })
+    ).toBeNull()
+    expect(
+      extractAssistantModel({
+        type: 'assistant',
+        isSidechain: true,
+        message: { model: 'claude-haiku-4-5' }
+      })
+    ).toBeNull()
+  })
 })
 
 describe('extractPermissionModeEvent', () => {
