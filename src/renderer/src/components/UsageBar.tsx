@@ -161,9 +161,15 @@ function UsageBar({
   const currentFamily = modelFamily(status?.model)
   const showModel = !!onSetModel
   const modelLabel = modelDisplay ?? 'default'
+  // 새 세션은 첫 assistant turn 전엔 contextUsedTokens 가 undefined 인데, 분모
+  // (init 이 박은 contextWindow) 만 알면 0% 로 보여주는 게 자연스러움 — bar 가
+  // 갑자기 등장하기보다 0 부터 차오르는 게 시각적으로 안정적.
   const ctxPercent =
-    status?.contextUsedTokens != null && status?.contextWindow
-      ? Math.min(100, Math.round((status.contextUsedTokens / status.contextWindow) * 100))
+    status?.contextWindow != null
+      ? Math.min(
+          100,
+          Math.round(((status.contextUsedTokens ?? 0) / status.contextWindow) * 100)
+        )
       : null
   const mode = status?.permissionMode
   const showMode = !!mode && !!onSetPermissionMode
@@ -171,7 +177,9 @@ function UsageBar({
   const sessionInTokens =
     (status?.sessionInputTokens ?? 0) + (status?.sessionCacheTokens ?? 0)
   const sessionOutTokens = status?.sessionOutputTokens ?? 0
-  const hasSessionTokens = sessionInTokens > 0 || sessionOutTokens > 0
+  // UsageBar 는 라이브 세션에서만 렌더되므로, 토큰이 0 이어도 ↑0 ↓0 으로 표시.
+  // 첫 turn 전에도 "지금까지 소비량 0" 을 명시적으로 보여준다.
+  const hasSessionTokens = !!status
 
   // Hide entirely if there's nothing to show.
   const hasUsage = usage && (usage.fiveHour != null || usage.sevenDay != null)
