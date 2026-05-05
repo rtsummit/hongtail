@@ -11,6 +11,9 @@ export const ko: Record<string, string> = {
   'settings.fontHint': '폰트는 추가한 순서대로 fallback 됩니다 (왼쪽이 우선). ‹ › 로 우선순위 변경.',
   'settings.readonlyChunkSize': '읽기 전용 한 번에 불러올 줄 수',
   'settings.toolCardsDefaultOpen': '기본으로 펼쳐서 표시할 도구 카드',
+  'settings.defaultPermissionMode': '새 대화 시작 권한 모드',
+  'settings.defaultPermissionModeHint':
+    'claude --permission-mode 의 기본값. 도중 변경은 상단 mode 메뉴 / Shift+Tab.',
   'settings.language': '언어',
   'settings.language.auto': '자동 (브라우저 설정)',
   'settings.language.ko': '한국어',

@@ -126,6 +126,10 @@ function App(): React.JSX.Element {
   // 이 state 는 무관.
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
+  // 라이브 settings 를 콜백 안에서 stale 없이 읽기 위한 ref. 새 세션 spawn 시
+  // settings.defaultPermissionMode / 터미널 명령 string 등이 참조.
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
   // settings.language 변화 시 i18n 동기화. 'auto' 면 browser locale 로 해석.
   useEffect(() => {
     const target = resolveLang(settings.language)
@@ -885,20 +889,22 @@ function App(): React.JSX.Element {
     async (sessionId: string, workspacePath: string, mode: ActiveMode) => {
       ensureClaudeSubscription(sessionId)
       // claude -p emits system/init only on the first turn, so seed the
-      // permission mode now (main/session.ts forces bypassPermissions on spawn)
-      // — model fills in once init arrives; UsageBar shows a "default" placeholder
-      // in the meantime. Context 는 분자 0 / 분모 미관측 = 0% 로 그려져서
-      // contextWindow 를 seed 안 해도 첫 turn 전부터 0% 게이지가 보인다.
+      // permission mode now from settings — model fills in once init arrives;
+      // UsageBar 는 그동안 settings 모드를 placeholder 로 보여준다. Context 는
+      // 분자 0 / 분모 미관측 = 0% 로 그려져서 contextWindow 를 seed 안 해도
+      // 첫 turn 전부터 0% 게이지가 보인다.
+      const permissionMode = settingsRef.current.defaultPermissionMode
       setStatusBySession((prev) =>
         patchSessionStatus(prev, sessionId, (cur) =>
-          cur?.permissionMode ? null : { permissionMode: 'bypassPermissions' }
+          cur?.permissionMode ? null : { permissionMode }
         )
       )
       try {
         await window.api.claude.startSession(
           workspacePath,
           sessionId,
-          mode === 'new' ? 'new' : 'resume'
+          mode === 'new' ? 'new' : 'resume',
+          permissionMode
         )
         if (mode === 'resume-summary') {
           await new Promise((r) => setTimeout(r, 500))
@@ -1601,10 +1607,11 @@ function App(): React.JSX.Element {
             !!selected &&
             selected.sessionId === t.sessionId &&
             selected.backend === 'terminal'
+          const pm = settings.defaultPermissionMode
           const command =
             t.mode === 'new'
-              ? `claude --permission-mode bypassPermissions --session-id ${t.sessionId}`
-              : `claude --permission-mode bypassPermissions --resume ${t.sessionId}`
+              ? `claude --permission-mode ${pm} --session-id ${t.sessionId}`
+              : `claude --permission-mode ${pm} --resume ${t.sessionId}`
           return (
             <TerminalSession
               key={t.sessionId}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { AppSettings } from '../settings'
-import { DEFAULT_SETTINGS, KNOWN_TOOL_NAMES } from '../settings'
+import type { AppSettings, PermissionModeSetting } from '../settings'
+import { DEFAULT_SETTINGS, KNOWN_TOOL_NAMES, PERMISSION_MODE_VALUES } from '../settings'
 import type { WebSettings } from '../../../preload/index.d'
 
 interface Props {
@@ -409,6 +409,25 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             value={settings.toolCardsDefaultOpen}
             onUpdate={(next) => onChange({ ...settings, toolCardsDefaultOpen: next })}
           />
+          <label className="settings-row">
+            <span className="settings-label">{t('settings.defaultPermissionMode')}</span>
+            <select
+              value={settings.defaultPermissionMode}
+              onChange={(e) =>
+                onChange({
+                  ...settings,
+                  defaultPermissionMode: e.target.value as PermissionModeSetting
+                })
+              }
+            >
+              {PERMISSION_MODE_VALUES.map((m) => (
+                <option key={m} value={m}>
+                  {t(`usage.mode.${m}.hint`)} — {m}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="settings-hint">{t('settings.defaultPermissionModeHint')}</p>
           {web && (
             <>
               <hr className="settings-divider" />

@@ -42,9 +42,15 @@ const api = {
     startSession: (
       workspacePath: string,
       sessionId: string | null,
-      mode: 'new' | 'resume'
+      mode: 'new' | 'resume',
+      permissionMode?: string
     ): Promise<{ sessionId: string; alreadyRunning: boolean }> =>
-      ipcRenderer.invoke('claude:start-session', { workspacePath, sessionId, mode }),
+      ipcRenderer.invoke('claude:start-session', {
+        workspacePath,
+        sessionId,
+        mode,
+        permissionMode
+      }),
     sendInput: (sessionId: string, text: string): Promise<void> =>
       ipcRenderer.invoke('claude:send-input', sessionId, text),
     controlRequest: (sessionId: string, request: Record<string, unknown>): Promise<string> =>

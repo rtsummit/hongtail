@@ -10,6 +10,9 @@ export const en: Record<string, string> = {
     'Fonts fall back left to right. Use ‹ › to reorder.',
   'settings.readonlyChunkSize': 'Read-only chunk size (lines per load)',
   'settings.toolCardsDefaultOpen': 'Tool cards expanded by default',
+  'settings.defaultPermissionMode': 'Default permission mode for new sessions',
+  'settings.defaultPermissionModeHint':
+    'Initial value of claude --permission-mode. Change mid-session via the mode menu / Shift+Tab.',
   'settings.language': 'Language',
   'settings.language.auto': 'Auto (browser locale)',
   'settings.language.ko': '한국어',

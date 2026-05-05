@@ -96,7 +96,8 @@ export interface ExposedApi {
     startSession: (
       workspacePath: string,
       sessionId: string | null,
-      mode: 'new' | 'resume'
+      mode: 'new' | 'resume',
+      permissionMode?: string
     ) => Promise<{ sessionId: string; alreadyRunning: boolean }>
     sendInput: (sessionId: string, text: string) => Promise<void>
     controlRequest: (sessionId: string, request: Record<string, unknown>) => Promise<string>

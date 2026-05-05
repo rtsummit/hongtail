@@ -82,8 +82,10 @@ export const webApi: ExposedApi = {
       rpc('claude:read-session-tail', [cwd, sid, n]),
     readSessionRange: (cwd, sid, s, e) =>
       rpc('claude:read-session-range', [cwd, sid, s, e]),
-    startSession: (workspacePath, sessionId, mode) =>
-      rpc('claude:start-session', [{ workspacePath, sessionId, mode }]),
+    startSession: (workspacePath, sessionId, mode, permissionMode) =>
+      rpc('claude:start-session', [
+        { workspacePath, sessionId, mode, permissionMode }
+      ]),
     sendInput: (sid, text) => rpc('claude:send-input', [sid, text]),
     controlRequest: (sid, req) => rpc('claude:control-request', [sid, req]),
     respondControl: (sid, payload) => rpc('claude:respond-control', [sid, payload]),

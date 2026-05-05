@@ -25,10 +25,14 @@ function controlRequestChannel(sessionId: string): string {
   return `claude:control-request:${sessionId}`
 }
 
+// 호출부 (renderer) 가 settings.defaultPermissionMode 를 매번 같이 넘긴다.
+// claude CLI 가 받는 값과 그대로 일치 — 'default'/'auto'/'plan'/'acceptEdits'/'bypassPermissions'.
+// 빠지면 안전한 기본값 'default'.
 function spawnClaude(
   workspacePath: string,
   sessionId: string,
-  isResume: boolean
+  isResume: boolean,
+  permissionMode: string
 ): ChildProcess {
   const baseArgs = [
     '-p',
@@ -38,7 +42,7 @@ function spawnClaude(
     'stream-json',
     '--verbose',
     '--permission-mode',
-    'bypassPermissions',
+    permissionMode,
     '--permission-prompt-tool',
     'stdio'
     // --permission-prompt-tool stdio: claude-code-main 의 print.ts:4276 분기를
@@ -105,6 +109,7 @@ interface StartArgs {
   workspacePath: string
   sessionId: string | null
   mode: 'new' | 'resume'
+  permissionMode?: string
 }
 
 export function registerSessionHandlers(): void {
@@ -117,7 +122,12 @@ export function registerSessionHandlers(): void {
       return { sessionId, alreadyRunning: true }
     }
 
-    const child = spawnClaude(args.workspacePath, sessionId, args.mode === 'resume')
+    const child = spawnClaude(
+      args.workspacePath,
+      sessionId,
+      args.mode === 'resume',
+      args.permissionMode ?? 'default'
+    )
     sessions.set(sessionId, { id: sessionId, workspacePath: args.workspacePath, child })
     return { sessionId, alreadyRunning: false }
   })

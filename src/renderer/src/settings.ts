@@ -1,5 +1,21 @@
 export type LangSetting = 'auto' | 'ko' | 'en'
 
+// claude CLI 의 --permission-mode 값. UsageBar 의 사이클·메뉴와 동일.
+export type PermissionModeSetting =
+  | 'default'
+  | 'auto'
+  | 'plan'
+  | 'acceptEdits'
+  | 'bypassPermissions'
+
+export const PERMISSION_MODE_VALUES: PermissionModeSetting[] = [
+  'default',
+  'auto',
+  'plan',
+  'acceptEdits',
+  'bypassPermissions'
+]
+
 export interface AppSettings {
   fonts: string[]
   fontSize: number
@@ -8,6 +24,9 @@ export interface AppSettings {
   toolCardsDefaultOpen: string[]
   // 'auto' 면 navigator.language 로 ko/en 결정. 명시 ko/en 이면 그대로.
   language: LangSetting
+  // 새 'app' 백엔드 세션을 spawn 할 때 적용할 --permission-mode. 도중 변경은
+  // UsageBar 의 mode 메뉴 / Shift+Tab 사이클로 그대로.
+  defaultPermissionMode: PermissionModeSetting
 }
 
 // SettingsModal 의 도구 카드 토글에 노출되는 이름들.
@@ -18,7 +37,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 13,
   readonlyChunkSize: 100,
   toolCardsDefaultOpen: [],
-  language: 'auto'
+  language: 'auto',
+  defaultPermissionMode: 'bypassPermissions'
 }
 
 const KEY = 'hongtail.settings'
@@ -78,7 +98,12 @@ export function loadSettings(): AppSettings {
       language:
         parsed.language === 'ko' || parsed.language === 'en' || parsed.language === 'auto'
           ? parsed.language
-          : DEFAULT_SETTINGS.language
+          : DEFAULT_SETTINGS.language,
+      defaultPermissionMode: PERMISSION_MODE_VALUES.includes(
+        parsed.defaultPermissionMode as PermissionModeSetting
+      )
+        ? (parsed.defaultPermissionMode as PermissionModeSetting)
+        : DEFAULT_SETTINGS.defaultPermissionMode
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
