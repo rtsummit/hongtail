@@ -391,39 +391,6 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             <>
               <hr className="settings-divider" />
               <h3 className="settings-section-title">{t('settings.web.title')}</h3>
-              <div className="settings-row">
-                <span className="settings-label">
-                  {t('settings.web.password')}{' '}
-                  {hasPassword
-                    ? t('settings.web.passwordSet')
-                    : t('settings.web.passwordUnset')}
-                </span>
-                <input
-                  type="password"
-                  value={pwDraft}
-                  onChange={(e) => setPwDraft(e.target.value)}
-                  placeholder={t('settings.web.passwordPlaceholder')}
-                  autoComplete="new-password"
-                />
-                <input
-                  type="password"
-                  value={pwConfirm}
-                  onChange={(e) => setPwConfirm(e.target.value)}
-                  placeholder={t('settings.web.passwordConfirm')}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className="settings-tls-btn"
-                  onClick={submitPassword}
-                  disabled={!pwDraft || !pwConfirm}
-                >
-                  {hasPassword
-                    ? t('settings.web.passwordSubmitChange')
-                    : t('settings.web.passwordSubmitSet')}
-                </button>
-                {pwMessage && <p className="settings-hint">{pwMessage}</p>}
-              </div>
               <label className="settings-row settings-row-inline">
                 <input
                   type="checkbox"
@@ -434,84 +401,121 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
                   웹 서버 활성화 (외부 브라우저 / 모바일에서 접속)
                 </span>
               </label>
-              <label className="settings-row">
-                <span className="settings-label">포트</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={65535}
-                  step={1}
-                  value={web.port}
-                  onChange={(e) => {
-                    const n = Math.round(Number(e.target.value))
-                    if (Number.isFinite(n) && n > 0 && n < 65536) {
-                      updateWeb({ port: n })
-                    }
-                  }}
-                />
-              </label>
-              <div className="settings-row">
-                <span className="settings-label">TLS 인증서 (.pem) — 비우면 HTTP</span>
-                <div className="settings-tls-row">
-                  <span className="settings-tls-path" title={web.tlsCertPath ?? ''}>
-                    {web.tlsCertPath || '(없음)'}
-                  </span>
-                  <button
-                    type="button"
-                    className="settings-tls-btn"
-                    onClick={() =>
-                      void window.api.web.pickTlsFile().then((p) => {
-                        if (p) updateWeb({ tlsCertPath: p })
-                      })
-                    }
-                  >
-                    선택…
-                  </button>
-                  {web.tlsCertPath && (
+              {web.enabled && (
+                <>
+                  <div className="settings-row">
+                    <span className="settings-label">
+                      {t('settings.web.password')}{' '}
+                      {hasPassword
+                        ? t('settings.web.passwordSet')
+                        : t('settings.web.passwordUnset')}
+                    </span>
+                    <input
+                      type="password"
+                      value={pwDraft}
+                      onChange={(e) => setPwDraft(e.target.value)}
+                      placeholder={t('settings.web.passwordPlaceholder')}
+                      autoComplete="new-password"
+                    />
+                    <input
+                      type="password"
+                      value={pwConfirm}
+                      onChange={(e) => setPwConfirm(e.target.value)}
+                      placeholder={t('settings.web.passwordConfirm')}
+                      autoComplete="new-password"
+                    />
                     <button
                       type="button"
                       className="settings-tls-btn"
-                      onClick={() => updateWeb({ tlsCertPath: null })}
+                      onClick={submitPassword}
+                      disabled={!pwDraft || !pwConfirm}
                     >
-                      ×
+                      {hasPassword
+                        ? t('settings.web.passwordSubmitChange')
+                        : t('settings.web.passwordSubmitSet')}
                     </button>
-                  )}
-                </div>
-              </div>
-              <div className="settings-row">
-                <span className="settings-label">TLS 키 (.pem)</span>
-                <div className="settings-tls-row">
-                  <span className="settings-tls-path" title={web.tlsKeyPath ?? ''}>
-                    {web.tlsKeyPath || '(없음)'}
-                  </span>
-                  <button
-                    type="button"
-                    className="settings-tls-btn"
-                    onClick={() =>
-                      void window.api.web.pickTlsFile().then((p) => {
-                        if (p) updateWeb({ tlsKeyPath: p })
-                      })
-                    }
-                  >
-                    선택…
-                  </button>
-                  {web.tlsKeyPath && (
-                    <button
-                      type="button"
-                      className="settings-tls-btn"
-                      onClick={() => updateWeb({ tlsKeyPath: null })}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-              <p className="settings-hint">
-                cert + key 두 파일을 모두 지정하면 자동으로 HTTPS. 변경 시 즉시
-                서버 재시작. 활성 상태에서 포트 변경 시에도 같은 포트로 listen
-                중이면 EADDRINUSE 로 비활성될 수 있으니 잠시 후 다시 켜기.
-              </p>
-              {webError && <p className="settings-hint" style={{ color: '#ff6b6b' }}>{webError}</p>}
+                    {pwMessage && <p className="settings-hint">{pwMessage}</p>}
+                  </div>
+                  <label className="settings-row">
+                    <span className="settings-label">포트</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      step={1}
+                      value={web.port}
+                      onChange={(e) => {
+                        const n = Math.round(Number(e.target.value))
+                        if (Number.isFinite(n) && n > 0 && n < 65536) {
+                          updateWeb({ port: n })
+                        }
+                      }}
+                    />
+                  </label>
+                  <div className="settings-row">
+                    <span className="settings-label">TLS 인증서 (.pem) — 비우면 HTTP</span>
+                    <div className="settings-tls-row">
+                      <span className="settings-tls-path" title={web.tlsCertPath ?? ''}>
+                        {web.tlsCertPath || '(없음)'}
+                      </span>
+                      <button
+                        type="button"
+                        className="settings-tls-btn"
+                        onClick={() =>
+                          void window.api.web.pickTlsFile().then((p) => {
+                            if (p) updateWeb({ tlsCertPath: p })
+                          })
+                        }
+                      >
+                        선택…
+                      </button>
+                      {web.tlsCertPath && (
+                        <button
+                          type="button"
+                          className="settings-tls-btn"
+                          onClick={() => updateWeb({ tlsCertPath: null })}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="settings-row">
+                    <span className="settings-label">TLS 키 (.pem)</span>
+                    <div className="settings-tls-row">
+                      <span className="settings-tls-path" title={web.tlsKeyPath ?? ''}>
+                        {web.tlsKeyPath || '(없음)'}
+                      </span>
+                      <button
+                        type="button"
+                        className="settings-tls-btn"
+                        onClick={() =>
+                          void window.api.web.pickTlsFile().then((p) => {
+                            if (p) updateWeb({ tlsKeyPath: p })
+                          })
+                        }
+                      >
+                        선택…
+                      </button>
+                      {web.tlsKeyPath && (
+                        <button
+                          type="button"
+                          className="settings-tls-btn"
+                          onClick={() => updateWeb({ tlsKeyPath: null })}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="settings-hint">
+                    cert + key 두 파일을 모두 지정하면 자동으로 HTTPS. 변경 시 즉시
+                    서버 재시작. 활성 상태에서 포트 변경 시에도 같은 포트로 listen
+                    중이면 EADDRINUSE 로 비활성될 수 있으니 잠시 후 다시 켜기.
+                  </p>
+                  {webError && <p className="settings-hint" style={{ color: '#ff6b6b' }}>{webError}</p>}
+                </>
+              )}
             </>
           )}
           {devAvailable && (
