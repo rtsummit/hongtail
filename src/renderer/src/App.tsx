@@ -1612,6 +1612,11 @@ function App(): React.JSX.Element {
             t.mode === 'new'
               ? `claude --permission-mode ${pm} --session-id ${t.sessionId}`
               : `claude --permission-mode ${pm} --resume ${t.sessionId}`
+          // 사용자 폰트는 mono 가 아닐 수 있으므로 기존 mono fallback chain 을 뒤에 항상 붙임.
+          const monoFallback = '"Cascadia Code", "Consolas", "Menlo", monospace'
+          const terminalFont = settings.fonts.length > 0
+            ? `${fontStackToCss(settings.fonts)}, ${monoFallback}`
+            : monoFallback
           return (
             <TerminalSession
               key={t.sessionId}
@@ -1626,6 +1631,8 @@ function App(): React.JSX.Element {
               workspacePath={t.workspacePath}
               initialCommand={command}
               visible={visible && terminalReady[t.sessionId] !== false}
+              fontFamily={terminalFont}
+              fontSize={settings.fontSize}
               onExit={(code) => handleTerminalExit(t.sessionId, code)}
               onReady={() => handleTerminalReady(t.sessionId)}
             />

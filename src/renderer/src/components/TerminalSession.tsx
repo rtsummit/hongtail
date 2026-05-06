@@ -21,6 +21,8 @@ interface Props {
   workspacePath: string
   initialCommand: string
   visible: boolean
+  fontFamily: string
+  fontSize: number
   onExit: (code: number | null) => void
   onReady?: () => void
 }
@@ -32,9 +34,13 @@ interface PtyEvent {
 }
 
 const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function TerminalSession(
-  { sessionId, workspacePath, initialCommand, visible, onExit, onReady },
+  { sessionId, workspacePath, initialCommand, visible, fontFamily, fontSize, onExit, onReady },
   ref
 ) {
+  const fontFamilyRef = useRef(fontFamily)
+  const fontSizeRef = useRef(fontSize)
+  fontFamilyRef.current = fontFamily
+  fontSizeRef.current = fontSize
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -83,8 +89,8 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
     if (!containerRef.current) return
 
     const term = new Terminal({
-      fontFamily: '"Cascadia Code", "Consolas", "Menlo", monospace',
-      fontSize: 13,
+      fontFamily: fontFamilyRef.current,
+      fontSize: fontSizeRef.current,
       lineHeight: 1.2,
       cursorBlink: true,
       allowProposedApi: true,
@@ -283,6 +289,20 @@ const TerminalSession = forwardRef<TerminalSearchHandle, Props>(function Termina
     }
     t.focus()
   }, [visible])
+
+  // fontFamily / fontSize 변경 시 xterm 옵션 갱신 + 셀 크기 변동 → re-fit (PTY resize 도 onResize 콜백 통해 자동 전파).
+  useEffect(() => {
+    const t = termRef.current
+    const f = fitRef.current
+    if (!t) return
+    t.options.fontFamily = fontFamily
+    t.options.fontSize = fontSize
+    try {
+      f?.fit()
+    } catch {
+      /* ignore */
+    }
+  }, [fontFamily, fontSize])
 
   return (
     <div
