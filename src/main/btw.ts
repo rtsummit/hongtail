@@ -91,7 +91,8 @@ function spawnBtw(args: AskArgs, promptFile: string): ChildProcess {
       if (!line.trim()) return
       try {
         const event = JSON.parse(line)
-        const sessId = (event as { sessionId?: string }).sessionId
+        // Claude CLI stream-json emits snake_case `session_id`, not camelCase.
+        const sessId = (event as { session_id?: string }).session_id
         if (sessId) {
           const proc = procs.get(args.ownerId)
           if (proc && !proc.sessionId) proc.sessionId = sessId
