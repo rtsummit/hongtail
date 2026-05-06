@@ -1,6 +1,6 @@
 {
   "name": "hongtail",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Claude Code CLI 헤드리스를 챗 UI 로 감싼 Electron 앱",
   "license": "MIT",
   "main": "./out/main/index.js",
