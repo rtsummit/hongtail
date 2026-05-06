@@ -1528,6 +1528,10 @@ function App(): React.JSX.Element {
     selected.mode === 'readonly' ||
     isStartingTerminal
 
+  // BTW 는 'app' 백엔드의 메인 대화 스냅샷을 컨텍스트로 쓰는 사이드 챗.
+  // 터미널 세션은 따라갈 대화가 없으므로 패널·토글·collapsed indicator 모두 숨김.
+  const btwApplies = !selected || selected.backend === 'app'
+
   const appStyle: Record<string, string> = {
     '--sidebar-width': `${sidebarWidth}px`,
     '--font-size': `${settings.fontSize}px`,
@@ -1548,7 +1552,7 @@ function App(): React.JSX.Element {
     <ToolDefaultOpenContext.Provider value={toolDefaultOpenSet}>
     <div
       className={`app${sidebarOpen ? ' sidebar-open' : ''}${
-        selected && !sideChatCollapsed ? ' side-chat-open' : ''
+        selected && btwApplies && !sideChatCollapsed ? ' side-chat-open' : ''
       }`}
       style={appStyle as React.CSSProperties}
     >
@@ -1560,7 +1564,7 @@ function App(): React.JSX.Element {
       >
         ☰
       </button>
-      {selected && (
+      {selected && btwApplies && (
         <button
           type="button"
           className="mobile-sidechat-toggle"
@@ -1666,16 +1670,18 @@ function App(): React.JSX.Element {
           </div>
         )}
       </div>
-      <SideChatPanel
-        enabled={!!selected}
-        messages={selected ? (btwMessagesBySession[selected.sessionId] ?? []) : []}
-        thinking={selected ? !!btwThinkingBySession[selected.sessionId] : false}
-        collapsed={sideChatCollapsed}
-        onToggleCollapse={handleToggleSideChat}
-        onAsk={handleBtwAsk}
-        onCancel={handleBtwCancel}
-        onClear={handleBtwClear}
-      />
+      {btwApplies && (
+        <SideChatPanel
+          enabled={!!selected}
+          messages={selected ? (btwMessagesBySession[selected.sessionId] ?? []) : []}
+          thinking={selected ? !!btwThinkingBySession[selected.sessionId] : false}
+          collapsed={sideChatCollapsed}
+          onToggleCollapse={handleToggleSideChat}
+          onAsk={handleBtwAsk}
+          onCancel={handleBtwCancel}
+          onClear={handleBtwClear}
+        />
+      )}
       <FindBar
         open={findOpen}
         mode={findMode}
