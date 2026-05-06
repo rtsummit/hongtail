@@ -3,6 +3,7 @@ import { homedir } from 'os'
 import { join } from 'path'
 import { registerInvoke } from './ipc'
 import { startWatch, stopWatch } from './claudeWatch'
+import { getBtwSessionSet } from './btwSessions'
 import { createInterface } from 'readline'
 
 // jsonl 한 라인을 파싱. blank/parse-fail 은 null. 호출자는 빈 라인을 skip.
@@ -121,11 +122,15 @@ async function listSessions(cwd: string): Promise<ClaudeSessionMeta[]> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
     throw err
   }
+  // BTW 자식이 만든 jsonl 은 sidebar 에서 숨긴다 (`docs/btw-side-chat.md` 의
+  // "세션 파일 leak" 참조). 디스크에는 그대로 남겨 두되 UI 에만 노출 안 함.
+  const btwIds = await getBtwSessionSet()
   const items: { meta: ClaudeSessionMeta; mtime: number }[] = []
   for (const name of entries) {
     if (!name.endsWith('.jsonl')) continue
     const id = name.slice(0, -'.jsonl'.length)
     if (!id) continue
+    if (btwIds.has(id)) continue
     const filePath = join(dir, name)
     const meta = await parseSessionMeta(filePath, id)
     let mtime = 0

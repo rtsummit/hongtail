@@ -3,16 +3,14 @@ import { createInterface } from 'readline'
 import { promises as fsp } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { projectDir } from './claude'
 import { refreshUsageCacheIfStale } from './usageCache'
 import { registerInvoke } from './ipc'
 import { broadcast } from './dispatch'
+import { markAsBtw } from './btwSessions'
 
 interface BtwProc {
   child: ChildProcess
-  cwd: string
   promptFile: string
-  sessionId: string | null
 }
 
 const procs = new Map<string, BtwProc>()
@@ -43,15 +41,6 @@ async function safeUnlink(file: string): Promise<void> {
   } catch {
     /* ignore */
   }
-}
-
-// `--no-session-persistence` blocks resuming but Claude CLI still writes the
-// session jsonl to ~/.claude/projects/<encoded-cwd>/, which then surfaces in
-// the sidebar's session list. Capture the BTW session id from stream-json
-// events and unlink the file when the process exits.
-async function deleteBtwSessionFile(cwd: string, sessionId: string): Promise<void> {
-  const file = join(projectDir(cwd), `${sessionId}.jsonl`)
-  await safeUnlink(file)
 }
 
 // Windows cmd.exe mangles non-ASCII (Korean) in positional args and has an
@@ -91,12 +80,14 @@ function spawnBtw(args: AskArgs, promptFile: string): ChildProcess {
       if (!line.trim()) return
       try {
         const event = JSON.parse(line)
-        // Claude CLI stream-json emits snake_case `session_id`, not camelCase.
+        // `--no-session-persistence` blocks resuming but Claude CLI still writes
+        // the jsonl to ~/.claude/projects/<encoded-cwd>/<session_id>.jsonl, which
+        // then surfaces in the sidebar. We capture the session id from stream-json
+        // events (snake_case `session_id`, not camelCase) and persist it so
+        // listSessions filters BTW jsonls out. Mark on first sighting so even a
+        // crash before close still leaves the marker in place.
         const sessId = (event as { session_id?: string }).session_id
-        if (sessId) {
-          const proc = procs.get(args.ownerId)
-          if (proc && !proc.sessionId) proc.sessionId = sessId
-        }
+        if (sessId) void markAsBtw(sessId)
         broadcast(channel, event)
         const t = (event as { type?: string }).type
         if (t === 'result' || t === 'rate_limit_event') {
@@ -113,12 +104,8 @@ function spawnBtw(args: AskArgs, promptFile: string): ChildProcess {
   })
 
   const cleanup = (): void => {
-    const proc = procs.get(args.ownerId)
     procs.delete(args.ownerId)
     void safeUnlink(promptFile)
-    if (proc?.sessionId) {
-      void deleteBtwSessionFile(args.workspacePath, proc.sessionId)
-    }
   }
 
   child.on('close', (code) => {
@@ -146,18 +133,10 @@ export function registerBtwHandlers(): void {
       }
       procs.delete(args.ownerId)
       void safeUnlink(existing.promptFile)
-      if (existing.sessionId) {
-        void deleteBtwSessionFile(existing.cwd, existing.sessionId)
-      }
     }
     const promptFile = await writePromptFile(args.systemPrompt)
     const child = spawnBtw(args, promptFile)
-    procs.set(args.ownerId, {
-      child,
-      cwd: args.workspacePath,
-      promptFile,
-      sessionId: null
-    })
+    procs.set(args.ownerId, { child, promptFile })
   })
 
   registerInvoke('btw:cancel', (ownerId: unknown) => {
@@ -181,9 +160,6 @@ export function killAllBtw(): void {
       /* ignore */
     }
     void safeUnlink(p.promptFile)
-    if (p.sessionId) {
-      void deleteBtwSessionFile(p.cwd, p.sessionId)
-    }
   }
   procs.clear()
 }
