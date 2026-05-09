@@ -14,7 +14,7 @@ interface Props {
   // 호출자 (App.tsx) 가 control_response 로 변환해 자식 stdin 에 회신 + Block
   // 의 resolved 갱신 책임. MessageList 가 ChatPane / SideChatPanel 둘 다에서
   // 쓰여서 핸들러를 optional 로 둠 — undefined 면 카드는 readonly 로 렌더.
-  onAskUserQuestionAnswer?: (requestId: string, answers: Record<string, string>) => void
+  onAskUserQuestionAnswer?: (requestId: string, answers: Record<string, string[]>) => void
   onAskUserQuestionCancel?: (requestId: string) => void
   onExitPlanModeApprove?: (requestId: string) => void
   onExitPlanModeDeny?: (requestId: string, message: string) => void
@@ -328,7 +328,7 @@ function MessageList({
 
 interface ItemViewProps {
   item: RenderItem
-  onAskUserQuestionAnswer?: (requestId: string, answers: Record<string, string>) => void
+  onAskUserQuestionAnswer?: (requestId: string, answers: Record<string, string[]>) => void
   onAskUserQuestionCancel?: (requestId: string) => void
   onExitPlanModeApprove?: (requestId: string) => void
   onExitPlanModeDeny?: (requestId: string, message: string) => void

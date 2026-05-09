@@ -3690,6 +3690,29 @@ button.usage-pct {
   cursor: default;
 }
 
+/* 제출 후 (resolved) — 선택한 옵션을 분명하게 강조해 한눈에 식별 가능하게.
+   Why: .confirm-card.resolved 의 opacity:0.7 + 비활성 라디오 dim 으로 기본 .selected
+   스타일이 묻혀서 사용자가 무엇을 골랐는지 알기 어렵다는 피드백. */
+.confirm-card.resolved .ask-option.selected {
+  border-width: 2px;
+  padding: 5px 9px;
+  background: rgba(80, 130, 200, 0.32);
+}
+
+.confirm-card.resolved .ask-option.selected .ask-option-label {
+  font-weight: 700;
+}
+
+.confirm-card.resolved .ask-option.selected .ask-option-label::before {
+  content: '✓ ';
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.confirm-card.resolved .ask-option:not(.selected) {
+  opacity: 0.55;
+}
+
 .ask-option-label {
   font-weight: 500;
 }

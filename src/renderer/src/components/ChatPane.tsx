@@ -73,7 +73,7 @@ interface Props {
   onAskUserQuestionAnswer?: (
     sessionId: string,
     requestId: string,
-    answers: Record<string, string>
+    answers: Record<string, string[]>
   ) => void
   onAskUserQuestionCancel?: (sessionId: string, requestId: string) => void
   onExitPlanModeApprove?: (sessionId: string, requestId: string) => void
@@ -606,7 +606,7 @@ function ChatPane({
   const messageListAskAnswer = useMemo(
     () =>
       sessionId && onAskUserQuestionAnswer
-        ? (rid: string, answers: Record<string, string>): void =>
+        ? (rid: string, answers: Record<string, string[]>): void =>
             onAskUserQuestionAnswer(sessionId, rid, answers)
         : undefined,
     [sessionId, onAskUserQuestionAnswer]

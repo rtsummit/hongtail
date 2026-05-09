@@ -5,7 +5,7 @@ import type { AskUserQuestionDef } from '../types'
 interface Props {
   questions: AskUserQuestionDef[]
   resolved?: { answers: Record<string, string | string[]> } | { cancelled: true }
-  onSubmit: (answers: Record<string, string>) => void
+  onSubmit: (answers: Record<string, string[]>) => void
   onCancel: () => void
 }
 
@@ -53,11 +53,13 @@ function AskUserQuestionCard({
   const allAnswered = questions.every((q) => (selections.get(q.question)?.size ?? 0) > 0)
 
   const handleSubmit = (): void => {
-    const answers: Record<string, string> = {}
+    // 배열 형태로 보존 — 라벨에 콤마가 들어 있어도 round-trip 손실 없이 resolved
+    // 표시 단계에서 정확히 매칭 가능. 자식으로 회신하는 wire 형식 변환은 호출 측
+    // (App.tsx 의 sendControlAllow) 책임.
+    const answers: Record<string, string[]> = {}
     for (const q of questions) {
       const set = selections.get(q.question) ?? new Set()
-      // multiSelect: 콤마 구분, 그 외: 단일 라벨
-      answers[q.question] = Array.from(set).join(',')
+      answers[q.question] = Array.from(set)
     }
     onSubmit(answers)
   }
@@ -89,11 +91,16 @@ function AskUserQuestionCard({
               ) : null}
               <div className="ask-options">
                 {q.options.map((opt, oi) => {
+                  // resolved 일 때: array 가 정상 경로 (App.tsx 가 이 형태로 저장).
+                  // string fallback 은 legacy/외부 입력 보호용 — 하지만 옵션 라벨에
+                  // 콤마가 있으면 split 으로 매칭 못 함. 그래서 정확 일치 (전체 == label)
+                  // 도 함께 시도.
                   const isSelected = disabled
                     ? Array.isArray(resolvedAnswer)
                       ? resolvedAnswer.includes(opt.label)
                       : typeof resolvedAnswer === 'string' &&
-                        resolvedAnswer.split(',').includes(opt.label)
+                        (resolvedAnswer === opt.label ||
+                          resolvedAnswer.split(',').includes(opt.label))
                     : selectedSet.has(opt.label)
                   return (
                     <label

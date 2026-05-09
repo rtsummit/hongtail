@@ -716,7 +716,7 @@ function App(): React.JSX.Element {
   )
 
   const handleAskUserQuestionAnswer = useCallback(
-    (sessionId: string, requestId: string, answers: Record<string, string>) => {
+    (sessionId: string, requestId: string, answers: Record<string, string[]>) => {
       // updatedInput 은 원본 input + answers. AskUserQuestionTool.tsx 의 schema
       // (line 56) 가 input 에 questions + 선택적 answers 를 받음. 비어 있으면 자식이
       // 원본 input 사용 (§11.3) 인데 answers 가 비면 모델이 빈 답으로 받음.
@@ -733,7 +733,12 @@ function App(): React.JSX.Element {
         }
         return prev
       })
-      sendControlAllow(sessionId, requestId, { questions, answers })
+      // wire 형식 — 자식 schema 는 record<string, string>. multi-select 는 ', '
+      // 로 join (claude-code-main 관행). 라벨 안 콤마는 wire 단계에서 ambiguous 하지만
+      // 호스트 표시용 resolved 는 array 그대로 저장해 round-trip 손실 없음.
+      const wireAnswers: Record<string, string> = {}
+      for (const [k, v] of Object.entries(answers)) wireAnswers[k] = v.join(', ')
+      sendControlAllow(sessionId, requestId, { questions, answers: wireAnswers })
       resolveCardBlock(sessionId, requestId, (b) =>
         b.kind === 'ask-user-question' ? { ...b, resolved: { answers } } : b
       )
