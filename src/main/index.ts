@@ -19,6 +19,7 @@ import { startRpcServer, stopRpcServer } from './rpc'
 import { startWebServer, stopWebServer, setPassword, isPasswordSet } from './web'
 import { loadWebSettings, saveWebSettings } from './webSettings'
 import { registerInvoke } from './ipc'
+import { setupAutoUpdater, stopAutoUpdater } from './updater'
 
 const TEST_INSTANCE = process.env.HONGTAIL_TEST === '1'
 const APP_NAME = TEST_INSTANCE ? 'hongtail_test' : 'hongtail'
@@ -120,6 +121,8 @@ app.whenReady().then(() => {
     const settings = await loadWebSettings()
     startWebServer(settings)
   })()
+  setupAutoUpdater()
+
   registerInvoke('web:has-password', () => isPasswordSet())
   registerInvoke('web:set-password', (newPassword: unknown) => {
     const pw = String(newPassword ?? '')
@@ -217,6 +220,7 @@ app.on('before-quit', () => {
   killAllPty()
   stopRpcServer()
   stopWebServer()
+  stopAutoUpdater()
 })
 
 // In this file you can include the rest of your app's specific main process

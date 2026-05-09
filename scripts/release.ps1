@@ -1,31 +1,30 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  hongtail 릴리즈 발행 — version bump + commit + push + Windows 빌드.
-
-.PARAMETER Target
-  portable / setup / both. Default: both.
+  hongtail 릴리즈 발행 — version bump + commit + push + Windows NSIS 빌드 + GitHub release publish.
 
 .PARAMETER BumpType
   patch / minor / major. Default: patch.
 
 .PARAMETER SkipPush
-  bump·commit 만 하고 push 와 빌드는 건너뜀 (점검용).
+  bump·commit 만 하고 push / 빌드 / publish 는 건너뜀 (점검용).
+
+.PARAMETER NoPublish
+  build 까지만. GitHub release 자동 업로드는 건너뜀 (네트워크 없는 점검용).
 
 .PARAMETER Clean
   build-win.ps1 의 -Clean 을 그대로 forward.
 
 .EXAMPLE
   .\scripts\release.ps1
-  .\scripts\release.ps1 -Target portable
   .\scripts\release.ps1 -BumpType minor -Clean
+  .\scripts\release.ps1 -NoPublish
 #>
 param(
-  [ValidateSet('portable', 'setup', 'both')]
-  [string]$Target = 'both',
   [ValidateSet('patch', 'minor', 'major')]
   [string]$BumpType = 'patch',
   [switch]$SkipPush,
+  [switch]$NoPublish,
   [switch]$Clean
 )
 
@@ -54,6 +53,20 @@ if ($branch -ne 'main') {
   Write-Warning "현재 브랜치가 main 이 아닙니다 ($branch). 계속 진행합니다."
 }
 Write-Host "  branch: $branch"
+
+if (-not $NoPublish -and -not $SkipPush) {
+  # gh CLI 가 깔려있고 로그인 되어있어야 GH_TOKEN 을 자동 주입 가능.
+  $ghPath = Get-Command gh -ErrorAction SilentlyContinue
+  if (-not $ghPath) {
+    throw "gh CLI 가 없음. https://cli.github.com 에서 설치하거나 -NoPublish 로 빌드만."
+  }
+  $ghStatus = gh auth status 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host $ghStatus
+    throw "gh auth 미완료. 'gh auth login' 후 다시. (또는 -NoPublish)"
+  }
+  Write-Host "  gh: ok"
+}
 
 # 2. version bump
 Step "version bump ($BumpType)"
@@ -92,24 +105,32 @@ if ($LASTEXITCODE -ne 0) { throw "git commit 실패" }
 # 4. push
 if ($SkipPush) {
   Write-Host ""
-  Write-Host "⚠ -SkipPush — push 와 빌드 건너뜀. 끝." -ForegroundColor Yellow
+  Write-Host "⚠ -SkipPush — push / 빌드 / publish 건너뜀. 끝." -ForegroundColor Yellow
   exit 0
 }
 Step "push"
 git push
 if ($LASTEXITCODE -ne 0) { throw "git push 실패" }
 
-# 5. build
-# splat (@buildArgs) 으로 넘기면 PS 5.1 에서 자식 ps1 의 ValidateSet 검증이
-# 깨지는 케이스가 있다 (Target 인자가 array 로 넘어가서 매칭 실패). 명시적으로
-# named 인자로 호출.
-Step "build ($Target)"
-if ($Clean) {
-  & "$PSScriptRoot\build-win.ps1" -Target $Target -Clean
-} else {
-  & "$PSScriptRoot\build-win.ps1" -Target $Target
+# 5. build (+ optional publish)
+$buildArgs = @{}
+if ($Clean) { $buildArgs.Clean = $true }
+if (-not $NoPublish) {
+  $buildArgs.Publish = $true
+  # electron-builder 는 GH_TOKEN 을 읽음. gh CLI 의 토큰을 그대로 재사용해서
+  # 사용자가 별도 PAT 발급 안 해도 되게.
+  $env:GH_TOKEN = (gh auth token).Trim()
+  if (-not $env:GH_TOKEN) { throw "gh auth token 이 비어있음." }
 }
+
+Step ("build{0}" -f $(if ($buildArgs.Publish) { ' + publish' } else { '' }))
+& "$PSScriptRoot\build-win.ps1" @buildArgs
 if ($LASTEXITCODE -ne 0) { throw "build 실패" }
 
 Write-Host ""
-Write-Host "✓ release v$newVer 완료" -ForegroundColor Green
+if ($NoPublish) {
+  Write-Host "✓ release v$newVer 빌드 완료 (publish 건너뜀)" -ForegroundColor Green
+} else {
+  Write-Host "✓ release v$newVer publish 완료" -ForegroundColor Green
+  Write-Host "  → https://github.com/rtsummit/hongtail/releases/tag/v$newVer" -ForegroundColor DarkGray
+}

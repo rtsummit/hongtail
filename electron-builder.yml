@@ -14,14 +14,15 @@ asarUnpack:
 win:
   executableName: hongtail
   target:
-    - portable
-portable:
-  artifactName: ${name}-${version}-portable.${ext}
+    - nsis
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -43,5 +44,6 @@ appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: rtsummit
+  repo: hongtail

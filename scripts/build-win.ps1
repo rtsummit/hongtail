@@ -1,22 +1,22 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  hongtail Windows build helper.
+  hongtail Windows build helper (NSIS only).
 
-.PARAMETER Target
-  portable / setup / both. Default: portable.
+.PARAMETER Publish
+  electron-builder 의 --publish always 를 활성화. GH_TOKEN 환경변수가 필요.
+  release.ps1 에서 자동으로 set 하니 직접 호출할 일은 거의 없음.
 
 .PARAMETER Clean
   dist/ 와 electron-builder 캐시를 정리한 뒤 빌드.
 
 .EXAMPLE
   .\scripts\build-win.ps1
-  .\scripts\build-win.ps1 -Target setup
-  .\scripts\build-win.ps1 -Target both -Clean
+  .\scripts\build-win.ps1 -Clean
+  .\scripts\build-win.ps1 -Publish
 #>
 param(
-  [ValidateSet('portable', 'setup', 'both')]
-  [string]$Target = 'portable',
+  [switch]$Publish,
   [switch]$Clean
 )
 
@@ -50,15 +50,16 @@ Step "타입체크 + Vite 번들"
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "build (typecheck/vite) 실패" }
 
-# electron-builder targets
 $cliArgs = @('--win')
-switch ($Target) {
-  'portable' { $cliArgs += '--config.win.target=portable' }
-  'setup'    { $cliArgs += '--config.win.target=nsis' }
-  'both'     { $cliArgs += '--config.win.target=portable'; $cliArgs += '--config.win.target=nsis' }
+if ($Publish) {
+  if (-not $env:GH_TOKEN) {
+    throw "Publish 모드인데 GH_TOKEN 이 비어있음. release.ps1 을 쓰거나 \$env:GH_TOKEN 을 직접 set."
+  }
+  $cliArgs += '--publish'
+  $cliArgs += 'always'
 }
 
-Step "electron-builder ($Target)"
+Step ("electron-builder (nsis{0})" -f $(if ($Publish) { ', publish' } else { '' }))
 & npx electron-builder @cliArgs
 if ($LASTEXITCODE -ne 0) { throw "electron-builder 실패" }
 
