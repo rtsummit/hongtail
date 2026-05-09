@@ -115,6 +115,11 @@ function App(): React.JSX.Element {
   )
   const [messagesBySession, setMessagesBySession] = useState<Record<string, Block[]>>({})
   const [active, setActive] = useState<Record<string, ActiveEntry>>({})
+  // 주기적 reconcile 에서 "이미 알고 있는 세션" 판별용. setActive 호출과 같은
+  // tick 에서 ref 가 즉시 갱신되진 않지만 5초 간격이라 다음 tick 전에 항상
+  // 일관 상태가 된다.
+  const activeRef = useRef(active)
+  activeRef.current = active
   const [terminalReady, setTerminalReady] = useState<Record<string, boolean>>({})
   const [statusBySession, setStatusBySession] = useState<Record<string, SessionStatus>>({})
   const [aliasesBySession, setAliasesBySession] = useState<Record<string, SessionAlias>>({})
@@ -780,11 +785,17 @@ function App(): React.JSX.Element {
     [handleClaudeEvent]
   )
 
-  // 새로고침 reconcile — mount 직후 1회. main 의 살아있는 세션 (app + pty 기반)
-  // 을 가져와 active state 를 복원한다. 'app' 백엔드는 stream-json IPC 가 끊긴
-  // 상태라 onEvent 재구독 + jsonl 리플레이로 messages/status 도 같이 채운다.
-  // 'terminal' 은 active 만 채우면 별도 useEffect 가 jsonl watch 를 걸어 status
-  // 만 추출한다.
+  // 새로고침 reconcile — mount 직후 + 5초마다 (sidebarRefreshTick) 재실행.
+  // main 의 살아있는 세션 (app + pty 기반) 을 가져와 active state 를 복원/추가한다.
+  // 'app' 백엔드는 stream-json IPC 가 끊긴 상태라 onEvent 재구독 + jsonl 리플레이로
+  // messages/status 도 같이 채운다. 'terminal' 은 active 만 채우면 별도
+  // useEffect 가 jsonl watch 를 걸어 status 만 추출한다.
+  //
+  // 주기 실행 (cross-client sync): web 등 다른 client 가 spawn 한 세션은 main 의
+  // listActive 에는 즉시 잡히지만 이 렌더러는 이벤트를 받지 못한다. 5초 polling 으로
+  // listActive 를 다시 호출해 새 세션을 발견하면 ensureClaudeSubscription + jsonl
+  // 리플레이로 사이드바에 라이브 entry 로 띄운다. 이미 알고 있는 세션은 activeRef
+  // 로 skip 해 readSession 중복 호출을 막는다.
   //
   // race 노트: app 라이브 세션이 '응답 진행 중' 일 때 새로고침되면 readSession
   // (jsonl) 과 onEvent (stream-json) 양쪽이 같은 마지막 turn 을 노릴 수 있다.
@@ -830,6 +841,9 @@ function App(): React.JSX.Element {
         return
       }
 
+      // 주기 reconcile 에서 readSession 중복 호출을 막기 위해 시작 시점 snapshot.
+      const knownIdsBefore = new Set(Object.keys(activeRef.current))
+
       setActive((prev) => {
         const next = { ...prev }
         for (const a of all) {
@@ -844,8 +858,10 @@ function App(): React.JSX.Element {
       })
 
       // 'app' 백엔드 — stream-json IPC 끊김 → 재구독 + jsonl 리플레이
+      // 이미 알고 있는 세션은 skip (이미 구독·리플레이가 끝난 상태).
       for (const a of appActive) {
         if (cancelled) return
+        if (knownIdsBefore.has(a.sessionId)) continue
         reconcileFnsRef.current.ensureClaudeSubscription(a.sessionId)
         try {
           const events = await window.api.claude.readSession(a.workspacePath, a.sessionId)
@@ -879,9 +895,8 @@ function App(): React.JSX.Element {
     return () => {
       cancelled = true
     }
-    // mount 1회만. ref 패턴으로 stale closure 회피.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // mount + 5초마다 (sidebarRefreshTick). 함수 deps 는 ref 패턴으로 stale closure 회피.
+  }, [sidebarRefreshTick])
 
   useTerminalStatusWatch(active, handleClaudeEvent)
 
