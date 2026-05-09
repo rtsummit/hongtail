@@ -88,7 +88,12 @@ export function handleSseEvents(req: IncomingMessage, res: ServerResponse): void
     // 일반 backpressure 는 false 리턴이라 OK. 호출자 (emitSse) 의 try/catch 가
     // stale emitter 를 set 에서 제거할 수 있게 throw 는 그대로 propagate.
     if (res.writableEnded || res.destroyed) return
-    res.write(`data: ${JSON.stringify(event)}\n\n`)
+    // payload 가 undefined 인 broadcast (예: claudeWatch 의 session-changed)
+    // 는 JSON.stringify 가 undefined 를 그대로 리턴해서 wire 에 'data: undefined'
+    // 가 나가고 클라이언트의 JSON.parse 가 throw → webShim 의 try/catch 가 콜백을
+    // swallow 해서 session-changed 가 영영 fire 안 됨. null 로 normalize.
+    const data = event === undefined ? 'null' : JSON.stringify(event)
+    res.write(`data: ${data}\n\n`)
   }
   const detach = attachSseEmitter(topic, emit)
   req.on('close', () => {
