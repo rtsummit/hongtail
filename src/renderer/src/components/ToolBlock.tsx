@@ -242,11 +242,20 @@ function ToolRow({
 }: RowProps): React.JSX.Element {
   const { t } = useTranslation()
   const ctxDefaultOpen = useContext(ToolDefaultOpenContext)
-  const open = defaultOpen ?? ctxDefaultOpen.has(name)
+  const initialOpen = defaultOpen ?? ctxDefaultOpen.has(name)
+  // <summary> 안에 <button>(OpenButton) 을 넣으면 "interactive inside summary"
+  // a11y 경고가 뜬다 (DevTools Issues 패널). <details>/<summary> 대신 plain <div>
+  // 기반 disclosure 로 교체. plain div 는 인터랙티브 요소로 취급되지 않아 안에
+  // button 을 넣어도 경고 없음. 키보드 지원은 Space/Enter 핸들러로 직접 처리.
+  const [open, setOpen] = useState(initialOpen)
+  // 설정에서 default-open 이 토글되면 기존 카드들도 따라 변경되도록 동기화.
+  // 사용자가 직접 클릭한 상태는 같은 effect 안에서 덮어써지지만, 원래 코드도
+  // 매 렌더에 open={initialOpen} 을 다시 주입했기 때문에 동일한 거동.
+  useEffect(() => {
+    setOpen(initialOpen)
+  }, [initialOpen])
   const hasBody = body != null
   const cls = `tool-block ${toolClass}${isError ? ' error' : ''}`
-  // args span 의 Ctrl/Cmd+click 핸들러. 일반 클릭은 details toggle 그대로
-  // 가도록 modifier 검사 후에만 preventDefault + stopPropagation.
   const argsTitleText = onArgsCtrlClick
     ? `${argsTitle ?? args ?? ''}${t('tool.argsHint.openFile')}`
     : argsTitle ?? args
@@ -258,10 +267,11 @@ function ToolRow({
         onArgsCtrlClick()
       }
     : undefined
+  const toggleOpen = (): void => setOpen((v) => !v)
   if (hasBody) {
     return (
-      <details className={cls} open={open}>
-        <summary className="tool-row">
+      <div className={cls}>
+        <div className="tool-row" onClick={toggleOpen}>
           <span className="tool-row-bullet">●</span>
           <span className="tool-row-name">{name}</span>
           {args ? (
@@ -275,9 +285,9 @@ function ToolRow({
           ) : null}
           {summary ? <span className="tool-row-summary">⎿ {summary}</span> : null}
           {onOpen ? <OpenButton onOpen={onOpen} /> : null}
-        </summary>
-        <div className="tool-row-body">{body}</div>
-      </details>
+        </div>
+        {open && <div className="tool-row-body">{body}</div>}
+      </div>
     )
   }
   return (

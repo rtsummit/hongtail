@@ -1079,13 +1079,11 @@
   user-select: text;
 }
 
-details.tool-block {
-  /* native disclosure widget */
-}
 
 .tool-row {
   display: flex;
   align-items: baseline;
+  cursor: pointer;
   gap: 6px;
   padding: 2px 0;
   color: var(--fg);
@@ -1093,14 +1091,6 @@ details.tool-block {
   list-style: none;
   white-space: nowrap;
   overflow: hidden;
-}
-
-details.tool-block > summary.tool-row {
-  /* hide default marker, use our bullet */
-}
-
-details.tool-block > summary.tool-row::-webkit-details-marker {
-  display: none;
 }
 
 .tool-row.no-toggle {
@@ -1387,8 +1377,7 @@ details.tool-block > summary.tool-row::-webkit-details-marker {
   transition: opacity 0.12s ease-out;
 }
 
-details.tool-block:hover > summary > .tool-row-open,
-.tool-block:hover .tool-row.no-toggle > .tool-row-open,
+.tool-block:hover .tool-row > .tool-row-open,
 .tool-row-open:focus-visible {
   opacity: 1;
 }
