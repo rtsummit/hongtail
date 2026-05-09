@@ -2203,6 +2203,19 @@ button.usage-pct {
   background: rgba(245, 158, 11, 0.15);
 }
 
+.send-btn-stack {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  align-self: stretch;
+}
+
+.send-btn-stack .send-btn {
+  flex: 1 1 0;
+  width: 100%;
+}
+
 .chat-input-readonly {
   padding: 12px 16px;
   border-top: 1px solid var(--border);

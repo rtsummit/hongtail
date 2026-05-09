@@ -814,15 +814,42 @@ function ChatPane({
                 rows={3}
               />
               {status?.thinking ? (
-                <button
-                  type="button"
-                  className="send-btn interrupt"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => selected && onInterrupt(selected.sessionId)}
-                  title={t('chat.interrupt')}
-                >
-                  ◼
-                </button>
+                isMobile ? (
+                  // 모바일은 가상 키보드에 Shift 가 없어 Enter 로 전송할 수 없고
+                  // 전송 버튼이 interrupt 로 대체되면 thinking 중에는 메시지 큐잉
+                  // 자체가 막힌다. 데스크탑은 Enter 우회가 있어 interrupt 단독으로
+                  // 충분하지만 모바일만 두 버튼을 세로로 같이 노출.
+                  <div className="send-btn-stack">
+                    <button
+                      type="button"
+                      className="send-btn interrupt"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selected && onInterrupt(selected.sessionId)}
+                      title={t('chat.interrupt')}
+                    >
+                      ◼
+                    </button>
+                    <button
+                      type="button"
+                      className="send-btn"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => void handleSend()}
+                      disabled={(!input.trim() && quotes.length === 0) || sending}
+                    >
+                      {sending ? '…' : t('chat.send')}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="send-btn interrupt"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selected && onInterrupt(selected.sessionId)}
+                    title={t('chat.interrupt')}
+                  >
+                    ◼
+                  </button>
+                )
               ) : (
                 <button
                   type="button"
