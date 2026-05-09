@@ -2577,6 +2577,14 @@ button.usage-pct {
   color: #1e1e1e;
 }
 
+::highlight(hongtail-quote-pending) {
+  background-color: rgba(132, 204, 22, 0.4);
+}
+
+::highlight(hongtail-quote-sent) {
+  background-color: rgba(249, 115, 22, 0.4);
+}
+
 @media (max-width: 768px) {
   /* 모바일은 mobile-sidebar-toggle / mobile-sidechat-toggle 가 top:8 좌우에
      자리를 잡고 있어 FindBar 가 그 아래로 내려가야 안 겹친다. 폭은 좌우 8px

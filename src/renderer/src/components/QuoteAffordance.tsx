@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next'
 
 interface Props {
   containerRef: React.RefObject<HTMLElement | null>
-  onAdd: (text: string, comment: string) => void
+  onAdd: (text: string, comment: string, range: Range) => void
 }
 
 interface SelInfo {
   text: string
   rect: DOMRect
+  range: Range
 }
 
 function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | null {
@@ -44,7 +45,7 @@ function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | nu
         setSel(null)
         return
       }
-      setSel({ text, rect })
+      setSel({ text, rect, range: range.cloneRange() })
     }
     document.addEventListener('selectionchange', handler)
     return () => document.removeEventListener('selectionchange', handler)
@@ -81,7 +82,7 @@ function QuoteAffordance({ containerRef, onAdd }: Props): React.JSX.Element | nu
     if (!popoverFor) return
     const c = comment.trim()
     if (!c) return
-    onAdd(popoverFor.text, c)
+    onAdd(popoverFor.text, c, popoverFor.range)
     setPopoverFor(null)
     setComment('')
     setSel(null)

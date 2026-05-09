@@ -4,6 +4,7 @@ export interface Quote {
   id: string
   text: string
   comment: string
+  range?: Range
 }
 
 interface Props {

@@ -133,6 +133,9 @@ function ChatPane({
   const [shownFromLine, setShownFromLine] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [quotes, setQuotes] = useState<Quote[]>([])
+  // 전송된 인용의 원본 Range — 세션 전환 전까지 주황색 마크. Range 가
+  // detach 되면 effect 에서 자동으로 떨어뜨림.
+  const [sentRanges, setSentRanges] = useState<Range[]>([])
   const [allCommands, setAllCommands] = useState<SlashCommand[]>([])
   const [slashCtx, setSlashCtx] = useState<SlashContext | null>(null)
   const [slashIndex, setSlashIndex] = useState(0)
@@ -160,6 +163,7 @@ function ChatPane({
   // once the fresh content lands.
   useLayoutEffect(() => {
     setQuotes([])
+    setSentRanges([])
     setSlashCtx(null)
     imageCounterRef.current = 0
     const el = scrollRef.current
@@ -199,16 +203,46 @@ function ChatPane({
     }
   }, [selected?.workspacePath])
 
-  const handleAddQuote = useCallback((text: string, comment: string) => {
+  const handleAddQuote = useCallback((text: string, comment: string, range: Range) => {
     setQuotes((prev) => [
       ...prev,
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text, comment }
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        text,
+        comment,
+        range
+      }
     ])
   }, [])
 
   const handleRemoveQuote = useCallback((id: string) => {
     setQuotes((prev) => prev.filter((q) => q.id !== id))
   }, [])
+
+  // pending (연두) / sent (주황) 인용 마크. Find feature 와 같은 CSS Custom
+  // Highlight API 패턴. Range 가 detach 되면 (startContainer 가 disconnected)
+  // 그냥 highlight 에서 빠지고 — 사용자 선호: "끊기면 마크 사라짐".
+  useEffect(() => {
+    if (typeof CSS === 'undefined' || !('highlights' in CSS)) return
+    const liveRanges = (rs: Range[]): Range[] =>
+      rs.filter((r) => r.startContainer.isConnected && r.endContainer.isConnected)
+    const pending = liveRanges(quotes.map((q) => q.range).filter((r): r is Range => !!r))
+    const sent = liveRanges(sentRanges)
+    if (pending.length > 0) {
+      CSS.highlights.set('hongtail-quote-pending', new Highlight(...pending))
+    } else {
+      CSS.highlights.delete('hongtail-quote-pending')
+    }
+    if (sent.length > 0) {
+      CSS.highlights.set('hongtail-quote-sent', new Highlight(...sent))
+    } else {
+      CSS.highlights.delete('hongtail-quote-sent')
+    }
+    return () => {
+      CSS.highlights.delete('hongtail-quote-pending')
+      CSS.highlights.delete('hongtail-quote-sent')
+    }
+  }, [quotes, sentRanges])
 
   const insertAtCaret = useCallback((text: string) => {
     const ta = textareaRef.current
@@ -540,8 +574,10 @@ function ChatPane({
     if (!selected || sending || !live) return
     if (!input.trim() && quotes.length === 0) return
     const text = composeMessage(input, quotes)
+    const newSent = quotes.map((q) => q.range).filter((r): r is Range => !!r)
     setInput('')
     setQuotes([])
+    if (newSent.length > 0) setSentRanges((prev) => [...prev, ...newSent])
     setSending(true)
     forceScrollBottomRef.current = true
     onTurnStart(selected.sessionId)
