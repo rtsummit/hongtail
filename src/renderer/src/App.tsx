@@ -1294,11 +1294,12 @@ function App(): React.JSX.Element {
 
   const rpcSendInput = useCallback(
     async (sessionId: string, text: string) => {
-      appendBlocks(sessionId, [{ kind: 'user-text', text }])
+      // user-text block 은 main 의 synthetic broadcast 에서 onEvent 로 돌아옴
+      // (ChatPane.handleSend 와 동일).
       handleTurnStart(sessionId)
       await window.api.claude.sendInput(sessionId, text)
     },
-    [appendBlocks, handleTurnStart]
+    [handleTurnStart]
   )
 
   const rpcWaitResult = useCallback((sessionId: string, timeoutMs = 60000) => {

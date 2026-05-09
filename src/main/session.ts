@@ -137,11 +137,19 @@ export function registerSessionHandlers(): void {
     if (!session?.child.stdin) {
       throw new Error(`Session ${String(sessionId)} not running`)
     }
-    const payload = JSON.stringify({
+    const userEvent = {
       type: 'user',
       message: { role: 'user', content: String(text) }
-    })
-    session.child.stdin.write(payload + '\n')
+    }
+    // CLI 의 stream-json 출력은 user 메시지를 echo back 하지 않는다. 그래서
+    // 한 client (예: Electron) 에서 입력하면 같은 세션을 보고 있는 다른
+    // client (예: web 탭) 는 user 메시지를 절대 못 본다 — 페이지를 새로고쳐
+    // jsonl 을 다시 읽기 전까지. send-input 시점에 같은 shape 의 synthetic
+    // user 이벤트를 채널에 broadcast 해 모든 구독 client (sender 포함) 가
+    // user-text block 을 일관되게 그리도록 한다. 따라서 sender 측 renderer 는
+    // 더 이상 로컬 echo 를 직접 push 하지 않는다 (ChatPane.handleSend 참조).
+    broadcast(eventChannel(String(sessionId)), userEvent)
+    session.child.stdin.write(JSON.stringify(userEvent) + '\n')
   })
 
   registerInvoke('claude:control-request', (sessionId: unknown, request: unknown) => {

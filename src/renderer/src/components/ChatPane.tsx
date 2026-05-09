@@ -546,7 +546,9 @@ function ChatPane({
     forceScrollBottomRef.current = true
     onTurnStart(selected.sessionId)
     try {
-      onAppendBlocks(selected.sessionId, [{ kind: 'user-text', text }])
+      // user-text block 의 append 는 main 쪽 send-input 핸들러가 broadcast 하는
+      // synthetic user 이벤트가 onEvent 로 돌아와 처리한다 (cross-client 일관성
+      // 위해). Electron 에서는 한 IPC hop 의 microsecond 단위 latency.
       await window.api.claude.sendInput(selected.sessionId, text)
     } catch (err) {
       onAppendBlocks(selected.sessionId, [
