@@ -93,7 +93,8 @@ npm run typecheck        # node + web 둘 다
 npm run lint             # eslint
 npm test                 # vitest run (단위 테스트)
 npm run build            # typecheck + electron-vite build
-npm run build:win:portable
+npm run build:win        # NSIS installer (oneClick, perMachine: false)
+npm run release          # bump → commit → push → build → GitHub draft release
 ```
 
 ## 글로벌 단축키 (App.tsx)
@@ -136,6 +137,35 @@ re-export 로 façade), 정적 자산 + RPC + SSE 양쪽 채널을 외부에 노
   `electron-vite build --renderer`) 로 `out/renderer/` 를 갱신한 뒤 브라우저 탭
   새로고침. dev-restart 만 하고 build 안 하면 web 사용자는 영향 없음.
 - 자세히는 `docs/web-mode.md`.
+
+## 릴리즈 발행 + auto-update
+
+**한 번 셋업** — `gh` CLI 설치 + `gh auth login`. `release.ps1` 의 preflight 가 둘 다 검사.
+
+**한 줄 명령** — `npm run release` (= patch bump). 옵션:
+- `-BumpType minor` / `-BumpType major`
+- `-NoPublish` — bump+commit+push+build 까지만 (점검용)
+- `-SkipPush` — bump+commit 만 (점검용)
+- `-Clean` — `dist/` 와 winCodeSign 캐시 비우고 빌드
+
+`release.ps1` 흐름: working tree clean 검사 → version bump → `chore: bump version to v$ver` 커밋 →
+push → `build-win.ps1 -Publish` → electron-builder 가 `gh auth token` 으로 받은 `GH_TOKEN`
+으로 GitHub 에 NSIS exe + `latest.yml` + `.blockmap` 자동 업로드.
+
+**⚠ 마지막 수동 단계 — GitHub web 에서 draft release publish.** electron-builder 의 GitHub
+publisher 는 기본 draft 로 release 를 만든다. draft 인 동안에는 `electron-updater` 가 못
+봐서 사용자에게 자동 업데이트가 안 간다. `https://github.com/rtsummit/hongtail/releases`
+에서 새 draft 를 열고 → release notes 작성 → **"Publish release"** 클릭해야 자동 배포 시작.
+이 동작은 의도적 (notes 검토·수정 시간 + 잘못 올렸을 때 draft 인 동안 제거 가능). 즉시 publish
+로 바꾸고 싶으면 `electron-builder.yml` 의 `publish:` 에 `releaseType: release` 추가.
+
+**auto-update 동작** (`src/main/updater.ts`) — packaged 빌드에서만 활성. dev 와
+`HONGTAIL_TEST=1` 은 skip. 부팅 직후 1회 + 4시간 주기로 `latest.yml` 폴링 →
+`update-downloaded` 시 dialog "지금 재시작 / 나중에". 거부해도 다음 종료 시 자동 적용
+(`autoInstallOnAppQuit: true`). 로그는 `logs/main.log` 의 `[updater]` 태그.
+
+**v1.0.1 이전 사용자는 자동 업데이트 못 받음** — electron-updater 가 안 박혀있어서.
+v1.0.2+ 부터의 NSIS 를 한 번 수동 설치한 사용자만 그 다음 release 부터 자동 업데이트 흐름에 진입.
 
 ## 별도 인스턴스 (병행 dev)
 
