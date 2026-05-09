@@ -2,7 +2,7 @@ import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { markdownUrlTransform } from '../markdownComponents'
+import { markdownComponents, markdownUrlTransform } from '../markdownComponents'
 
 interface Props {
   plan: string
@@ -43,7 +43,7 @@ function ExitPlanModeCard({
         ) : null}
       </div>
       <div className="confirm-body bubble-markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrlTransform}>{plan}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} urlTransform={markdownUrlTransform}>{plan}</ReactMarkdown>
       </div>
       {planFilePath ? (
         <div className="confirm-meta">

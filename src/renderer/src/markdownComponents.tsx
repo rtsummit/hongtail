@@ -41,8 +41,32 @@ function MarkdownCode({ className, children, ...rest }: CodeProps): React.JSX.El
   )
 }
 
+interface AnchorProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  children?: React.ReactNode
+}
+
+// http(s) 링크는 항상 외부 브라우저로. Electron 메인은 setWindowOpenHandler 가
+// target=_blank 를 가로채 shell.openExternal 로 보내고, web 모드는 새 탭에서
+// 정상으로 열린다. 상대 경로·앵커 등은 그대로 둔다 (기본 동작).
+function MarkdownLink({ href, children, ...rest }: AnchorProps): React.JSX.Element {
+  const isExternal = typeof href === 'string' && /^https?:\/\//i.test(href)
+  if (isExternal) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" {...rest}>
+        {children}
+      </a>
+    )
+  }
+  return (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  )
+}
+
 export const markdownComponents = {
-  code: MarkdownCode
+  code: MarkdownCode,
+  a: MarkdownLink
 }
 
 // react-markdown v10 의 기본 urlTransform 은 data:image/svg+xml 을 차단해서

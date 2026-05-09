@@ -49,6 +49,15 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // http(s) 링크는 항상 외부 브라우저로. target=_blank 가 아닌 raw <a> 가
+  // 메인 윈도우 자체를 외부 URL 로 navigate 시키는 사고 방지 안전망.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (/^https?:\/\//i.test(url)) {
+      event.preventDefault()
+      shell.openExternal(url)
+    }
+  })
+
   // xterm.js 의 textarea 가 Alt+F4 를 ESC+F4 시퀀스로 PTY 에 보내버려 OS 가
   // 윈도우 닫기를 못 받는 케이스가 있다. before-input-event 는 web content 로
   // 키가 전달되기 전 단계라 xterm 보다 먼저 발화한다.
