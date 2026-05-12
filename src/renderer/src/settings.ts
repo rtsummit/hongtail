@@ -27,6 +27,11 @@ export interface AppSettings {
   // 새 'app' 백엔드 세션을 spawn 할 때 적용할 --permission-mode. 도중 변경은
   // UsageBar 의 mode 메뉴 / Shift+Tab 사이클로 그대로.
   defaultPermissionMode: PermissionModeSetting
+  // 워크스페이스 우클릭 → 폴더 열기 에서 실행할 명령 템플릿. 비면 OS default
+  // (Windows 면 탐색기). %1 자리에 path 가 자동 quote 되어 치환. 예:
+  //   'explorer %1'
+  //   '"C:\\totalcmd\\TOTALCMD64.EXE" /O /T %1'
+  folderOpenCommand: string
 }
 
 // SettingsModal 의 도구 카드 토글에 노출되는 이름들.
@@ -38,7 +43,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   readonlyChunkSize: 100,
   toolCardsDefaultOpen: [],
   language: 'auto',
-  defaultPermissionMode: 'bypassPermissions'
+  defaultPermissionMode: 'bypassPermissions',
+  folderOpenCommand: ''
 }
 
 const KEY = 'hongtail.settings'
@@ -103,7 +109,11 @@ export function loadSettings(): AppSettings {
         parsed.defaultPermissionMode as PermissionModeSetting
       )
         ? (parsed.defaultPermissionMode as PermissionModeSetting)
-        : DEFAULT_SETTINGS.defaultPermissionMode
+        : DEFAULT_SETTINGS.defaultPermissionMode,
+      folderOpenCommand:
+        typeof parsed.folderOpenCommand === 'string'
+          ? parsed.folderOpenCommand
+          : DEFAULT_SETTINGS.folderOpenCommand
     }
   } catch {
     return { ...DEFAULT_SETTINGS }

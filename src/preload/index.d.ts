@@ -135,6 +135,10 @@ export interface ExposedApi {
   files: {
     save: (sessionId: string, bytes: Uint8Array, fileName: string) => Promise<string>
     openExternal: (path: string) => Promise<void>
+    // 폴더 열기. command 가 비면 OS default (탐색기). 있으면 %1 자리에 path
+    // 가 quote 되어 치환된 후 shell 로 실행. AppSettings.folderOpenCommand 값
+    // 을 그대로 전달한다 (예: 'explorer %1', '"C:\\totalcmd\\TOTALCMD64.EXE" /O /T %1').
+    openFolder: (path: string, command?: string) => Promise<void>
     read: (path: string) => Promise<string>
   }
   sessionAliases: {

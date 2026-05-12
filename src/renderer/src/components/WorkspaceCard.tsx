@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import SessionRow from './SessionRow'
 import SessionTitleArea from './SessionTitleArea'
 import { appConfirm } from '../confirm'
+import { loadSettings } from '../settings'
 import type {
   Backend,
   ClaudeSessionMeta,
@@ -98,6 +99,35 @@ function WorkspaceCard({
   }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [sessions, setSessions] = useState<ClaudeSessionMeta[] | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+
+  const openFolder = useCallback(() => {
+    const cmd = loadSettings().folderOpenCommand
+    void window.api.files.openFolder(path, cmd).catch((err) => {
+      console.error('openFolder failed:', err)
+    })
+  }, [path])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = (): void => setContextMenu(null)
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setContextMenu(null)
+      }
+    }
+    window.addEventListener('click', close)
+    window.addEventListener('contextmenu', close)
+    window.addEventListener('blur', close)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('contextmenu', close)
+      window.removeEventListener('blur', close)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [contextMenu])
 
   const refresh = useCallback(async () => {
     try {
@@ -315,6 +345,12 @@ function WorkspaceCard({
       <header
         className={headerClasses.join(' ')}
         draggable={!editingAlias}
+        onContextMenu={(e) => {
+          if (editingAlias) return
+          e.preventDefault()
+          e.stopPropagation()
+          setContextMenu({ x: e.clientX, y: e.clientY })
+        }}
         onDragStart={(e) => {
           if (editingAlias) {
             e.preventDefault()
@@ -394,6 +430,31 @@ function WorkspaceCard({
           −
         </button>
       </header>
+
+      {contextMenu && (
+        <div
+          className="workspace-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          role="menu"
+        >
+          <button
+            type="button"
+            className="workspace-context-menu-item"
+            role="menuitem"
+            onClick={() => {
+              setContextMenu(null)
+              openFolder()
+            }}
+          >
+            {t('workspace.openFolder')}
+          </button>
+        </div>
+      )}
 
       {!collapsed && (
         <div className="session-list">

@@ -1,3 +1,4 @@
+import { spawn } from 'child_process'
 import { homedir } from 'os'
 import { promises as fsp } from 'fs'
 import { extname, join } from 'path'
@@ -87,6 +88,29 @@ export function registerFileHandlers(): void {
     if (typeof p !== 'string' || !p) throw new Error('path required')
     const err = await shell.openPath(p)
     if (err) throw new Error(err)
+  })
+
+  // 폴더 열기 — 같은 보안 이유로 Electron 전용. command 가 비면 OS default
+  // (shell.openPath, Windows 면 탐색기) 폴백, 있으면 %1 자리에 path 를 자동
+  // quote 후 치환해 shell 로 실행. 사용자가 SettingsModal 에서 직접 지정한
+  // 임의 명령이므로 추가 sanitize 는 안 한다 (본인 머신에서 본인 책임).
+  ipcMain.handle('files:open-folder', async (_e, p: unknown, cmd: unknown) => {
+    if (typeof p !== 'string' || !p) throw new Error('path required')
+    const template = typeof cmd === 'string' ? cmd.trim() : ''
+    if (!template) {
+      const err = await shell.openPath(p)
+      if (err) throw new Error(err)
+      return
+    }
+    const quoted = `"${p.replace(/"/g, '\\"')}"`
+    const expanded = template.includes('%1') ? template.replace(/%1/g, quoted) : `${template} ${quoted}`
+    const child = spawn(expanded, {
+      shell: true,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    })
+    child.unref()
   })
 
   // 텍스트 read — Electron / web 공통. web 모드에서 모달 fallback 용.

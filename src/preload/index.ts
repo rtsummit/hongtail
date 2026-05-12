@@ -113,6 +113,8 @@ const api = {
       ipcRenderer.invoke('files:save', sessionId, bytes, fileName),
     openExternal: (path: string): Promise<void> =>
       ipcRenderer.invoke('files:open-external', path),
+    openFolder: (path: string, command?: string): Promise<void> =>
+      ipcRenderer.invoke('files:open-folder', path, command ?? ''),
     read: (path: string): Promise<string> => ipcRenderer.invoke('files:read', path)
   },
   sessionAliases: {

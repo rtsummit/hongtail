@@ -428,6 +428,18 @@ function SettingsModal({ open, settings, onClose, onChange }: Props): React.JSX.
             </select>
           </label>
           <p className="settings-hint">{t('settings.defaultPermissionModeHint')}</p>
+          <label className="settings-row">
+            <span className="settings-label">{t('settings.folderOpenCommand')}</span>
+            <input
+              type="text"
+              value={settings.folderOpenCommand}
+              placeholder={t('settings.folderOpenCommandPlaceholder')}
+              onChange={(e) =>
+                onChange({ ...settings, folderOpenCommand: e.target.value })
+              }
+            />
+          </label>
+          <p className="settings-hint">{t('settings.folderOpenCommandHint')}</p>
           {web && (
             <>
               <hr className="settings-divider" />

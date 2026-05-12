@@ -14,6 +14,10 @@ export const ko: Record<string, string> = {
   'settings.defaultPermissionMode': '새 대화 시작 권한 모드',
   'settings.defaultPermissionModeHint':
     'claude --permission-mode 의 기본값. 도중 변경은 상단 mode 메뉴 / Shift+Tab.',
+  'settings.folderOpenCommand': '폴더 열기 명령',
+  'settings.folderOpenCommandPlaceholder': '비워두면 OS 기본 (탐색기)',
+  'settings.folderOpenCommandHint':
+    '워크스페이스 우클릭 → 폴더 열기 에서 실행. %1 자리에 폴더 경로가 자동으로 따옴표 처리되어 들어갑니다. 예: explorer %1 / "C:\\totalcmd\\TOTALCMD64.EXE" /O /T %1',
   'settings.language': '언어',
   'settings.language.auto': '자동 (브라우저 설정)',
   'settings.language.ko': '한국어',
@@ -131,6 +135,7 @@ export const ko: Record<string, string> = {
   'workspace.stopSession': '이 라이브 대화 중지',
   'workspace.newConversation': '새 대화',
   'workspace.newTerminal': '새 터미널',
+  'workspace.openFolder': '폴더 열기',
 
   // === Session row / title ===
   'session.deleteTitle': '대화 삭제',

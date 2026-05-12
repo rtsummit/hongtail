@@ -120,6 +120,8 @@ export const webApi: ExposedApi = {
     // 화면엔 안 보임) — reject 해서 호출자가 read 모달 fallback 으로 가도록.
     openExternal: () =>
       Promise.reject(new Error('openExternal not supported in web')),
+    openFolder: () =>
+      Promise.reject(new Error('openFolder not supported in web')),
     read: (path) => rpc('files:read', [path])
   },
   sessionAliases: {

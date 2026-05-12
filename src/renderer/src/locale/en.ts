@@ -13,6 +13,10 @@ export const en: Record<string, string> = {
   'settings.defaultPermissionMode': 'Default permission mode for new sessions',
   'settings.defaultPermissionModeHint':
     'Initial value of claude --permission-mode. Change mid-session via the mode menu / Shift+Tab.',
+  'settings.folderOpenCommand': 'Folder open command',
+  'settings.folderOpenCommandPlaceholder': 'Empty = OS default (file explorer)',
+  'settings.folderOpenCommandHint':
+    'Used by workspace right-click → Open folder. %1 is replaced with the quoted folder path. Examples: explorer %1 / "C:\\totalcmd\\TOTALCMD64.EXE" /O /T %1',
   'settings.language': 'Language',
   'settings.language.auto': 'Auto (browser locale)',
   'settings.language.ko': '한국어',
@@ -131,6 +135,7 @@ export const en: Record<string, string> = {
   'workspace.stopSession': 'Stop this live conversation',
   'workspace.newConversation': 'New conversation',
   'workspace.newTerminal': 'New terminal',
+  'workspace.openFolder': 'Open folder',
 
   // === Session row / title ===
   'session.deleteTitle': 'Delete conversation',
